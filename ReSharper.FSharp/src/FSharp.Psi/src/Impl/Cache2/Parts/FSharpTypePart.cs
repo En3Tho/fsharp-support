@@ -114,7 +114,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       if (AttributeClassNames.IsEmpty())
         return EmptyList<IAttributeInstance>.Instance;
 
-      if (!((GetDeclaration() as IFSharpTypeDeclaration)?.GetFSharpSymbol() is FSharpEntity entity))
+      if (!(GetDeclaration()?.GetFSharpSymbol() is FSharpEntity entity))
         return EmptyList<IAttributeInstance>.Instance;
 
       var psiModule = GetPsiModule();

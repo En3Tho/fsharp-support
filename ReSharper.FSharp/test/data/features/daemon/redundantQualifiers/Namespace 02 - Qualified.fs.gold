@@ -1,0 +1,8 @@
+﻿module Module
+
+open System.Collections.Generic
+
+|System.Collections.Generic.|(0)List()
+
+---------------------------------------------------------
+(0): ReSharper Dead Code: Qualifier is redundant

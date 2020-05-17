@@ -112,7 +112,7 @@ type FSharpQuickFixUtilComponent() =
             let nameToOpen =
                 toQualifiedList moduleToOpen
                 |> List.map (fun el ->
-                    let sourceName = el.GetSourceName()
+                    let sourceName = el.GetSourceName() // todo: module source names
                     namingService.MangleNameIfNecessary(sourceName))
                 |> String.concat "."
 
