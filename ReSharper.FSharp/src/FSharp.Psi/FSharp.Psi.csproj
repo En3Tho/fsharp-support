@@ -30,6 +30,12 @@
   <ItemGroup>
     <CsLex Include="src\Parsing\Lexing\fsharpLexer.lex" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="FSharp.Compiler.Service, Version=2020.1.0.0, Culture=neutral, PublicKeyToken=3099b8d9d20e74bf">
+      <HintPath>..\..\..\..\visualfsharp\artifacts\obj\fcs\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
+    </Reference>
+  </ItemGroup>
   
   <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
 </Project>

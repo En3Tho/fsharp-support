@@ -57,6 +57,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] ActivePatternCase = "ReSharper F# Active Pattern Case Identifier"
 
     let [<Literal>] Field = "ReSharper F# Field Identifier"
+    let [<Literal>] MutableField = "ReSharper F# Mutable Field Identifier"
     let [<Literal>] Property = "ReSharper F# Property Identifier"
     let [<Literal>] Event = "ReSharper F# Event Identifier"
 
@@ -295,6 +296,15 @@ type FSharpSettingsNamesProvider() =
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
+  
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.MutableField,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.MutableValue,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Members//Mutable Field",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
 
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Property,
@@ -323,6 +333,15 @@ type FSharpSettingsNamesProvider() =
       VSPriority = FSharpHighlightingAttributeIds.VsPriorityPlusOne,
       EffectType = EffectType.TEXT,
       FontStyle = FontStyle.Bold);
+  
+   RegisterHighlighter(
+      FSharpHighlightingAttributeIds.Parameter,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Values//Parameter",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT);
   
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Function,

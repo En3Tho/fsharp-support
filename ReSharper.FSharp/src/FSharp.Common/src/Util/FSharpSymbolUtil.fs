@@ -25,6 +25,9 @@ let isValCompiledAsMethod (mfv: FSharpMemberOrFunctionOrValue) =
         Logger.LogExceptionSilently(e)
         false
 
+[<Extension; CompiledName("IsLiteral")>]
+let isLiteral (mfv: FSharpMemberOrFunctionOrValue) =
+    mfv.LiteralValue.IsSome
 
 [<CompiledName("GetReturnType")>]
 let getReturnType (symbol: FSharpSymbol) =
