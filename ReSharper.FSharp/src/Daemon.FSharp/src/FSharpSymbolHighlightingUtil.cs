@@ -42,8 +42,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
       if (entity.IsValueType || entity.HasMeasureParameter())
         return FSharpHighlightingAttributeIdsModule.Struct;
 
-      if (entity.IsFSharpAbbreviation && entity.AbbreviatedType.IsFunctionType)
-        return FSharpHighlightingAttributeIdsModule.Delegate;
+      if (entity.IsFSharpAbbreviation)
+      {
+        var abbr = entity.AbbreviatedType;
+        if (abbr.IsStructTupleType)
+          return FSharpHighlightingAttributeIdsModule.Struct;
+        if (abbr.IsTupleType)
+          return FSharpHighlightingAttributeIdsModule.Class;
+        if (abbr.IsFunctionType)
+          return FSharpHighlightingAttributeIdsModule.Delegate;
+      }
       
       return FSharpHighlightingAttributeIdsModule.Class;
     }
@@ -70,7 +78,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
             ? FSharpHighlightingAttributeIdsModule.ExtensionMethod
             : FSharpHighlightingAttributeIdsModule.Method;
 
-      if (mfv.LiteralValue != null)
+      if (mfv.IsLiteral())
         return FSharpHighlightingAttributeIdsModule.Literal;
 
       if (mfv.IsActivePattern)
@@ -78,6 +86,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
 
       if (IsMangledOpName(mfv.LogicalName))
         return FSharpHighlightingAttributeIdsModule.Operator;
+
+      // if (mfv.IsFunctionParameter)
+      //   return FSharpHighlightingAttributeIdsModule.Parameter;
 
       var fsType = mfv.FullType;
       if (fsType.IsFunctionType || mfv.IsTypeFunction || fsType.IsAbbreviation && fsType.AbbreviatedType.IsFunctionType)
@@ -91,6 +102,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
       if (fsType.HasTypeDefinition && fsType.TypeDefinition is var mfvTypeEntity && mfvTypeEntity.IsByRef)
         return FSharpHighlightingAttributeIdsModule.MutableValue;
 
+      if (mfv.IsFunctionParameter)
+        return FSharpHighlightingAttributeIdsModule.Parameter;
+      
       return FSharpHighlightingAttributeIdsModule.Value;
     }
 
@@ -108,7 +122,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
         case FSharpField field:
           return field.IsLiteral
             ? FSharpHighlightingAttributeIdsModule.Literal
-            : FSharpHighlightingAttributeIdsModule.Field;
+            : field.IsMutable
+              ? FSharpHighlightingAttributeIdsModule.MutableField
+              : FSharpHighlightingAttributeIdsModule.Field;
 
         case FSharpUnionCase _:
           return FSharpHighlightingAttributeIdsModule.UnionCase;
