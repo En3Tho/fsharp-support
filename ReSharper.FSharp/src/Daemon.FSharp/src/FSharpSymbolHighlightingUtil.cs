@@ -87,9 +87,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
       if (IsMangledOpName(mfv.LogicalName))
         return FSharpHighlightingAttributeIdsModule.Operator;
 
-      // if (mfv.IsFunctionParameter)
-      //   return FSharpHighlightingAttributeIdsModule.Parameter;
-
       var fsType = mfv.FullType;
       if (fsType.IsFunctionType || mfv.IsTypeFunction || fsType.IsAbbreviation && fsType.AbbreviatedType.IsFunctionType)
         return mfv.IsMutable
@@ -102,10 +99,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Daemon.Cs
       if (fsType.HasTypeDefinition && fsType.TypeDefinition is var mfvTypeEntity && mfvTypeEntity.IsByRef)
         return FSharpHighlightingAttributeIdsModule.MutableValue;
 
-      if (mfv.IsFunctionParameter)
+      if (mfv.IsTopLevelParameter)
         return FSharpHighlightingAttributeIdsModule.Parameter;
-      
-      return FSharpHighlightingAttributeIdsModule.Value;
+
+      return mfv.IsNestedScopeParameter
+        ? FSharpHighlightingAttributeIdsModule.NestedScopeParameter
+        : FSharpHighlightingAttributeIdsModule.Value;
     }
 
     [NotNull]
