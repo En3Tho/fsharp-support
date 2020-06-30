@@ -51,6 +51,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] MutableFunction = "ReSharper F# Mutable Function Identifier"
     
     let [<Literal>] Parameter = "ReSharper F# Parameter Identifier" // todo: add setting
+    let [<Literal>] NestedScopeParameter = "ReSharper F# Nested Scope Parameter Identifier" // todo: add setting
     let [<Literal>] Literal = "ReSharper F# Literal Identifier"
 
     let [<Literal>] Operator = "ReSharper F# Operator Identifier"
@@ -334,11 +335,20 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT,
       FontStyle = FontStyle.Bold);
   
-   RegisterHighlighter(
-      FSharpHighlightingAttributeIds.Parameter,
-      FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
+  RegisterHighlighter(
+     FSharpHighlightingAttributeIds.Parameter,
+     FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
+     GroupId = FSharpHighlightingAttributeIds.GroupId,
+     RiderPresentableName = "Values//Parameter",
+     Layer = HighlighterLayer.SYNTAX,
+     VSPriority = VSPriority.IDENTIFIERS,
+     EffectType = EffectType.TEXT);
+  
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.NestedScopeParameter,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Parameter,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Values//Parameter",
+      RiderPresentableName = "Values//Nested scope parameter",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
