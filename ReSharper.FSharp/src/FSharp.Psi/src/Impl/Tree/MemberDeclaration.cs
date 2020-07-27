@@ -21,9 +21,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
         ? FSharpFile.GetSymbolUse(identifierRange.StartOffset.Offset)
         : base.GetSymbolDeclaration(identifierRange);
 
-    protected override IDeclaredElement CreateDeclaredElement()
+    protected override IDeclaredElement CreateDeclaredElement() =>
+      GetFSharpSymbol() is { } fcsSymbol
+        ? CreateDeclaredElement(fcsSymbol)
+        : null;
+
+    protected override IDeclaredElement CreateDeclaredElement(FSharpSymbol fcsSymbol)
     {
-      if (!(GetFSharpSymbol() is FSharpMemberOrFunctionOrValue mfv)) return null;
+      if (!(fcsSymbol is FSharpMemberOrFunctionOrValue mfv)) return null;
 
       if (mfv.IsProperty)
         return new FSharpProperty<MemberDeclaration>(this, mfv);
@@ -56,7 +61,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     public bool IsExplicitImplementation =>
       InterfaceImplementationNavigator.GetByTypeMember(this) != null ||
-      ObjExprNavigator.GetByMemberDeclaration(this) != null;
+      ObjExprNavigator.GetByMemberDeclaration(this) is { } objExpr && objExpr.ArgExpression == null ||
+      ObjExprNavigator.GetByInterfaceMember(this) != null;
 
     public override bool IsStatic => StaticKeyword != null;
 

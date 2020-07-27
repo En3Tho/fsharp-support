@@ -182,6 +182,7 @@
     <Range>attr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <Message value="Extension member in non-extension type looks suspicious"/>
+    <QuickFix>AddExtensionAttributeFix</QuickFix>
   </Warning>
 
   <Warning staticGroup="FSharpErrors" name="ExtensionTypeWithNoExtensionMembers">
@@ -294,6 +295,7 @@
     <Parameter type="IParenExpr" name="parenExpr"/>
     <Behavour attributeID="DEADCODE" overlapResolvePolicy="DEADCODE"/>
     <Message value="Redundant parentheses"/>
+    <QuickFix>RemoveRedundantParenExprFix</QuickFix>
   </Warning>
 
   <Error staticGroup="FSharpErrors" name="FieldOrValueNotMutable">

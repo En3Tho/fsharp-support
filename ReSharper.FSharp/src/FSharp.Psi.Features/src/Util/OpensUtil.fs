@@ -60,6 +60,21 @@ let tryGetFirstOpensGroup (moduleDecl: IModuleLikeDeclaration) =
 
     if opens.IsEmpty then None else Some opens
 
+let tryGetOpen (moduleDecl: IModuleLikeDeclaration) namespaceName =
+    moduleDecl.MembersEnumerable
+    |> Seq.filter (fun m -> m :? IOpenStatement)
+    |> Seq.cast<IOpenStatement>
+    |> Seq.tryFind (fun x -> x.ReferenceName.QualifiedName = namespaceName)
+
+let removeOpen (openStatement: IOpenStatement) =
+    let first = getFirstMatchingNodeBefore isInlineSpaceOrComment openStatement
+    let last =
+        openStatement
+        |> skipSemicolonsAndWhiteSpacesAfter
+        |> getThisOrNextNewLine
+
+    deleteChildRange first last
+
 let isSystemNs ns =
     ns = "System" || startsWith "System." ns
 
@@ -81,7 +96,7 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
         addNodesBefore moduleMember [
             // todo: add setting for adding space before first module member
             // Add space before new opens group.
-            if not (moduleMember :? IOpenStatement) && (not (isAfterEmptyLine moduleMember)) then
+            if not (moduleMember :? IOpenStatement) && not (isFirstChildOrAfterEmptyLine moduleMember) then
                 NewLine(lineEnding)
 
             if indent > 0 then

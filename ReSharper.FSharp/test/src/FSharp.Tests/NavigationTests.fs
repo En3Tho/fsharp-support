@@ -39,6 +39,9 @@ type FSharpGoToUsagesTest() =
 
     [<Test>] member x.``Wild pat 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Operator 01 - Pipe``() = x.DoNamedTest()
+    [<Test; Explicit("Not implemented")>] member x.``Operator 02 - =``() = x.DoNamedTest()
+
 
 type FSharpGoToInheritorsTest() =
     inherit FSharpContextSearchTestBase("inheritors")
@@ -55,6 +58,9 @@ type FSharpGoToInheritorsTest() =
     [<Test>] member x.``Interface 02 - Member``() = x.DoNamedTest()
     [<Test>] member x.``Interface 03 - Internal type impl``() = x.DoNamedTest()
     [<Test>] member x.``Interface 04 - Overloads``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 05 - Inherit``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 06 - Implement multiple``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 07 - Implement multiple``() = x.DoNamedTest()
 
     [<Test>] member x.``Object expr - Interface 01``() = x.DoNamedTest()
     [<Test>] member x.``Object expr - Interface 02 - Dispose``() = x.DoNamedTest()
@@ -75,6 +81,10 @@ type FSharpGoToBaseTest() =
     [<Test>] member x.``Exception 01``() = x.DoNamedTest()
     [<Test>] member x.``Enum 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Interface 01``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 02 - Inherit``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 03 - Implement multiple``() = x.DoNamedTest()
+
     [<Test>] member x.``Object expr - Interface 01``() = x.DoNamedTest()
     [<Test>] member x.``Object expr - Interface 02 - Dispose``() = x.DoNamedTest()
     [<Test>] member x.``Object expr - Override 01 - ToString``() = x.DoNamedTest()
@@ -93,6 +103,9 @@ type FSharpGoToDeclarationTest() =
 
     [<Test>] member x.``Own member vs interface``() = x.DoNamedTest()
     [<Test>] member x.``Ctor 01 - Modifier``() = x.DoNamedTest()
+
+    [<Test>] member x.``Signature 01``() = x.DoTestSolution("Signature 01.fsi", "Signature 01.fs")
+    [<Test>] member x.``Signature 02 - Same range``() = x.DoTestSolution("Signature 02 - Same range.fsi", "Signature 02 - Same range.fs")
 
     [<TestReferences("Library1.dll", "Library2.dll")>]
     [<Test>] member x.``Same type from different assemblies``() = x.DoNamedTest()
