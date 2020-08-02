@@ -84,7 +84,7 @@
     <Compile Include="src\Search\RecordCtorSearch.fs" />
     <Compile Include="src\ExtendSelection\FSharpExtendSelectionProvider.fs" />
     <Compile Include="src\Formatter\FSharpReformatCode.fs" />
-    <Compile Include="src\Fsi\FsiTools.fs" />
+    <Compile Include="src\Fsi\FsiSandboxUtil.fs" />
     <Compile Include="src\Fsi\FsiOptions.fs" />
     <Compile Include="src\Fsi\FsiDetector.fs" />
     <Compile Include="src\Fsi\FsiHost.fs" />
@@ -152,6 +152,7 @@
     <Compile Include="src\QuickFixes\ToAbstractFix.fs" />
     <Compile Include="src\QuickFixes\RemoveYieldFix.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantQualifierFix.fs" />
+    <Compile Include="src\QuickFixes\AddParensToApplicationFix.fs" />
     <Compile Include="src\QuickFixes\AddExtensionAttributeFix.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantParenExprFix.fs" />
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
