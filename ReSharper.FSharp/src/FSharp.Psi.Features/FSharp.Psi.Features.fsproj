@@ -17,6 +17,8 @@
     <Compile Include="src\Util\FSharpMethodInvocationUtil.fs" />
     <Compile Include="src\Util\FSharpVisualElementFactory.fs" />
     <Compile Include="src\Util\FSharpResolveUtil.fs" />
+    <Compile Include="src\Util\FcsTypesUtil.fs" />
+    <Compile Include="src\Util\FSharpModulesUtil.fs" />
     <Compile Include="src\CodeCompletion\CompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
@@ -111,6 +113,7 @@
     <Compile Include="src\Intentions\IfToElifAction.fs" />
     <Compile Include="src\Intentions\NegateConditionActions.fs" />
     <Compile Include="src\Intentions\ToMutableAction.fs" />
+    <Compile Include="src\Intentions\FunctionAnnotationAction.fs" />
     <Compile Include="src\Intentions\ToLiteralAction.fs" />
     <Compile Include="src\Intentions\SetNameAction.fs" />
     <Compile Include="src\Intentions\LetToUseAction.fs" />
@@ -155,6 +158,7 @@
     <Compile Include="src\QuickFixes\AddParensToApplicationFix.fs" />
     <Compile Include="src\QuickFixes\AddExtensionAttributeFix.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantParenExprFix.fs" />
+    <Compile Include="src\QuickFixes\NamespaceToModuleFix.fs" />
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
     <Compile Include="src\PostfixTemplates\NotTemplate.fs" />
     <Compile Include="src\PostfixTemplates\LetPostfixTemplate.fs" />
@@ -182,9 +186,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Daemon.FSharp\Daemon.FSharp.csproj" />
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
-    <ProjectReference Include="..\Services.FSharp\Services.FSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

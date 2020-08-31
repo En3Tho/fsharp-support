@@ -85,7 +85,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
 
             for binding in bindings do
                 x.ProcessTopLevelBinding(binding, range)
-            x.Done(range, letMark, ElementType.LET_MODULE_DECL)
+            x.Done(range, letMark, ElementType.LET_BINDINGS_DECLARATION)
 
         | SynModuleDecl.HashDirective(hashDirective, _) ->
             x.ProcessHashDirective(hashDirective)
@@ -102,17 +102,17 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
 
             let expr = x.RemoveDoExpr(expr)
             x.MarkChameleonExpression(expr)
-            x.Done(range, mark, ElementType.DO)
+            x.Done(range, mark, ElementType.DO_STATEMENT)
 
         | SynModuleDecl.Attributes(attributeLists, range) ->
             let mark = x.Mark(range)
             x.ProcessAttributeLists(attributeLists)
-            unfinishedDeclaration <- Some(mark, range, ElementType.DO)
+            unfinishedDeclaration <- Some(mark, range, ElementType.DO_STATEMENT)
 
         | SynModuleDecl.ModuleAbbrev(_, lid, range) ->
             let mark = x.Mark(range)
             x.ProcessNamedTypeReference(lid)
-            x.Done(range, mark, ElementType.MODULE_ABBREVIATION)
+            x.Done(range, mark, ElementType.MODULE_ABBREVIATION_DECLARATION)
 
         | decl ->
             failwithf "unexpected decl: %O" decl
@@ -225,12 +225,12 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                 x.AdvanceToTokenOrRangeStart(FSharpTokenType.DO, range)
                 let expr = x.RemoveDoExpr(expr)
                 x.MarkChameleonExpression(expr)
-                ElementType.DO
+                ElementType.DO_STATEMENT
 
             | SynMemberDefn.LetBindings(bindings, _, _, range) ->
                 for binding in bindings do
                     x.ProcessTopLevelBinding(binding, range)
-                ElementType.LET_MODULE_DECL
+                ElementType.LET_BINDINGS_DECLARATION
 
             | SynMemberDefn.AbstractSlot(ValSpfn(_, _, typeParams, synType, _, _, _, _, _, _, _), _, range) ->
                 match typeParams with
@@ -239,11 +239,11 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                     for typeConstraint in constraints do
                         x.ProcessTypeConstraint(typeConstraint)
                 x.ProcessType(synType)
-                ElementType.ABSTRACT_SLOT
+                ElementType.ABSTRACT_MEMBER_DECLARATION
 
             | SynMemberDefn.ValField(Field(_, _, _, synType, _, _, _, _), _) ->
                 x.ProcessType(synType)
-                ElementType.VAL_FIELD
+                ElementType.VAL_FIELD_DECLARATION
 
             | SynMemberDefn.AutoProperty(_, _, _, synTypeOpt, _, _, _, _, expr, accessorClause, _) ->
                 match synTypeOpt with
@@ -253,7 +253,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                 match accessorClause with
                 | Some clause -> x.MarkAndDone(clause, ElementType.ACCESSORS_NAMES_CLAUSE)
                 | _ -> ()
-                ElementType.AUTO_PROPERTY
+                ElementType.AUTO_PROPERTY_DECLARATION
 
             | _ -> ElementType.OTHER_TYPE_MEMBER
 
@@ -391,7 +391,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                         for _, pat in pats do
                             x.ProcessPat(pat, isLocal, false)
 
-                    ElementType.CONS_PAT
+                    ElementType.LIST_CONS_PAT
 
                 | _ ->
 
@@ -442,6 +442,9 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                 x.ProcessListLikePat(pats, isLocal)
                 ElementType.LIST_PAT
 
+            | SynPat.Paren(SynPat.Const(SynConst.Unit, _), _) ->
+                ElementType.UNIT_PAT
+
             | SynPat.Paren(pat, _) ->
                 x.ProcessPat(pat, isLocal, false)
                 ElementType.PAREN_PAT
@@ -479,7 +482,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                 ElementType.ATTRIB_PAT
 
             | SynPat.Const _ ->
-                ElementType.CONST_PAT
+                ElementType.LITERAL_PAT
 
             | SynPat.OptionalVal(id, _) ->
                 let mark = x.Mark(id.idRange)
@@ -522,7 +525,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
 
         let mark = x.Mark(range)
         x.ProcessPat(pat, isLocal, false)
-        x.Done(range, mark, ElementType.MEMBER_PARAMS_DECLARATION)
+        x.Done(range, mark, ElementType.PARAMETERS_PATTERN_DECLARATION)
 
     member x.MarkOtherType(TypeRange range as typ) =
         let mark = x.Mark(range)
@@ -736,7 +739,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
         | SynExpr.CompExpr(_, _, expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.COMPUTATION_EXPR)
 
-        | SynExpr.Lambda(_, inLambdaSeq, _, bodyExpr, _) ->
+        | SynExpr.Lambda(_, inLambdaSeq, args, bodyExpr, _) ->
             // Lambdas get "desugared" by converting to fake nested lambdas and match expressions.
             // Simple patterns like ids are preserved in lambdas and more complex ones are replaced
             // with generated placeholder patterns and go to generated match expressions inside lambda bodies.
@@ -748,7 +751,9 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
             x.PushRange(range, ElementType.LAMBDA_EXPR)
 
             let skippedLambdas = skipGeneratedLambdas bodyExpr
+            let parametersMark = x.Mark(args.Range)
             x.ProcessLambdaParameters(expr, skippedLambdas, true)
+            x.Done(parametersMark, ElementType.LAMBDA_PARAMETERS_LIST)
             x.ProcessExpression(skipGeneratedMatch skippedLambdas)
 
         | SynExpr.MatchLambda(_, _, clauses, _, _) ->
@@ -1043,10 +1048,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
         | SynSimplePats.SimplePats(pats, range) ->
             match pats with
             | [] ->
-                let parenMark = x.Mark(range)
-                let constMark = x.Mark(range)
-                x.Done(range, constMark, ElementType.CONST_PAT)
-                x.Done(parenMark, ElementType.PAREN_PAT)
+                x.MarkAndDone(range, ElementType.UNIT_PAT)
                 x.ProcessLambdaParameters(lambdaBody, outerBodyExpr, false)
 
             | [pat] ->

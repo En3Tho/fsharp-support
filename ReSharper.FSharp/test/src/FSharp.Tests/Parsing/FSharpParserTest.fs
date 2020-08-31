@@ -139,6 +139,7 @@ type FSharpParserTest() =
     [<Test>] member x.``Expr - Lambda 21 - Nested types``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Lambda 22 - Attribute``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Lambda 23 - Attribute, Typed``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Expr - Lambda 24 - Unit in nested parens``() = x.DoNamedTest()
 
     [<Test>] member x.``Expr - Match 01 - Simple``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Match 02 - Simple pat``() = x.DoNamedTest()
@@ -336,11 +337,24 @@ type FSharpParserTest() =
     [<Test>] member x.``Type member - Member - Method - Parameters 02``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Method 01``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Method 02 - Static``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Method 03 - Wild param``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Method 04 - Curried``() = x.DoNamedTest()
 
     [<Test>] member x.``Type member - Member - Operator 01 - Add``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Operator 02 - Multiply``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Operator 03 - Subtract``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Operator 04 - Divide``() = x.DoNamedTest()
+
+    [<Test>] member x.``Type member - Auto Property 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Auto Property 02``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Auto Property 03``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Auto Property 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Type member - Member - Property - Accessors 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 02``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 03``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property 02 - Static``() = x.DoNamedTest()
 
     [<Test>] member x.``Module member - Open 01``() = x.DoNamedTest()
     [<Test>] member x.``Module member - Open 02 - Qualifier``() = x.DoNamedTest()
@@ -368,6 +382,9 @@ type FSharpSignatureParserTest() =
     override x.RelativeTestDataPath = "parsing/signatures"
 
     [<Test>] member x.``Val - Value 01``() = x.DoNamedTest()
+    [<Test>] member x.``Val - Value 02 - Return attrs``() = x.DoNamedTest()
+    [<Test>] member x.``Val - Value 03 - Type func``() = x.DoNamedTest()
+    [<Test>] member x.``Val - Value 04 - Literal``() = x.DoNamedTest()
 
     [<Test>] member x.``Val - Function 01``() = x.DoNamedTest()
     [<Test>] member x.``Val - Function 02 - Named param``() = x.DoNamedTest()
