@@ -145,6 +145,7 @@ letBindingsDeclaration options { stubBase="DummyDeclaration"; } extras {
   get { methodName="Attributes" path=<letBindingsDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
+  STATIC<STATIC, StaticKeyword>?
   letOrUse{LET, BindingKeyword}
   INLINE<INLINE, InlineKeyword>?
   REC<REC, RecKeyword>?
@@ -316,9 +317,9 @@ tuplePat options { stubBase="FSharpPatternBase"; }:
   LIST fSharpPattern<ATTRIBUTE, Patterns> SEP COMMA<FSHARP_COMMA, Commas>;
 
 parenPat options { stubBase="FSharpPatternBase"; }:
-  LPAREN
+  LPAREN<LPAREN, LeftParen>
   fSharpPattern<PATTERN, Pattern>
-  RPAREN;
+  RPAREN<RPAREN, RightParen>;
 
 recordPat options { stubBase="FSharpPatternBase"; }:
   LBRACE

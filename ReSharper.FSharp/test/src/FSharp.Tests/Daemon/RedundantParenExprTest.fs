@@ -6,13 +6,13 @@ open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
 [<TestPackages("FSharp.Core")>]
-type RedundantParensTest() =
+type RedundantParenExprTest() =
     inherit FSharpHighlightingTestBase()
 
-    override x.RelativeTestDataPath = "features/daemon/redundantParens"
+    override x.RelativeTestDataPath = "features/daemon/redundantParens/expr"
 
     override x.DoTest(lifetime, project) =
-        use cookie = FSharpRegistryUtil.AllowExperimentalFeaturesCookie.Create()
+        use cookie = FSharpRegistryUtil.EnableRedundantParenAnalysisCookie.Create()
         base.DoTest(lifetime, project)
 
     override x.HighlightingPredicate(highlighting, _, _) =

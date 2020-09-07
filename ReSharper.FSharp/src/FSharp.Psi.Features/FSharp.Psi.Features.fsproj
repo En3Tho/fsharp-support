@@ -29,13 +29,22 @@
     <Compile Include="src\Daemon\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\Daemon\Highlightings\FSharpErrorUtil.fs" />
     <Compile Include="src\Daemon\Highlightings\ErrorHighlightings.fs" />
-    <Compile Include="src\Daemon\Highlightings\CommonErrors.Generated.fs">
-      <DependentUpon>CommonErrors.xml</DependentUpon>
+    <Compile Include="src\Daemon\Highlightings\Errors.Generated.fs">
+      <DependentUpon>Errors.xml</DependentUpon>
     </Compile>
-    <ErrorsGen Include="src\Daemon\Highlightings\CommonErrors.xml">
+    <ErrorsGen Include="src\Daemon\Highlightings\Errors.xml">
       <Mode>ERRORS</Mode>
-      <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.CommonErrors</Namespace>
-      <OutputFile>src\Daemon\Highlightings\CommonErrors.Generated.fs</OutputFile>
+      <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.Errors</Namespace>
+      <OutputFile>src\Daemon\Highlightings\Errors.Generated.fs</OutputFile>
+      <SubType>Designer</SubType>
+    </ErrorsGen>
+    <Compile Include="src\Daemon\Highlightings\FcsErrors.Generated.fs">
+      <DependentUpon>FcsErrors.xml</DependentUpon>
+    </Compile>
+    <ErrorsGen Include="src\Daemon\Highlightings\FcsErrors.xml">
+      <Mode>ERRORS</Mode>
+      <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.FcsErrors</Namespace>
+      <OutputFile>src\Daemon\Highlightings\FcsErrors.Generated.fs</OutputFile>
       <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\Daemon\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
@@ -61,12 +70,14 @@
     <Compile Include="src\Daemon\Analyzers\RedundantBackticksAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\RedundantNew.fs" />
     <Compile Include="src\Daemon\Analyzers\LetDisposableAnalyzer.fs" />
-    <Compile Include="src\Daemon\Analyzers\RedundantParenAnalyzer.fs" />
+    <Compile Include="src\Daemon\Analyzers\RedundantParenExprAnalyzer.fs" />
+    <Compile Include="src\Daemon\Analyzers\RedundantParenPatAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\InactivePreprocessorBranchAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\RedundantAttributeParensAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\RedundantAttributeSuffixAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\ColorReferenceAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\RedundantQualifierAnalyzer.fs" />
+    <Compile Include="src\Daemon\Analyzers\RedundantUnionCaseFieldPatsAnalyzer.fs" />
     <Compile Include="src\Comment\FSharpBlockCommentActionProvider.fs" />
     <Compile Include="src\Comment\FSharpLineCommentActionProvider.fs" />
     <Compile Include="src\Debugger\FSharpBreakpointVariantsProvider.fs" />
@@ -117,10 +128,16 @@
     <Compile Include="src\Intentions\ToLiteralAction.fs" />
     <Compile Include="src\Intentions\SetNameAction.fs" />
     <Compile Include="src\Intentions\LetToUseAction.fs" />
-    <ErrorsGen Include="src\Daemon\Highlightings\CommonErrors.xml">
+    <ErrorsGen Include="src\Daemon\Highlightings\Errors.xml">
       <Mode>QUICKFIX</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>
       <OutputFile>src\QuickFixes\CommonQuickFixes.Generated.fs</OutputFile>
+      <SubType>Designer</SubType>
+    </ErrorsGen>
+    <ErrorsGen Include="src\Daemon\Highlightings\FcsErrors.xml">
+      <Mode>QUICKFIX</Mode>
+      <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>
+      <OutputFile>src\QuickFixes\FcsErrorsQuickFixes.Generated.fs</OutputFile>
       <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\QuickFixes\FSharpQuickFixBase.fs" />
