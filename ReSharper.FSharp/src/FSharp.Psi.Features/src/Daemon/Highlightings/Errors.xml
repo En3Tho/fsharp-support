@@ -4,6 +4,7 @@
     JetBrains.ReSharper.Intentions.QuickFixes;
     JetBrains.ReSharper.Plugins.FSharp.Psi;
     JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings;
+    JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util;
     JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree;
     JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
     JetBrains.ReSharper.Plugins.FSharp.Psi.Impl;
@@ -78,7 +79,7 @@
     <Parameter type="IParenPat" name="parenPat"/>
     <Behavour attributeID="DEADCODE" overlapResolvePolicy="DEADCODE"/>
     <Message value="Redundant parentheses"/>
-    <QuickFix>ReplaceWithWildPatFix</QuickFix>
+    <QuickFix>ReplaceWithWildPatScopedFix</QuickFix>
   </Warning>
 
   <Warning staticGroup="FSharpErrors" name="RedundantAttributeParens">
@@ -110,7 +111,7 @@
     <Range>parenPat.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <Message value="Redundant union case fields matching"/>
-    <QuickFix>ReplaceWithWildPatFix</QuickFix>
+    <QuickFix>ReplaceWithWildPatScopedFix</QuickFix>
   </Warning>
 
   <Warning staticGroup="FSharpErrors" name="ConsWithEmptyListPat">
@@ -120,5 +121,32 @@
     <Message value="Pattern can be simplified"/>
     <QuickFix>SimplifyListConsPatFix</QuickFix>
   </Warning>
-  
+
+  <Warning staticGroup="FSharpErrors" name="RedundantApplication">
+    <Parameter type="IAppExpr" name="appExpr"/>
+    <Parameter type="IFSharpExpression" name="argExpr"/>
+    <Range>getFunctionApplicationRange appExpr</Range>
+    <Behavour attributeID="DEADCODE" overlapResolvePolicy="DEADCODE"/>
+    <Message value="Redundant application"/>
+    <QuickFix>ReplaceAppExprWithArgFix</QuickFix>
+  </Warning>
+
+  <Warning staticGroup="FSharpErrors" name="LambdaCanBeSimplified">
+    <Parameter type="ILambdaExpr" name="lambdaExpr"/>
+    <Parameter type="IFSharpExpression" name="replaceCandidate"/>
+    <Range>lambdaExpr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <Message value="Lambda can be simplified"/>
+  </Warning>
+
+  <Warning staticGroup="FSharpErrors" name="LambdaCanBeReplaced">
+    <Parameter type="ILambdaExpr" name="lambdaExpr"/>
+    <Parameter type="IFSharpExpression" name="replaceCandidate"/>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <Range>lambdaExpr.GetHighlightingRange()</Range>
+    <Message value="{0}">
+      <Argument>getLambdaCanBeReplacedWarningText replaceCandidate</Argument>
+    </Message>
+  </Warning>
+
 </Errors>

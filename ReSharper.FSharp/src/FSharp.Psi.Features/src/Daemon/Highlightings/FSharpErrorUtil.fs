@@ -4,9 +4,11 @@ module JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings.FSha
 open JetBrains.DocumentModel
 open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.Psi
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util
+open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.Tree
 
 let getTreeNodesDocumentRange (startNode: ITreeNode) (endNode: ITreeNode) =
@@ -66,3 +68,35 @@ let getQualifierRange (element: ITreeNode) =
         getTreeNodesDocumentRange typeExtension.QualifierReferenceName typeExtension.Delimiter
 
     | _ -> DocumentRange.InvalidRange
+
+/// Assuming `|>` or `<|` were resolved beforehand. 
+let getFunctionApplicationRange (appExpr: IAppExpr) =
+    match appExpr, appExpr.FunctionExpression with
+    | :? IPrefixAppExpr, funExpr -> funExpr.GetHighlightingRange()
+    | :? IBinaryAppExpr as binaryApp, (:? IReferenceExpr as refExpr) ->
+        match refExpr.ShortName with
+        | "|>" -> getTreeNodesDocumentRange refExpr binaryApp.RightArgument
+        | "<|" -> getTreeNodesDocumentRange binaryApp.LeftArgument refExpr
+        | _ -> DocumentRange.InvalidRange
+    | _ -> DocumentRange.InvalidRange
+
+let getFunctionExpr (appExpr: IAppExpr) =
+    match appExpr, appExpr.FunctionExpression with
+    | :? IPrefixAppExpr, funExpr -> funExpr
+    | :? IBinaryAppExpr as binaryApp, (:? IReferenceExpr as refExpr) ->
+        match refExpr.ShortName with
+        | "|>" -> binaryApp.RightArgument
+        | "<|" -> binaryApp.LeftArgument
+        | _ -> null
+    | _ -> null
+
+let getReferenceExprName (expr: IFSharpExpression) =
+    match expr.IgnoreInnerParens() with
+    | :? IReferenceExpr as refExpr -> refExpr.ShortName
+    | _ -> SharedImplUtil.MISSING_DECLARATION_NAME
+
+let getLambdaCanBeReplacedWarningText (replaceCandidate: IFSharpExpression) =
+    match replaceCandidate with
+    | :? IReferenceExpr as x -> sprintf "Lambda can be replaced with '%s'" x.ShortName
+    | null -> "Lambda can be replaced with 'id'"
+    | _ -> "Lambda can be simplified"
