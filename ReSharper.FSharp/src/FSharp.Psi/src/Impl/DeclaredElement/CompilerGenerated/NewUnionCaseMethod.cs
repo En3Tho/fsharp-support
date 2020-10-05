@@ -1,12 +1,9 @@
 using System.Collections.Generic;
-using System.Linq;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Pointers;
 using JetBrains.ReSharper.Psi;
-using JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2;
 using JetBrains.ReSharper.Psi.Pointers;
-using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGenerated
 {
@@ -26,7 +23,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGe
     public override string ShortName => "New" + UnionCase.ShortName;
 
     public override IType ReturnType =>
-      GetContainingType() is ITypeElement typeElement
+      GetContainingType() is { } typeElement
         ? TypeFactory.CreateType(typeElement)
         : TypeFactory.CreateUnknownType(Module);
 
@@ -36,10 +33,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGe
     {
       get
       {
-        if (!(UnionCase is TypeElement typeElement))
-          return EmptyList<IParameter>.Instance;
-
-        var fields = typeElement.EnumerateParts().OfType<UnionCasePart>().First().CaseFields;
+        var fields = UnionCase.CaseFields;
         var result = new IParameter[fields.Count];
         for (var i = 0; i < fields.Count; i++)
           result[i] = new FSharpGeneratedParameter(this, fields[i]);

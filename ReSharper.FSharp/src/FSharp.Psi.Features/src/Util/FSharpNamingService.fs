@@ -1,9 +1,8 @@
-namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Refactorings
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 
 open System
 open System.Collections.Generic
 open FSharp.Compiler.SourceCodeServices
-open JetBrains.Annotations
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
@@ -18,7 +17,6 @@ open JetBrains.ReSharper.Psi.Naming.Impl
 open JetBrains.ReSharper.Psi.Naming.Interfaces
 open JetBrains.ReSharper.Psi.Naming.Settings
 open JetBrains.Util
-open JetBrains.Util.dataStructures
 
 module Traverse =
     type TraverseStep =
@@ -310,40 +308,40 @@ type FSharpNamingService(language: FSharpLanguage) =
             base.GetNamedElementKind(element)
 
 module FSharpNamingService =
-    let getUsedNames
-            ([<NotNull>] contextExpr: IFSharpExpression) (usages: List<ITreeNode>) (containingTypeElement: ITypeElement)
-            : ISet<string> =
+    let getUsedNamesUsages
+            (contextExpr: IFSharpExpression) (usages: IList<ITreeNode>) (containingTypeElement: ITypeElement)
+            checkFcsSymbols =
 
         let usages = HashSet(usages)
-        let usedNames = HashSet()
+        let usedNames = OneToListMap<string, ITreeNode>()
 
-        // Not null when suggesting names for declaration in a module/class.
-        // Don't suggest already used names. 
+        let addUsedNames names =
+            for name in names do
+                usedNames.Add(name, null)
+
+        // Type element is not null when checking names for declaration in a module/class.
+        // Consider all member names used.
+        // todo: type private let binding allow shadowing 
         if isNotNull containingTypeElement then
-            usedNames.AddRange(containingTypeElement.MemberNames)
+            addUsedNames containingTypeElement.MemberNames
 
         let scopes = Stack()
-        let scopedNames = HashSet()
+        let scopedNames = Dictionary<string, int>()
 
-        let shouldAddToScope name =
-            not (usedNames.Contains(name) || scopedNames.Contains(name))
+        let addScopeForPatterns (patterns: IFSharpPattern seq) (scopeExpr: IFSharpExpression) =
+            if isNull scopeExpr || Seq.isEmpty patterns then () else 
 
-        let addScopeForPatterns (patterns: IFSharpPattern seq) (inExpr: IFSharpExpression) =
-            if isNull inExpr || Seq.isEmpty patterns then () else 
-
-            let newNames = FrugalLocalList()
+            let newNames = List()
             for fsPattern in patterns do
                 for decl in fsPattern.Declarations do
                     if isNull decl.DeclaredElement then () else
 
                     let name = decl.DeclaredName
-                    if name = SharedImplUtil.MISSING_DECLARATION_NAME then () else
-
-                    if shouldAddToScope name then
+                    if name <> SharedImplUtil.MISSING_DECLARATION_NAME then
                         newNames.Add(name)
 
-            if not newNames.IsEmpty then
-                scopes.Push({| Expr = inExpr; Names = newNames.ResultingList() |}) |> ignore
+            if not (newNames.IsEmpty()) then
+                scopes.Push({| Expr = scopeExpr; Names = newNames :> IList<_> |})
 
         let processor =
             { new IRecursiveElementProcessor with
@@ -353,20 +351,31 @@ module FSharpNamingService =
                     not (usages.Contains(treeNode))
 
                 member x.ProcessBeforeInterior(treeNode) =
+                    if not (scopes.IsEmpty()) then
+                        let scope = scopes.Peek()
+                        let fsExpr = treeNode.As<IFSharpExpression>()
+                        if scope.Expr == fsExpr then
+                            for name in scope.Names do
+                                scopedNames.[name] <-
+                                    let mutable count = Unchecked.defaultof<_>
+                                    if scopedNames.TryGetValue(name, &count) then count + 1 else 1
+
                     match treeNode with
                     | :? IReferenceExpr as refExpr ->
                         if usages.Contains(refExpr) then
-                            usedNames.AddRange(scopedNames)
+                            // Scoped names can't be used when their scope contains usage expressions
+                            // in Introduce Var since the introduced name would get shadowed.
+                            addUsedNames scopedNames.Keys
                             scopedNames.Clear() else
 
                         if isNotNull refExpr.Qualifier then () else
 
                         let name = refExpr.ShortName
                         if name = SharedImplUtil.MISSING_DECLARATION_NAME ||
-                                scopedNames.Contains(name) || usedNames.Contains(name) then () else
+                                scopedNames.ContainsKey(name) || usedNames.ContainsKey(name) then () else
 
-                        if refExpr.Reference.HasFcsSymbol then
-                            usedNames.Add(name) |> ignore
+                        if not checkFcsSymbols || refExpr.Reference.HasFcsSymbol then
+                            usedNames.Add(name, refExpr)
 
                     | :? ILetOrUseExpr as letExpr ->
                         let patterns = letExpr.BindingsEnumerable |> Seq.map (fun b -> b.HeadPattern)
@@ -387,11 +396,11 @@ module FSharpNamingService =
                             | :? IParametersOwnerPat as p ->
                                 let parameters = p.ParametersEnumerable
                                 if letExpr.IsRecursive then
-                                    Seq.append (Seq.singleton headPattern) parameters
+                                    Seq.append [| headPattern |] parameters
                                 else
                                     parameters :> _
 
-                            | fsPattern -> Seq.singleton fsPattern
+                            | fsPattern -> [| fsPattern |] :> _
 
                         addScopeForPatterns patterns bindingExpression
 
@@ -399,24 +408,17 @@ module FSharpNamingService =
                         addScopeForPatterns lambdaExpr.PatternsEnumerable lambdaExpr.Expression
 
                     | :? IMatchClause as matchClause ->
-                        addScopeForPatterns (Seq.singleton matchClause.Pattern) matchClause.Expression
+                        addScopeForPatterns [| matchClause.Pattern |] matchClause.Expression
 
                     | :? IForEachExpr as forEachExpr ->
-                        addScopeForPatterns (Seq.singleton forEachExpr.Pattern) forEachExpr.InExpression
+                        addScopeForPatterns [| forEachExpr.Pattern |] forEachExpr.DoExpression
 
                     | :? IForExpr as forExpr ->
                         if isNull forExpr.DoExpression then () else
 
                         let name = forExpr.Identifier.GetSourceName()
-                        if name = SharedImplUtil.MISSING_DECLARATION_NAME then () else
-
-                        if shouldAddToScope name then
-                            scopes.Push({| Expr = forExpr.DoExpression; Names = List(Seq.singleton name) |}) |> ignore
-
-                    | :? IFSharpExpression as fsExpr when not (scopes.IsEmpty()) ->
-                        let scope = scopes.Peek()
-                        if scope.Expr == fsExpr then
-                            scopedNames.AddRange(scope.Names)
+                        if name <> SharedImplUtil.MISSING_DECLARATION_NAME then
+                            scopes.Push({| Expr = forExpr.DoExpression; Names = [| name |] |})
 
                     | _ -> ()
 
@@ -426,7 +428,11 @@ module FSharpNamingService =
 
                     let scope = scopes.Peek()
                     if scope.Expr == fsExpr then
-                        scopedNames.RemoveRange(scope.Names)
+                        for name in scope.Names do 
+                            match scopedNames.[name] with
+                            | 1 -> scopedNames.Remove(name) |> ignore
+                            | count -> scopedNames.[name] <- count - 1
+
                         scopes.Pop() |> ignore
             }
 
@@ -434,10 +440,14 @@ module FSharpNamingService =
         | null -> contextExpr.ProcessThisAndDescendants(processor)
         | seqExpr ->
             seqExpr.ExpressionsEnumerable
-            |> Seq.skipWhile (fun expr -> expr != contextExpr)
+            |> Seq.skipWhile ((!=) contextExpr)
             |> Seq.iter (fun expr -> expr.ProcessThisAndDescendants(processor))
 
-        usedNames :> _
+        usedNames
+
+    let getUsedNames contextExpr usages containingTypeElement checkFcsSymbols: ISet<string> =
+        let usedNames = getUsedNamesUsages contextExpr usages containingTypeElement checkFcsSymbols
+        HashSet(usedNames.Keys) :> _
 
     let createEmptyNamesCollection (fsTreeNode: IFSharpTreeNode) =
         let sourceFile = fsTreeNode.GetSourceFile()

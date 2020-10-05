@@ -19,6 +19,7 @@ open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Files
 open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Psi.Tree
+open JetBrains.ReSharper.Psi.Util
 open JetBrains.TextControl
 open JetBrains.Util.Text
 
@@ -290,6 +291,9 @@ module PsiModificationUtil =
 
     let deleteChild child =
         ModificationUtil.DeleteChild(child)
+        
+    let replaceRangeWithNode first last replaceNode =
+        ModificationUtil.ReplaceChildRange(TreeRange(first, last), TreeRange(replaceNode)) |> ignore
 
     let addNodesAfter anchor (nodes: ITreeNode seq) =
         nodes |> Seq.fold (fun anchor treeNode ->
@@ -298,6 +302,9 @@ module PsiModificationUtil =
     let addNodesBefore anchor (nodes: ITreeNode list) =
         nodes |> List.rev |> List.fold (fun anchor treeNode ->
             ModificationUtil.AddChildBefore(anchor, treeNode)) anchor
+
+    let addNodeBefore anchor node = ModificationUtil.AddChildBefore(anchor, node) |> ignore
+    let addNodeAfter anchor node = ModificationUtil.AddChildAfter(anchor, node) |> ignore
 
     let moveToNewLine lineEnding (indent: int) (node: ITreeNode) =
         let prevSibling = node.PrevSibling
