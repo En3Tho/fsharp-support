@@ -188,7 +188,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       {
         if (preferType)
         {
-          if (!(m is FSharpNestedTypeUnionCase))
+          if (!(m is FSharpUnionCaseClass))
             return false;
         }
         else if (m is IFSharpGeneratedFromUnionCase)
@@ -263,7 +263,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       if (declarations.Count == 0)
         return GetTypeMember(mfv, typeElement);
 
-      var singleDeclaration = declarations.SingleOrDefault(decl =>
+      var singleDeclaration = declarations.SingleItem(decl =>
       {
         var range = decl.GetSourceFile().NotNull().Document.GetTreeTextRange(fcsRange);
         return range.Contains(decl.GetNameIdentifierRange());
@@ -327,7 +327,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 
       var typeElement = GetTypeElement(entity, psiModule);
       var patternName = pattern.Name?.Value;
-      if (typeElement == null || !(patternName is var name) || name == null)
+      if (typeElement == null || patternName == null)
         return null;
 
       if (typeElement.Module.ContainingProjectModule is IProject)
@@ -379,7 +379,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
     }
 
     [CanBeNull]
-    private static string GetXmlDocId([NotNull] FSharpMemberOrFunctionOrValue mfv)
+    public static string GetXmlDocId([NotNull] FSharpMemberOrFunctionOrValue mfv)
     {
       try
       {

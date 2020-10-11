@@ -44,9 +44,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     protected override byte SerializationTag =>
       (byte) FSharpPartKind.StructUnion;
 
-    public MemberPresenceFlag GetMembersPresenceFlag() =>
-      GetMemberPresenceFlag();
-
     public bool HasHiddenInstanceFields => false;
     public bool IsReadonly => false;
     public bool IsByRefLike => false;
@@ -90,7 +87,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
 
         var result = new LocalList<IUnionCase>();
         foreach (var memberDeclaration in unionDeclaration.UnionCases)
-          if (memberDeclaration.DeclaredElement is IUnionCase unionCase)
+          if (((ITypeMemberDeclaration) memberDeclaration).DeclaredElement is IUnionCase unionCase)
             result.Add(unionCase);
 
         return result.ResultingList();
@@ -117,10 +114,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       var fields = new FrugalLocalList<ITypeMember>();
 
       foreach (var caseDecl in declaration.UnionCasesEnumerable)
-        if (caseDecl is INestedTypeUnionCaseDeclaration d)
-          foreach (var fieldDeclaration in d.FieldsEnumerable)
-            if (fieldDeclaration.DeclaredElement is { } field)
-              fields.Add(field);
+        foreach (var fieldDeclaration in caseDecl.FieldsEnumerable)
+          if (fieldDeclaration.DeclaredElement is { } field)
+            fields.Add(field);
 
       return fields.ResultingList().Prepend(base.GetTypeMembers());
     }
