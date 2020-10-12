@@ -84,10 +84,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (mfv.IsActivePattern)
         return FSharpHighlightingAttributeIdsModule.ActivePatternCase;
 
-      if (IsMangledOpName(mfv.LogicalName))
-        return FSharpHighlightingAttributeIdsModule.Operator;
-
       var fsType = mfv.FullType;
+      
+      if (IsMangledOpName(mfv.LogicalName) && fsType.IsFunctionType)
+        return FSharpHighlightingAttributeIdsModule.Operator;
+      
       if (fsType.IsFunctionType || mfv.IsTypeFunction || fsType.IsAbbreviation && fsType.AbbreviatedType.IsFunctionType)
         return mfv.IsMutable
           ? FSharpHighlightingAttributeIdsModule.MutableFunction
