@@ -1,11 +1,15 @@
 module JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpAttributesUtil
 
+open System
+open JetBrains.Metadata.Reader.API
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util
+open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
+open JetBrains.Util.Extension
 
 let addAttribute (attributeList: IAttributeList) (attribute: IAttribute) =
     let attribute = ModificationUtil.AddChildAfter(attributeList.LBrack, attribute)
@@ -49,7 +53,7 @@ let addAttributesList (decl: IFSharpTreeNode) addNewLine =
             Whitespace()
     ] |> ignore
 
-let getTypeDeclarationAttributeList typeDecl =
+let getTypeDeclarationAttributeList (typeDecl: #IFSharpTypeOrExtensionDeclaration) =
     let typeDeclarationGroup = TypeDeclarationGroupNavigator.GetByTypeDeclaration(typeDecl)
     if typeDeclarationGroup.TypeDeclarations.[0] == typeDecl then
         let attributeLists = typeDeclarationGroup.AttributeLists
@@ -59,3 +63,19 @@ let getTypeDeclarationAttributeList typeDecl =
         let attributeLists = typeDecl.AttributeLists
         if not attributeLists.IsEmpty then attributeLists.[0] else
         addAttributesList typeDecl false; typeDecl.AttributeLists.[0]
+
+let resolvesToType (clrTypeName: IClrTypeName) (attr: IAttribute) =
+    let reference = attr.ReferenceName.Reference
+    if isNull reference then false else
+
+    // todo: we should also account type abbreviations in future
+    let referenceName = reference.GetName()
+    let shortName = clrTypeName.ShortName
+
+    if not (startsWith referenceName shortName) then false else
+    if referenceName.Length <> shortName.Length &&
+            referenceName <> shortName.SubstringBeforeLast("Attribute", StringComparison.Ordinal) then false else
+
+    let declaredElement = reference.Resolve().DeclaredElement
+    let typeElement = declaredElement.As<ITypeElement>()
+    isNotNull typeElement && typeElement.GetClrName() = clrTypeName

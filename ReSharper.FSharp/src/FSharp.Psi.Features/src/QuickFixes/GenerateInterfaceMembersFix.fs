@@ -27,7 +27,7 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
         |> Seq.filter (fun t -> t.HasTypeDefinition)
         |> Seq.map (fun t ->
             let fcsEntity = t.TypeDefinition
-            fcsEntity, Seq.zip fcsEntity.GenericParameters fcsType.GenericArguments |> Seq.toList)
+            fcsEntity, Seq.zip fcsEntity.GenericParameters t.GenericArguments |> Seq.toList)
 
     let mutable nextUnnamedVariableNumber = 0
     let getUnnamedVariableName () =
@@ -50,7 +50,13 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
         let spaceAfterComma = settingsStore.GetValue(fun (key: FSharpFormatSettingsKey) -> key.SpaceAfterComma)
 
         let interfaceType =
-            let typeDeclaration = ObjectTypeDeclarationNavigator.GetByTypeMember(impl)
+            let typeDeclaration =
+                match FSharpTypeDeclarationNavigator.GetByTypeMember(impl) with
+                | null ->
+                    let repr = ObjectModelTypeRepresentationNavigator.GetByTypeMember(impl)
+                    FSharpTypeDeclarationNavigator.GetByTypeRepresentation(repr)
+                | decl -> decl
+
             let fcsEntity = typeDeclaration.GetFSharpSymbol() :?> FSharpEntity
             fcsEntity.DeclaredInterfaces |> Seq.find (fun e ->
                 e.HasTypeDefinition && e.TypeDefinition.IsEffectivelySameAs(impl.FcsEntity))
