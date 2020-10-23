@@ -60,6 +60,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Field = "ReSharper F# Field Identifier"
     let [<Literal>] MutableField = "ReSharper F# Mutable Field Identifier"
     let [<Literal>] Property = "ReSharper F# Property Identifier"
+    let [<Literal>] MutableProperty = "ReSharper F# Mutable Property Identifier"
     let [<Literal>] Event = "ReSharper F# Event Identifier"
 
     let [<Literal>] Method = "ReSharper F# Method Identifier"
@@ -312,6 +313,15 @@ type FSharpSettingsNamesProvider() =
       FallbackAttributeId = DefaultLanguageAttributeIds.PROPERTY,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Members//Property",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
+  
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.MutableProperty,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Property,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Members//Mutable property",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
