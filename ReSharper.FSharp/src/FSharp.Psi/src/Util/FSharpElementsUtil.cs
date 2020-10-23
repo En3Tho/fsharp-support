@@ -220,7 +220,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       if (entity.IsProvided)
         return typeElement;
 
-      return typeElement is IFSharpTypeElement fsTypeElement
+      return typeElement is IFSharpTypeElement fsTypeElement && !mfv.IsConstructor
         ? GetFSharpSourceTypeMember(mfv, fsTypeElement)
         : GetTypeMember(mfv, typeElement);
     }
@@ -228,7 +228,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
     private static IDeclaredElement GetFSharpSourceTypeMember([NotNull] FSharpMemberOrFunctionOrValue mfv,
       [NotNull] IFSharpTypeElement fsTypeElement)
     {
-      var name = mfv.IsConstructor ? fsTypeElement.ShortName : mfv.GetMfvCompiledName();
+      var name = mfv.GetMfvCompiledName();
 
       var symbolTableCache = fsTypeElement.GetPsiServices().Caches.GetPsiCache<SymbolTableCache>();
       var symbolTable = symbolTableCache.TryGetCachedSymbolTable(fsTypeElement, SymbolTableMode.FULL);
@@ -296,12 +296,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       }
 
       var mfvXmlDocId = GetXmlDocId(mfv);
-      if (mfvXmlDocId == null)
+      if (mfvXmlDocId.IsEmpty())
         return null;
 
       return members.FirstOrDefault(member =>
         // todo: Fix signature for extension properties
-        member is IFSharpMember fsMember && fsMember.Mfv?.XmlDocSig == mfvXmlDocId ||
+        member is IFSharpMember fsMember && fsMember.Mfv?.GetXmlDocId() == mfvXmlDocId ||
         member.XMLDocId == mfvXmlDocId);
     }
 
@@ -378,20 +378,30 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       return patternId?.GetContainingNode<IFSharpDeclaration>();
     }
 
-    [CanBeNull]
-    public static string GetXmlDocId([NotNull] FSharpMemberOrFunctionOrValue mfv)
+    [NotNull]
+    public static string GetXmlDocId([NotNull] this FSharpMemberOrFunctionOrValue mfv)
     {
       try
       {
-        return mfv.XmlDocSig;
+        var xmlDocId = mfv.XmlDocSig;
+        if (xmlDocId.StartsWith("P", StringComparison.Ordinal) && mfv.IsCliEvent())
+          return "E" + xmlDocId.Substring(1);
+
+        return xmlDocId;
       }
       catch (Exception e)
       {
         Logger.LogMessage(LoggingLevel.WARN, "Could not get XmlDocId for {0}", mfv);
         Logger.LogExceptionSilently(e);
-        return null;
+        return "";
       }
     }
+
+    public static bool IsCliEvent(this FSharpMemberOrFunctionOrValue mfv) => 
+      mfv.IsProperty && mfv.Attributes.HasAttributeInstance(FSharpPredefinedType.CLIEventAttribute);
+
+    public static bool IsAccessor([NotNull] this FSharpMemberOrFunctionOrValue mfv) =>
+      mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod || mfv.IsEventAddMethod || mfv.IsEventRemoveMethod;
 
     private static T FindNode<T>(Range.range range, [CanBeNull] ITreeNode node) where T : class, ITreeNode
     {

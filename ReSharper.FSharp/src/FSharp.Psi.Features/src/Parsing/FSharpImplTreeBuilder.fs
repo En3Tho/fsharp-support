@@ -1,9 +1,9 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
 
 open System.Collections.Generic
-open FSharp.Compiler.SyntaxTree
 open FSharp.Compiler.PrettyNaming
 open FSharp.Compiler.Range
+open FSharp.Compiler.SyntaxTree
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
@@ -47,7 +47,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
 
         match moduleMember with
         | SynModuleDecl.NestedModule(ComponentInfo(attrs, _, _, lid, _, _, _, _), _ ,decls, _, range) ->
-            let mark = x.MarkAttributesOrIdOrRange(attrs, List.tryHead lid, range)
+            let mark = x.MarkAndProcessAttributesOrIdOrRange(attrs, List.tryHead lid, range)
             for decl in decls do
                 x.ProcessModuleMemberDeclaration(decl)
             x.Done(range, mark, ElementType.NESTED_MODULE_DECLARATION)
@@ -63,17 +63,13 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
                 x.ProcessTypeDefn(typeDefn)
             x.Done(range, mark, ElementType.TYPE_DECLARATION_GROUP)
 
-        | SynModuleDecl.Exception(SynExceptionDefn(exn, memberDefns, range), _) ->
+        | SynModuleDecl.Exception(SynExceptionDefn(exn, members, range), _) ->
             let mark = x.StartException(exn)
-            for memberDefn in memberDefns do
-                x.ProcessTypeMember(memberDefn)
-            x.EnsureMembersAreFinished()
+            x.ProcessTypeMemberList(members, ElementType.MEMBER_DECLARATION_LIST)
             x.Done(range, mark, ElementType.EXCEPTION_DECLARATION)
 
-        | SynModuleDecl.Open(lidWithDots, range) ->
-            let mark = x.MarkTokenOrRange(FSharpTokenType.OPEN, range)
-            x.ProcessNamedTypeReference(lidWithDots.Lid)
-            x.Done(range, mark, ElementType.OPEN_STATEMENT)
+        | SynModuleDecl.Open(openDeclTarget, range) ->
+            x.ProcessOpenDeclTarget(openDeclTarget, range)
 
         | SynModuleDecl.Let(_, bindings, range) ->
             let letMark = x.Mark(letBindingGroupStartPos bindings range)
@@ -140,6 +136,11 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
             x.ProcessSimpleTypeRepresentation(simpleRepr)
 
         | SynTypeDefnRepr.ObjectModel(kind, members, reprRange) ->
+            let members =
+                match members with
+                | SynMemberDefn.ImplicitCtor _ :: rest -> rest
+                | _ -> members
+
             match kind with
             | SynTypeDefnKind.TyconDelegate(synType, _) ->
                 let mark = x.Mark(reprRange)
@@ -150,34 +151,30 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
 
             if x.AddObjectModelTypeReprNode(kind) then
                 let mark = x.Mark(reprRange)
-                for m in members do
-                    x.ProcessTypeMember(m)
-                x.EnsureMembersAreFinished()
-
-                // todo: 'end' is outside both repr and type range :(
-                // todo: fix FCS parser, add test with missing end
-                x.AdvanceToToken(FSharpTokenType.END)
-                if x.TokenType == FSharpTokenType.END then
-                    x.Advance()
-
+                x.ProcessTypeMemberList(members, ElementType.TYPE_MEMBER_DECLARATION_LIST)
                 let elementType = x.GetObjectModelTypeReprElementType(kind)
-                x.Done(mark, elementType)
+                x.Done(reprRange, mark, elementType)
             else
-                for m in members do
-                    x.ProcessTypeMember(m)
-                x.EnsureMembersAreFinished()
+                x.ProcessTypeMemberList(members, ElementType.TYPE_MEMBER_DECLARATION_LIST)
 
         | _ -> failwithf "Unexpected simple type representation: %A" repr
 
-        for m in members do
-            x.ProcessTypeMember(m)
-        x.EnsureMembersAreFinished()
-
+        x.ProcessTypeMemberList(members, ElementType.TYPE_MEMBER_DECLARATION_LIST)
         x.Done(range, mark, ElementType.F_SHARP_TYPE_DECLARATION)
+
+    member x.ProcessTypeMemberList(members: SynMemberDefn list, elementType) =
+        match members with
+        | m :: _ ->
+            let memberListMark = x.MarkAttributesOrIdOrRangeStart(m.OuterAttributes, None, m.Range)
+            for m in members do
+                x.ProcessTypeMember(m)
+            x.EnsureMembersAreFinished()
+            x.Done(memberListMark, elementType)
+        | _ -> ()
 
     member x.ProcessTypeExtensionDeclaration(TypeDefn(info, _, members, range), attrs) =
         let (ComponentInfo(_, typeParams, constraints, lid , _, _, _, _)) = info
-        let mark = x.MarkAttributesOrIdOrRange(attrs, List.tryHead lid, range)
+        let mark = x.MarkAndProcessAttributesOrIdOrRange(attrs, List.tryHead lid, range)
 
         // Skipping the last name to have the identifier out of qualifier reference name. 
         x.ProcessReferenceNameSkipLast(lid)
@@ -187,23 +184,18 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
         for typeConstraint in constraints do
             x.ProcessTypeConstraint(typeConstraint)
 
-        for extensionMember in members do
-            x.ProcessTypeMember(extensionMember)
-
-        x.EnsureMembersAreFinished()
-
+        x.ProcessTypeMemberList(members, ElementType.TYPE_MEMBER_DECLARATION_LIST)
         x.Done(range, mark, ElementType.TYPE_EXTENSION_DECLARATION)
 
     member x.ProcessPrimaryConstructor(typeMember: SynMemberDefn) =
         match typeMember with
-        | SynMemberDefn.ImplicitCtor(_, attrs, args, selfId, range) ->
+        | SynMemberDefn.ImplicitCtor(_, attrs, args, selfId, _, range) ->
 
             // Skip spaces inside `T ()` range 
             while (isNotNull x.TokenType && x.TokenType.IsWhitespace) && not x.Eof do
                 x.AdvanceLexer()
 
-            let mark = x.MarkAttributesOrIdOrRange(typeMember.OuterAttributes, None, typeMember.Range)
-            
+            let mark = x.MarkAndProcessAttributesOrIdOrRange(typeMember.OuterAttributes, None, typeMember.Range)
             x.ProcessAttributeLists(attrs)
             x.ProcessImplicitCtorSimplePats(args)
             x.ProcessCtorSelfId(selfId)
@@ -217,14 +209,17 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
         | SynMemberDefn.ImplicitCtor _ -> ()
         | _ ->
 
+        let outerAttrs = typeMember.OuterAttributes
+
         let mark =
             match unfinishedDeclaration with
             | Some(mark, unfinishedRange, _) when unfinishedRange = typeMember.Range ->
                 unfinishedDeclaration <- None
                 mark
-
             | _ ->
-                x.MarkAttributesOrIdOrRange(typeMember.OuterAttributes, None, typeMember.Range)
+                x.MarkAttributesOrIdOrRangeStart(outerAttrs, None, typeMember.Range)
+
+        x.ProcessAttributeLists(outerAttrs)
 
         let memberType =
             match typeMember with
@@ -236,10 +231,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, projectedOffset, li
             | SynMemberDefn.Interface(interfaceType, interfaceMembersOpt , _) ->
                 x.ProcessTypeAsTypeReferenceName(interfaceType)
                 match interfaceMembersOpt with
-                | Some members ->
-                    for m in members do
-                        x.ProcessTypeMember(m)
-                    x.EnsureMembersAreFinished()
+                | Some(members) -> x.ProcessTypeMemberList(members, ElementType.MEMBER_DECLARATION_LIST)
                 | _ -> ()
                 ElementType.INTERFACE_IMPLEMENTATION
 
@@ -767,22 +759,18 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
         | SynExpr.CompExpr(_, _, expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.COMPUTATION_EXPR)
 
-        | SynExpr.Lambda(_, inLambdaSeq, args, bodyExpr, _) ->
-            // Lambdas get "desugared" by converting to fake nested lambdas and match expressions.
-            // Simple patterns like ids are preserved in lambdas and more complex ones are replaced
-            // with generated placeholder patterns and go to generated match expressions inside lambda bodies.
-
-            // Generated match expression have have a single generated clause with a generated id pattern.
-            // Their ranges overlap with lambda param pattern ranges and they have the same start pos as lambdas. 
-
+        | SynExpr.Lambda(_, inLambdaSeq, _, bodyExpr, parsedData, _) ->
             Assertion.Assert(not inLambdaSeq, "Expecting non-generated lambda expression, got:\n{0}", expr)
             x.PushRange(range, ElementType.LAMBDA_EXPR)
+            x.PushExpression(getLambdaBodyExpr bodyExpr)
 
-            let skippedLambdas = skipGeneratedLambdas bodyExpr
-            let parametersMark = x.Mark(args.Range)
-            x.ProcessLambdaParameters(expr, skippedLambdas, true)
-            x.Done(parametersMark, ElementType.LAMBDA_PARAMETERS_LIST)
-            x.ProcessExpression(skipGeneratedMatch skippedLambdas)
+            match parsedData with
+            | Some(head :: _ as pats, _) ->
+                let patsRange = unionRanges head.Range (List.last pats).Range
+                x.PushRange(patsRange, ElementType.LAMBDA_PARAMETERS_LIST)
+                for pat in pats do
+                    x.ProcessPat(pat, true, false)
+            | _ -> ()
 
         | SynExpr.MatchLambda(_, _, clauses, _, _) ->
             x.PushRange(range, ElementType.MATCH_LAMBDA_EXPR)
@@ -1002,6 +990,8 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
             x.PushSequentialExpression(expr2)
             x.ProcessExpression(expr1)
 
+        | SynExpr.InterpolatedString _ -> x.MarkAndDone(range, ElementType.INTERPOLATED_STRING_EXPR)
+
     member x.ProcessAndLocalBinding(_, _, _, pat: SynPat, expr: SynExpr, _) =
         x.PushRangeForMark(expr.Range, x.Mark(pat.Range), ElementType.LOCAL_BINDING)
         x.ProcessPat(pat, true, false)
@@ -1064,85 +1054,6 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
 
         x.ProcessExpression(expr)
     
-    member x.ProcessLambdaParameters(expr, outerBodyExpr, topLevel): SynExpr =
-        match expr with
-        | SynExpr.Lambda(_, inLambdaSeq, pats, bodyExpr, _) when inLambdaSeq <> topLevel ->
-            x.ProcessLambdaParameters(pats, bodyExpr, outerBodyExpr)
-
-        | _ ->
-            outerBodyExpr
-
-    member x.ProcessLambdaParameters(pats: SynSimplePats, lambdaBody: SynExpr, outerBodyExpr) =
-        match pats with
-        | SynSimplePats.SimplePats(pats, range) ->
-            match pats with
-            | [] ->
-                x.MarkAndDone(range, ElementType.UNIT_PAT)
-                x.ProcessLambdaParameters(lambdaBody, outerBodyExpr, false)
-
-            | [pat] ->
-                if posLt range.Start pat.Range.Start then
-                    let mark = x.Mark(range)
-                    let outerBodyExpr = x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, false)
-                    x.Done(range, mark, ElementType.PAREN_PAT)
-                    x.ProcessLambdaParameters(lambdaBody, outerBodyExpr, false)
-                else
-                    x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, true)
-
-            | pats ->
-                let parenMark = x.Mark(range)
-                let tupleMark = x.Mark(range)
-                let outerBodyExpr = x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, false)
-                x.Done(tupleMark, ElementType.TUPLE_PAT)
-                x.Done(parenMark, ElementType.PAREN_PAT)
-                x.ProcessLambdaParameters(lambdaBody, outerBodyExpr, false)
-
-        | SynSimplePats.Typed _ ->
-            failwithf "Expecting SimplePats, got:\n%A" pats
-
-    member x.ProcessOneLambdaParam(pats: SynSimplePat list, lambdaBody: SynExpr, outerBodyExpr, processNext) =
-        match pats with
-        | [] ->
-            if processNext then
-                x.ProcessLambdaParameters(lambdaBody, outerBodyExpr, false)
-            else
-                outerBodyExpr
-
-        | pat :: pats ->
-
-        match pat with
-        | SynSimplePat.Id(_, _, isGenerated, _, _, range) ->
-            if not isGenerated then
-                let mark = x.Mark(range)
-                x.MarkAndDone(range, ElementType.EXPRESSION_REFERENCE_NAME)
-                x.Done(range, mark, ElementType.LOCAL_REFERENCE_PAT)
-                x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, processNext)
-            else
-                match outerBodyExpr with
-                | SynExpr.Match(_, _, [ Clause(pat, whenExpr, innerExpr, _, _) as clause ], matchRange) when
-                        matchRange.Start = clause.Range.Start ->
-
-                    Assertion.Assert(whenExpr.IsNone, "whenExpr.IsNone")
-                    x.ProcessPat(pat, true, false)
-                    x.ProcessOneLambdaParam(pats, lambdaBody, innerExpr, processNext)
-
-                | _ ->
-                    failwithf "Expecting generated match expression, got:\n%A" lambdaBody
-
-        | SynSimplePat.Typed(pat, patType, range) ->
-            let mark = x.Mark(range)
-            x.ProcessOneLambdaParam([pat], lambdaBody, outerBodyExpr, false)
-            x.ProcessType(patType)
-            x.Done(range, mark, ElementType.TYPED_PAT)
-            x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, processNext)
-
-        | SynSimplePat.Attrib(pat, attrs, range) ->
-            let mark = x.Mark(range)
-            x.ProcessAttributeLists(attrs)
-            x.ProcessOneLambdaParam([pat], lambdaBody, outerBodyExpr, false)
-            x.Done(range, mark, ElementType.ATTRIB_PAT)
-            x.ProcessOneLambdaParam(pats, lambdaBody, outerBodyExpr, processNext)
-
     member x.MarkMatchExpr(range: range, expr, clauses) =
         x.PushRange(range, ElementType.MATCH_EXPR)
         x.PushStepList(clauses, matchClauseListProcessor)
@@ -1185,6 +1096,13 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, projectedOffset, lin
     member x.ProcessInterfaceImplementation(InterfaceImpl(interfaceType, bindings, range)) =
         x.PushRange(range, ElementType.INTERFACE_IMPLEMENTATION)
         x.ProcessTypeAsTypeReferenceName(interfaceType)
+
+        match bindings with
+        | Binding(range = rangeStart) :: _ ->
+            let item = { Mark = x.Mark(rangeStart); ElementType = ElementType.MEMBER_DECLARATION_LIST }
+            x.PushStep(item, endNodeProcessor)
+        | _ -> ()
+
         x.PushStepList(bindings, objectExpressionMemberListProcessor)
 
     member x.ProcessSynIndexerArg(arg) =
@@ -1347,6 +1265,18 @@ type AdvanceToPosProcessor() =
     override x.Process(item, builder) =
         builder.AdvanceTo(item)
 
+
+type MarkAndType =
+    { Mark: int
+      ElementType: NodeType }
+
+type EndNodeProcessor() =
+    inherit StepProcessorBase<MarkAndType>()
+
+    override x.Process(item, builder) =
+        builder.Done(item.Mark, item.ElementType)
+
+
 type EndRangeProcessor() =
     inherit StepProcessorBase<RangeMarkAndType>()
 
@@ -1469,6 +1399,7 @@ module BuilderStepProcessors =
     let sequentialExpressionProcessor = SequentialExpressionProcessor()
     let wrapExpressionProcessor = WrapExpressionProcessor()
     let advanceToPosProcessor = AdvanceToPosProcessor()
+    let endNodeProcessor = EndNodeProcessor()
     let endRangeProcessor = EndRangeProcessor()
     let synTypeProcessor = SynTypeProcessor()
     let typeArgsInReferenceExprProcessor = TypeArgsInReferenceExprProcessor()

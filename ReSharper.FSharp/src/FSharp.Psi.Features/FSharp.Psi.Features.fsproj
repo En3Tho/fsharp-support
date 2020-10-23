@@ -117,6 +117,9 @@
     <Compile Include="src\Refactorings\IntroduceVariable.fs" />
     <Compile Include="src\Refactorings\FSharpInlineVariable.fs" />
     <Compile Include="src\Refactorings\FSharpRefactoringLanguageService.fs" />
+    <Compile Include="src\Generate\IFSharpGeneratorElement.fs" />
+    <Compile Include="src\Generate\GenerateOverrides.fs" />
+    <Compile Include="src\Generate\GenerateProvider.fs" />
     <Compile Include="src\Intentions\DataProviders.fs" />
     <Compile Include="src\Intentions\FSharpContextActionBase.fs" />
     <Compile Include="src\Intentions\ToRecursiveLetBindingsAction.fs" />
@@ -188,6 +191,7 @@
     <Compile Include="src\QuickFixes\ReplaceLambdaWithBuiltinFunctionFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceLambdaBodyWithId.fs" />
     <Compile Include="src\QuickFixes\GenerateInterfaceMembersFix.fs" />
+    <Compile Include="src\QuickFixes\GenerateMissingOverridesFix.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantAttributeFix.fs" />
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
     <Compile Include="src\PostfixTemplates\NotTemplate.fs" />
