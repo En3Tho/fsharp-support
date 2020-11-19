@@ -15,6 +15,7 @@ type GenerateInterfaceMembersFixTest() =
     [<Test>] member x.``Empty impl 01``() = x.DoNamedTest()
     [<Test>] member x.``Empty impl 02 - Generate multiple``() = x.DoNamedTest()
     [<Test>] member x.``Empty impl 03``() = x.DoNamedTest()
+    [<Test>] member x.``Empty impl 04 - With keyword``() = x.DoNamedTest()
 
     [<Test>] member x.``Partial impl 01``() = x.DoNamedTest()
     [<Test>] member x.``Partial impl 02 - Generate multiple``() = x.DoNamedTest()
@@ -31,6 +32,7 @@ type GenerateInterfaceMembersFixTest() =
     [<Test>] member x.``Method - Parameters - Single 02 - Anon``() = x.DoNamedTest()
     [<Test>] member x.``Method - Type parameters 01``() = x.DoNamedTest()
     [<Test>] member x.``Method - Type parameters 02 - Multiple``() = x.DoNamedTest()
+    [<Test>] member x.``Method - Type parameters 03 - Implicit``() = x.DoNamedTest()
     [<Test>] member x.``Method - Substitution 01 - Param``() = x.DoNamedTest()
     [<Test>] member x.``Method - Substitution 02 - Return``() = x.DoNamedTest()
     [<Test>] member x.``Method - Substitution 03 - Multiple``() = x.DoNamedTest()
@@ -56,5 +58,6 @@ type GenerateMissingMembersFixTest() =
 
     override x.RelativeTestDataPath = "features/quickFixes/generateMissingMembers"
 
+    [<Test>] member x.``Context - Common namespace 01``() = x.DoNamedTest()
     [<Test>] member x.``Property 01``() = x.DoNamedTest()
     [<Test>] member x.``Super 01 - Different type parameter name``() = x.DoNamedTest()
