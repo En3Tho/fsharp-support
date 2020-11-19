@@ -124,7 +124,7 @@ type FSharpIdentifierTooltipProvider
         | None -> emptyPresentation
         | Some results ->
 
-        let (FSharpToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token)
+        let (FSharpToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token) |> Async.RunSynchronously
 
         layouts
         |> List.collect (function

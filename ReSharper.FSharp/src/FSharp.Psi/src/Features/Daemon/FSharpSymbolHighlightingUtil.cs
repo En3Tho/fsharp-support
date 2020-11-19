@@ -1,4 +1,5 @@
-﻿using FSharp.Compiler.SourceCodeServices;
+﻿using System.Linq;
+using FSharp.Compiler.SourceCodeServices;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
@@ -52,7 +53,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         if (abbr.IsFunctionType)
           return FSharpHighlightingAttributeIdsModule.Delegate;
       }
-      
+
       return FSharpHighlightingAttributeIdsModule.Class;
     }
 
@@ -62,21 +63,32 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (mfv.IsEvent || mfv.IsEventAddMethod || mfv.IsEventRemoveMethod || mfv.EventForFSharpProperty != null)
         return FSharpHighlightingAttributeIdsModule.Event;
 
+      var declaringEntity = mfv.DeclaringEntity?.Value;
       if (mfv.IsImplicitConstructor || mfv.IsConstructor)
-        return mfv.DeclaringEntity?.Value is FSharpEntity declEntity && declEntity.IsValueType
+      {
+        if (declaringEntity is null)
+          return FSharpHighlightingAttributeIdsModule.Class;
+
+        if (declaringEntity.IsDisposable())
+          return FSharpHighlightingAttributeIdsModule.DisposableValue;
+
+        return declaringEntity.IsValueType
           ? FSharpHighlightingAttributeIdsModule.Struct
           : FSharpHighlightingAttributeIdsModule.Class;
+      }
 
-      var entity = mfv.DeclaringEntity;
-      if (mfv.IsModuleValueOrMember && (entity != null && !entity.Value.IsFSharpModule || mfv.IsExtensionMember))
-        if (mfv.IsProperty || mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
-          return mfv.IsExtensionMember
-            ? FSharpHighlightingAttributeIdsModule.ExtensionProperty
-            : FSharpHighlightingAttributeIdsModule.Property;
-        else
-          return mfv.IsExtensionMember
-            ? FSharpHighlightingAttributeIdsModule.ExtensionMethod
-            : FSharpHighlightingAttributeIdsModule.Method;
+      if (declaringEntity is { })
+      {
+        if (mfv.IsModuleValueOrMember && (!declaringEntity.IsFSharpModule || mfv.IsExtensionMember))
+          if (mfv.IsProperty || mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
+            return mfv.IsExtensionMember
+              ? FSharpHighlightingAttributeIdsModule.ExtensionProperty
+              : FSharpHighlightingAttributeIdsModule.Property;
+          else
+            return mfv.IsExtensionMember
+              ? FSharpHighlightingAttributeIdsModule.ExtensionMethod
+              : FSharpHighlightingAttributeIdsModule.Method;
+      }
 
       if (mfv.IsLiteral())
         return FSharpHighlightingAttributeIdsModule.Literal;
@@ -94,11 +106,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           ? FSharpHighlightingAttributeIdsModule.MutableFunction
           : FSharpHighlightingAttributeIdsModule.Function;
 
+      if (fsType.IsDisposable())
+        return FSharpHighlightingAttributeIdsModule.DisposableValue;
+
       if (mfv.IsMutable || mfv.IsRefCell())
         return FSharpHighlightingAttributeIdsModule.MutableValue;
 
       if (fsType.HasTypeDefinition && fsType.TypeDefinition is var mfvTypeEntity && mfvTypeEntity.IsByRef)
         return FSharpHighlightingAttributeIdsModule.MutableValue;
+
+      if (mfv.IsModuleValueOrMember)
+        return FSharpHighlightingAttributeIdsModule.StaticValue;
 
       if (mfv.IsTopLevelParameter)
         return FSharpHighlightingAttributeIdsModule.Parameter;
@@ -113,10 +131,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
     {
       switch (symbol)
       {
-        case FSharpEntity entity when !entity.IsUnresolved:
+        case FSharpEntity { IsUnresolved: false } entity:
           return GetEntityHighlightingAttributeId(entity.GetAbbreviatedEntity());
 
-        case FSharpMemberOrFunctionOrValue mfv when !mfv.IsUnresolved:
+        case FSharpMemberOrFunctionOrValue { IsUnresolved: false } mfv:
           return GetMfvHighlightingAttributeId(mfv.AccessorProperty?.Value ?? mfv);
 
         case FSharpField field:

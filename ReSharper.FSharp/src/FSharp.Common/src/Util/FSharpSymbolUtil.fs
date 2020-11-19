@@ -167,6 +167,14 @@ let rec getAbbreviatedType (fcsType: FSharpType) =
 let hasMeasureParameter(entity: FSharpEntity) =
     entity.GenericParameters.Count > 0 && entity.GenericParameters.[0].IsMeasure;
 
+[<Extension; CompiledName("IsDisposable")>]
+let isDisposableEntity (entity: FSharpEntity) =
+    entity.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals("System.IDisposable"))
+
+[<Extension; CompiledName("IsDisposable")>]
+let isDisposableType (entity: FSharpType) =
+    entity.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals("System.IDisposable"))
+
 type FSharpActivePatternGroup with
     member x.PatternName = patternName x
 

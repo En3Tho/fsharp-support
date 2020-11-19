@@ -43,7 +43,7 @@ type FSharpErrorLookupItem(item: FSharpDeclarationListItem) =
 
     interface IDescriptionProvidingLookupItem with
         member x.GetDescription() =
-            let (FSharpToolTipText(tooltips)) = item.DescriptionText
+            let (FSharpToolTipText(tooltips)) = item.DescriptionTextAsync |> Async.RunSynchronously
             tooltips
             |> List.tryHead
             |> Option.bind (function | FSharpToolTipElement.CompositionError e -> Some (RichTextBlock(e)) | _ -> None)
@@ -70,7 +70,7 @@ type FSharpLookupItem(item: FSharpDeclarationListItem, context: FSharpCodeComple
         match candidates with
         | null ->
             let result = LocalList<ICandidate>()
-            let (FSharpToolTipText(tooltips)) = item.DescriptionText
+            let (FSharpToolTipText(tooltips)) = item.DescriptionTextAsync |> Async.RunSynchronously
             for tooltip in tooltips do
                 match tooltip with
                 | FSharpToolTipElement.Group(overloads) ->
