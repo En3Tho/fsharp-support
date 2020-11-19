@@ -15,7 +15,7 @@ type FSharpBlockCommentActionProvider() =
         member x.NestedStartBlockCommentMarker = null
         member x.NestedEndBlockCommentMarker = null
 
-        member x.GetBlockComment(lexer) = 
+        member x.GetBlockComment(lexer) =
             if lexer.TokenType == FSharpTokenType.BLOCK_COMMENT then TextRange(lexer.TokenStart, lexer.TokenEnd)
             else TextRange.InvalidRange
 

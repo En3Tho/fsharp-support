@@ -217,11 +217,16 @@
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
     <PackageReference Include="JetBrains.Fantomas" Version="$(FantomasVersion)" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" Version="$(FSharpCompilerServiceVersion)" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="FSharp.Compiler.Service, Version=2020.3.0.0, Culture=neutral, PublicKeyToken=3099b8d9d20e74bf">
+      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\fcs\Release\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

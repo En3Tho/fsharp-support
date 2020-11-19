@@ -48,7 +48,7 @@ type FSharpIdentifierTooltipProvider
             LayoutTag.ModuleBinding, FSharpHighlightingAttributeIds.Value
             LayoutTag.Module, FSharpHighlightingAttributeIds.Module
             LayoutTag.Namespace, FSharpHighlightingAttributeIds.Namespace
-            LayoutTag.NumericLiteral, FSharpHighlightingAttributeIds.Literal
+            LayoutTag.NumericLiteral, FSharpHighlightingAttributeIds.Number
             LayoutTag.Operator, FSharpHighlightingAttributeIds.Operator
             //LayoutTag.Parameter, FSharpHighlightingAttributeIds.Parameter
             LayoutTag.Parameter, FSharpHighlightingAttributeIds.Value
@@ -129,7 +129,7 @@ type FSharpIdentifierTooltipProvider
         | None -> emptyPresentation
         | Some results ->
 
-        let (FSharpToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token)
+        let (FSharpToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token) |> Async.RunSynchronously
 
         layouts
         |> List.collect (function
