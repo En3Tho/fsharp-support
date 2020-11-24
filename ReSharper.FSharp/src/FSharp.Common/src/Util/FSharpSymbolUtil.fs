@@ -1,6 +1,7 @@
 [<AutoOpen; Extension>]
 module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
 
+open System
 open FSharp.Compiler.SourceCodeServices
 open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.Diagnostics
@@ -156,6 +157,18 @@ let rec getAbbreviatedEntity (entity: FSharpEntity) =
     else
         entity
 
+[<Extension; CompiledName("IsPropertyConstraint")>]
+let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
+    match fsParam.LogicalName with
+    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal)
+    | _ -> false
+
+[<Extension; CompiledName("IsMethodConstraint")>]
+let isMethodConstraintFSharpParameter (fsParam: FSharpParameter) =
+    match fsParam.LogicalName with
+    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal) |> not
+    | _ -> false
+
 [<Extension; CompiledName("GetAbbreviatedType")>]
 let rec getAbbreviatedType (fcsType: FSharpType) =
     if fcsType.IsAbbreviation then
@@ -169,11 +182,29 @@ let hasMeasureParameter(entity: FSharpEntity) =
 
 [<Extension; CompiledName("IsDisposable")>]
 let isDisposableEntity (entity: FSharpEntity) =
-    entity.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals("System.IDisposable"))
+    entity.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals(typeof<IDisposable>.FullName))
 
 [<Extension; CompiledName("IsDisposable")>]
-let isDisposableType (entity: FSharpType) =
-    entity.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals("System.IDisposable"))
+let isDisposableType (type': FSharpType) =
+    type'.AllInterfaces |> Seq.exists (fun x -> x.QualifiedBaseName.Equals(typeof<IDisposable>.FullName))
+
+[<Extension; CompiledName("IsException")>]
+let isExceptionEntity (entity: FSharpEntity) =
+    if entity.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
+        true
+    else
+        let rec isException (fcsType: FSharpType) =
+            if fcsType.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
+                true
+            else
+                match fcsType.BaseType with
+                | Some baseType -> isException baseType
+                | None -> false
+
+        entity.BaseType
+        |> Option.map getAbbreviatedType
+        |> Option.map isException
+        |> Option.defaultValue false
 
 type FSharpActivePatternGroup with
     member x.PatternName = patternName x
