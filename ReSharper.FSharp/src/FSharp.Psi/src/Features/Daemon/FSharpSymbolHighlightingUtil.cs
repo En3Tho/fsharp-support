@@ -37,6 +37,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (entity.IsInterface)
         return FSharpHighlightingAttributeIdsModule.Interface;
 
+      if (entity.IsException())
+        return FSharpHighlightingAttributeIdsModule.Exception;
+
       if (entity.IsClass)
         return FSharpHighlightingAttributeIdsModule.Class;
       
@@ -159,7 +162,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           return GetMfvHighlightingAttributeId(mfv.AccessorProperty?.Value ?? mfv);
 
         case FSharpField field:
-          if (field.DeclaringEntity?.Value.IsFSharpRecord ?? true)
+          var declaringEntity = field.DeclaringEntity?.Value;
+          if (declaringEntity is null
+           || declaringEntity.IsFSharpRecord
+           || declaringEntity.IsException())
           {
             return field.IsMutable
               ? FSharpHighlightingAttributeIdsModule.MutableProperty
