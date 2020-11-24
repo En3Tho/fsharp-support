@@ -27,7 +27,7 @@ repositories {
 }
 
 plugins {
-    id("org.jetbrains.intellij") version "0.6.3"
+    id("org.jetbrains.intellij") version "0.6.4"
     id("org.jetbrains.grammarkit") version "2018.1.7"
     id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
     kotlin("jvm") version "1.4.10"
@@ -75,7 +75,6 @@ intellij {
 
     instrumentCode = false
     downloadSources = false
-    updateSinceUntilBuild = false
 
     // Workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
     setPlugins("rider-plugins-appender")
