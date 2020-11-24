@@ -49,7 +49,7 @@ type FSharpIdentifierTooltipProvider
             LayoutTag.Namespace, FSharpHighlightingAttributeIds.Namespace
             LayoutTag.NumericLiteral, FSharpHighlightingAttributeIds.Number
             LayoutTag.Operator, FSharpHighlightingAttributeIds.Operator
-            LayoutTag.Parameter, FSharpHighlightingAttributeIds.Value
+            LayoutTag.Parameter, FSharpHighlightingAttributeIds.Property
             LayoutTag.Property, FSharpHighlightingAttributeIds.Property
             LayoutTag.StringLiteral, FSharpHighlightingAttributeIds.String
             LayoutTag.Struct, FSharpHighlightingAttributeIds.Struct
@@ -66,12 +66,22 @@ type FSharpIdentifierTooltipProvider
         { new LayoutRenderer<RichText, RichText> with
             member x.Start () = RichText()
             member x.AddText result text =
-                let style =
-                    match layoutTagLookup.TryGetValue text.Tag with
-                    | true, style -> style
-                    | false, _ -> TextStyle.Default
+                let style, text =
+                    match text.Tag with
+                    | LayoutTag.Member ->
+                        if text.Text.StartsWith("get_") then
+                            TextStyle FSharpHighlightingAttributeIds.Property, text.Text.[4..] // strip "get_"
+                        elif text.Text.StartsWith("(") then
+                            TextStyle FSharpHighlightingAttributeIds.Operator, text.Text.[1..^1] // strip '(' ... ')'
+                        else TextStyle FSharpHighlightingAttributeIds.Method, text.Text
+                    | LayoutTag.ModuleBinding when text.Text.StartsWith("(") ->
+                        TextStyle FSharpHighlightingAttributeIds.Operator, text.Text.[1..^1] // strip '(' ... ')'
+                    | _ ->
+                        match layoutTagLookup.TryGetValue text.Tag with
+                        | true, style -> style, text.Text
+                        | false, _ -> TextStyle.Default, text.Text
 
-                result.Append(text.Text, style)
+                result.Append(text, style)
             member x.AddBreak result n =
                 // RIDER-51304: Replace spaces at the start of a line with \xA0 (non-breaking space)
                 result.Append("\n" + String('\xA0', n), TextStyle.Default)

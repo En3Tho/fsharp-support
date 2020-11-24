@@ -70,7 +70,18 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           return FSharpHighlightingAttributeIdsModule.Class;
 
         if (declaringEntity.IsDisposable())
-          return FSharpHighlightingAttributeIdsModule.DisposableValue;
+        {
+          if (declaringEntity.IsClass)
+            return FSharpHighlightingAttributeIdsModule.DisposableClass;
+          if (declaringEntity.IsValueType)
+            return FSharpHighlightingAttributeIdsModule.DisposableStruct;
+          if (declaringEntity.IsInterface)
+            return FSharpHighlightingAttributeIdsModule.DisposableInterface;
+          return FSharpHighlightingAttributeIdsModule.DisposableLocalValue; // fallback?
+        }
+
+        if (declaringEntity.IsException())
+          return FSharpHighlightingAttributeIdsModule.Exception;
 
         return declaringEntity.IsValueType
           ? FSharpHighlightingAttributeIdsModule.Struct
@@ -97,17 +108,27 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         return FSharpHighlightingAttributeIdsModule.ActivePatternCase;
 
       var fsType = mfv.FullType;
-      
+
       if (IsMangledOpName(mfv.LogicalName) && fsType.IsFunctionType)
-        return FSharpHighlightingAttributeIdsModule.Operator;
-      
+      {
+        return !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
+            && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline)
+          ? FSharpHighlightingAttributeIdsModule.InlineOperator
+          : FSharpHighlightingAttributeIdsModule.Operator;
+      }
+
       if (fsType.IsFunctionType || mfv.IsTypeFunction || fsType.IsAbbreviation && fsType.AbbreviatedType.IsFunctionType)
+      {
+        if (!mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
+         && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline))
+          return FSharpHighlightingAttributeIdsModule.InlineFunction;
         return mfv.IsMutable
           ? FSharpHighlightingAttributeIdsModule.MutableFunction
           : FSharpHighlightingAttributeIdsModule.Function;
+      }
 
-      if (fsType.IsDisposable())
-        return FSharpHighlightingAttributeIdsModule.DisposableValue;
+      if (fsType.IsDisposable() && !mfv.IsModuleValueOrMember && !mfv.IsMemberThisValue && !mfv.IsConstructorThisValue)
+        return FSharpHighlightingAttributeIdsModule.DisposableLocalValue;
 
       if (mfv.IsMutable || mfv.IsRefCell())
         return FSharpHighlightingAttributeIdsModule.MutableValue;
@@ -141,8 +162,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           if (field.DeclaringEntity?.Value.IsFSharpRecord ?? true)
           {
             return field.IsMutable
-            ? FSharpHighlightingAttributeIdsModule.MutableProperty
-            : FSharpHighlightingAttributeIdsModule.Property;
+              ? FSharpHighlightingAttributeIdsModule.MutableProperty
+              : FSharpHighlightingAttributeIdsModule.Property;
           }
             
           return field.IsLiteral
@@ -159,6 +180,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
         case FSharpActivePatternCase _:
           return FSharpHighlightingAttributeIdsModule.ActivePatternCase;
+
+        case FSharpParameter prm:
+          if (prm.IsPropertyConstraint()) return FSharpHighlightingAttributeIdsModule.Property;
+          if (prm.IsMethodConstraint()) return FSharpHighlightingAttributeIdsModule.Method;
+          return FSharpHighlightingAttributeIdsModule.Value;
       }
 
       // some highlighting is needed for tooltip provider

@@ -26,6 +26,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Module = "ReSharper F# Module Identifier"
 
     let [<Literal>] Class = "ReSharper F# Class Identifier"
+    let [<Literal>] Exception = "ReSharper F# Exception Identifier"
     let [<Literal>] StaticClass = "ReSharper F# Static Class Identifier"
     let [<Literal>] Interface = "ReSharper F# Interface Identifier"
     let [<Literal>] Delegate = "ReSharper F# Delegate Identifier"
@@ -33,7 +34,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Enum = "ReSharper F# Enum Identifier"
     let [<Literal>] TypeParameter = "ReSharper F# Type Parameter Identifier"
 
-    let [<Literal>] DisposableValue = "ReSharper F# Disposable Value Identifier"
+    let [<Literal>] DisposableLocalValue = "ReSharper F# Disposable Value Identifier"
     let [<Literal>] DisposableStruct = "ReSharper F# Disposable Struct Identifier"
     let [<Literal>] DisposableClass = "ReSharper F# Disposable Class Identifier"
     let [<Literal>] DisposableInterface = "ReSharper F# Disposable Interface Identifier"
@@ -53,6 +54,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Value = "ReSharper F# Value Identifier"
     let [<Literal>] MutableValue = "ReSharper F# Mutable Value Identifier"
     let [<Literal>] Function = "ReSharper F# Function Identifier"
+    let [<Literal>] InlineFunction = "ReSharper F# Inline Function Identifier"
     let [<Literal>] MutableFunction = "ReSharper F# Mutable Function Identifier"
 
     let [<Literal>] StaticValue = "ReSharper F# Static Value Identifier" // todo: add setting
@@ -62,6 +64,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Literal = "ReSharper F# Literal Identifier"
 
     let [<Literal>] Operator = "ReSharper F# Operator Identifier"
+    let [<Literal>] InlineOperator = "ReSharper F# Inline Operator Identifier"
     let [<Literal>] ActivePatternCase = "ReSharper F# Active Pattern Case Identifier"
 
     let [<Literal>] Field = "ReSharper F# Field Identifier"
@@ -76,6 +79,8 @@ module FSharpHighlightingAttributeIds =
     
     let [<Literal>] ComputationExpression = "ReSharper F# Computation Expression Identifier"
     let [<Literal>] UnitOfMeasure = "ReSharper F# Unit Of Measure Identifier"
+
+    let [<Literal>] FSharpParameter = "ReSharper F# FSharpParameter Identifier" // todo: add setting
 
 type FSharpSettingsNamesProvider() =
     inherit PrefixBasedSettingsNamesProvider("ReSharper F#", "FSHARP")
@@ -190,6 +195,15 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
+      FSharpHighlightingAttributeIds.Exception,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Class,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Exception",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
       FSharpHighlightingAttributeIds.StaticClass,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Class,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
@@ -226,10 +240,10 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
-      FSharpHighlightingAttributeIds.DisposableValue,
+      FSharpHighlightingAttributeIds.DisposableLocalValue,
       FallbackAttributeId = DefaultLanguageAttributeIds.LOCAL_VARIABLE,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Types//Disposable class",
+      RiderPresentableName = "Values//Disposable local value",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
@@ -382,7 +396,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.StaticValue,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Values//Nested scope parameter",
+      RiderPresentableName = "Values//Static module value",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
@@ -405,6 +419,15 @@ type FSharpSettingsNamesProvider() =
      Layer = HighlighterLayer.SYNTAX,
      VSPriority = VSPriority.IDENTIFIERS,
      EffectType = EffectType.TEXT);
+
+  RegisterHighlighter(
+     FSharpHighlightingAttributeIds.FSharpParameter,
+     FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
+     GroupId = FSharpHighlightingAttributeIds.GroupId,
+     RiderPresentableName = "Values//FSharpParameter",
+     Layer = HighlighterLayer.SYNTAX,
+     VSPriority = VSPriority.IDENTIFIERS,
+     EffectType = EffectType.TEXT);
   
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.NestedScopeParameter,
@@ -420,6 +443,15 @@ type FSharpSettingsNamesProvider() =
       FallbackAttributeId = FSharpHighlightingAttributeIds.Value,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Function",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT);
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.InlineFunction,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Function,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Values//InlineFunction",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
@@ -454,6 +486,15 @@ type FSharpSettingsNamesProvider() =
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Operator,
       FallbackAttributeId = DefaultLanguageAttributeIds.OVERLOADED_OPERATOR,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Values//Operator",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Blue", DarkForegroundColor = "Cyan");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.InlineOperator,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Operator,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Operator",
       Layer = HighlighterLayer.SYNTAX,
