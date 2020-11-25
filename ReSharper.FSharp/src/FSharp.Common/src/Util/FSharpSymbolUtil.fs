@@ -190,21 +190,24 @@ let isDisposableType (type': FSharpType) =
 
 [<Extension; CompiledName("IsException")>]
 let isExceptionEntity (entity: FSharpEntity) =
-    if entity.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
-        true
-    else
-        let rec isException (fcsType: FSharpType) =
-            if fcsType.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
-                true
-            else
-                match fcsType.BaseType with
-                | Some baseType -> isException baseType
-                | None -> false
+    try // TODO: add HasQualifiedBaseName?
+        if entity.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
+            true
+        else
+            let rec isException (fcsType: FSharpType) =
+                if fcsType.QualifiedBaseName.Equals(typeof<Exception>.FullName) then
+                    true
+                else
+                    match fcsType.BaseType with
+                    | Some baseType -> isException baseType
+                    | None -> false
 
-        entity.BaseType
-        |> Option.map getAbbreviatedType
-        |> Option.map isException
-        |> Option.defaultValue false
+            entity.BaseType
+            |> Option.map getAbbreviatedType
+            |> Option.map isException
+            |> Option.defaultValue false
+    with
+    | _ -> false
 
 type FSharpActivePatternGroup with
     member x.PatternName = patternName x
