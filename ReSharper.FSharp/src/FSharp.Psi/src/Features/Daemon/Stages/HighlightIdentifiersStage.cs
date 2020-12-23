@@ -42,11 +42,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
         var symbolUse = resolvedSymbolUse.SymbolUse;
         var symbol = symbolUse.Symbol;
 
-        var highlightingId =
-          symbolUse.IsFromComputationExpression
-            ? FSharpHighlightingAttributeIdsModule.ComputationExpression
-            : symbol.GetHighlightingAttributeId();
-
         if (symbolUse.IsFromDefinition && symbol is FSharpMemberOrFunctionOrValue mfv)
         {
           if (mfv.LogicalName == StandardMemberNames.Constructor &&
@@ -56,6 +51,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
           if (mfv.IsActivePattern)
             continue;
         }
+
+        var highlightingId =
+          symbolUse.IsFromComputationExpression
+            ? FSharpHighlightingAttributeIdsModule.ComputationExpression
+            : symbol.GetHighlightingAttributeId();
 
         var documentRange = new DocumentRange(myDocument, resolvedSymbolUse.Range);
         var highlighting = new FSharpIdentifierHighlighting(highlightingId, documentRange);
@@ -74,8 +74,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
       InterruptableActivityCookie.CheckAndThrow();
 
       var highlightings = new List<HighlightingInfo>(declarations.Count + usages.Count);
-      AddHighlightings(declarations, highlightings);
       AddHighlightings(usages, highlightings);
+      AddHighlightings(declarations, highlightings);
       committer(new DaemonStageResult(highlightings.AsIReadOnlyList()));
     }
   }

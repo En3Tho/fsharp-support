@@ -13,6 +13,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
     [NotNull]
     public static string GetEntityHighlightingAttributeId([NotNull] this FSharpEntity entity)
     {
+      if (entity.IsFSharpModule)
+        return FSharpHighlightingAttributeIdsModule.Module;
+
       if (entity.IsNamespace)
         return FSharpHighlightingAttributeIdsModule.Namespace;
 
@@ -21,9 +24,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
       if (entity.IsDelegate)
         return FSharpHighlightingAttributeIdsModule.Delegate;
-
-      if (entity.IsFSharpModule)
-        return FSharpHighlightingAttributeIdsModule.Module;
 
       if (entity.IsFSharpUnion)
         return FSharpHighlightingAttributeIdsModule.Union;
@@ -189,6 +189,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
         case FSharpParameter prm:
           if (prm.IsPropertyConstraint()) return FSharpHighlightingAttributeIdsModule.Property;
+          if (prm.IsOperatorConstraint()) return FSharpHighlightingAttributeIdsModule.Operator;
           if (prm.IsMethodConstraint()) return FSharpHighlightingAttributeIdsModule.Method;
           return FSharpHighlightingAttributeIdsModule.Value;
       }
