@@ -163,6 +163,12 @@ let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
     | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal)
     | _ -> false
 
+[<Extension; CompiledName("IsOperatorConstraint")>]
+let isOperatorConstraintFSharpParameter (fsParam: FSharpParameter) =
+    match fsParam.LogicalName with
+    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("op_", StringComparison.Ordinal) |> not
+    | _ -> false
+
 [<Extension; CompiledName("IsMethodConstraint")>]
 let isMethodConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with
@@ -199,7 +205,7 @@ let isExceptionEntity (entity: FSharpEntity) =
                     true
                 else
                     match fcsType.BaseType with
-                    | Some baseType -> isException baseType
+                    | Some baseType -> baseType |> getAbbreviatedType |> isException
                     | None -> false
 
             entity.BaseType
