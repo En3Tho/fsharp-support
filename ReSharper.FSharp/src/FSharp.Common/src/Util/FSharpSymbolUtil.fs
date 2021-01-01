@@ -166,7 +166,7 @@ let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
 [<Extension; CompiledName("IsOperatorConstraint")>]
 let isOperatorConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with
-    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("op_", StringComparison.Ordinal) |> not
+    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("op_", StringComparison.Ordinal)
     | _ -> false
 
 [<Extension; CompiledName("IsMethodConstraint")>]
