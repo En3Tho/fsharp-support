@@ -168,11 +168,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2
       Builder.EndPart();
     }
 
-    private void ProcessBinding(IBinding binding)
+    private void ProcessBinding(IBindingLikeDeclaration binding)
     {
       var headPattern = binding.HeadPattern;
       if (headPattern != null)
-        ProcessTypeMembers(headPattern.Declarations);
+        ProcessTypeMembers(headPattern.NestedPatterns);
     }
 
     public override void VisitLetBindingsDeclaration(ILetBindingsDeclaration letBindings)

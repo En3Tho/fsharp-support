@@ -171,11 +171,11 @@ interface letBindings:
   letBindingsDeclaration |
   letOrUseExpr;
 
-interface binding:
-  bindingImplementation
+interface bindingLikeDeclaration:
+  binding |
   bindingSignature;
 
-interface bindingImplementation:
+interface binding:
   topBinding |
   localBinding;
 
@@ -184,9 +184,10 @@ topBinding extras {
   get { methodName="Attributes" path=<topBinding:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
-  INLINE<INLINE, InlineKeyword>?
   MUTABLE<MUTABLE, MutableKeyword>?
   fSharpPattern<HEAD_PATTERN, HeadPattern>
+  typeParameterOfMethodList<TYPE_PARAMETERS_LIST, TypeParameterList>?
+  parametersPatternDeclaration<PARAMETERS_PATTERN, ParametersPatterns>*
   returnTypeInfo<RETURN_INFO, ReturnTypeInfo>?
   EQUALS<EQUALS, EqualsToken>
   chameleonExpression<CHAMELEON_EXPR, ChameleonExpression>;
@@ -195,9 +196,10 @@ localBinding extras {
   get { methodName="Attributes" path=<localBinding:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
-  INLINE<INLINE, InlineKeyword>?
   MUTABLE<MUTABLE, MutableKeyword>?
   fSharpPattern<HEAD_PATTERN, HeadPattern>
+  typeParameterOfMethodList<TYPE_PARAMETERS_LIST, TypeParameterList>?
+  parametersPatternDeclaration<PARAMETERS_PATTERN, ParametersPatterns>*
   returnTypeInfo<RETURN_INFO, ReturnTypeInfo>?
   EQUALS<EQUALS, EqualsToken>
   fSharpExpression<EXPR, Expression>;
@@ -221,6 +223,9 @@ externDeclaration:
 //   fakeSeparator
 //   RPAREN;
 
+
+// todo: extract declaring pattern interface
+
 interface fSharpPattern:
   namedPat |
   typedPat |
@@ -235,6 +240,7 @@ interface fSharpPattern:
   isInstPat |
   listPat |
   listConsPat |
+  parametersOwnerPat |
   wildPat |
   constPat |
   fieldPat |
@@ -242,17 +248,11 @@ interface fSharpPattern:
 
 interface namedPat:
   referencePat |
-  parametersOwnerPat |
   asPat;
 
 interface referencePat:
   localReferencePat |
   topReferencePat;
-
-// todo: fix active pattern and operator decls
-interface parametersOwnerPat:
-  localParametersOwnerPat
-  topParametersOwnerPat;
 
 interface asPat:
   localAsPat |
@@ -269,14 +269,8 @@ topReferencePat options { stubBase="TopPatternDeclarationBase"; } extras {
 }:
   expressionReferenceName<REFERENCE_NAME, ReferenceName>;
 
-localParametersOwnerPat options { stubBase="LocalPatternDeclarationBase"; } extras {
-  get { methodName="Identifier" path=<localParametersOwnerPat:REFERENCE_NAME/expressionReferenceName:IDENTIFIER> };
-}:
-  expressionReferenceName<REFERENCE_NAME, ReferenceName>
-  fSharpPattern<PARAMETER, Parameters>*;
-
-topParametersOwnerPat options { stubBase="TopPatternDeclarationBase"; } extras {
-  get { methodName="Identifier" path=<topParametersOwnerPat:REFERENCE_NAME/expressionReferenceName:IDENTIFIER> };
+parametersOwnerPat options { stubBase="FSharpPatternBase"; } extras {
+  get { methodName="Identifier" path=<parametersOwnerPat:REFERENCE_NAME/expressionReferenceName:IDENTIFIER> };
 }:
   expressionReferenceName<REFERENCE_NAME, ReferenceName>
   fSharpPattern<PARAMETER, Parameters>*;
@@ -1270,7 +1264,8 @@ accessorsNamesClause:
     IDENTIFIER<ACESSOR, AccessorsNames>
   );
 
-accessorDeclaration:
+accessorDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; }:
+  accessModifier{ACCESS_MODIFIER, AccessModifier}?
   IDENTIFIER<IDENTIFIER, Identifier>
   (
     parametersPatternDeclaration<PARAMETERS_PATTERN, ParametersPatterns>*

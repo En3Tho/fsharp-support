@@ -276,7 +276,7 @@ type FSharpNamingService(language: FSharpLanguage) =
             let parametersOwner = ParametersOwnerPatNavigator.GetByParameter(namedPat.IgnoreParentParens())
             if isNull parametersOwner || parametersOwner.Parameters.Count <> 1 then () else
 
-            let typeName = addSingleParamSuggestions.TryGetValue(parametersOwner.SourceName)
+            let typeName = addSingleParamSuggestions.TryGetValue(parametersOwner.ReferenceName.ShortName)
             if isNull typeName then () else
 
             let reference = parametersOwner.ReferenceName.GetFirstClassReferences().FirstOrDefault()
@@ -392,15 +392,14 @@ module FSharpNamingService =
                         if isNull letExpr then () else
 
                         let patterns =
-                            match headPattern with
-                            | :? IParametersOwnerPat as p ->
-                                let parameters = p.ParametersEnumerable
-                                if letExpr.IsRecursive then
-                                    Seq.append [| headPattern |] parameters
-                                else
-                                    parameters :> _
+                            let parameters = binding.ParametersPatternsEnumerable
+                            if parameters.IsEmpty() then [| binding.HeadPattern |] :> IFSharpPattern seq else
 
-                            | fsPattern -> [| fsPattern |] :> _
+                            let parameters = parameters |> Seq.map (fun paramDecl -> paramDecl.Pattern)
+                            if letExpr.IsRecursive then
+                                Seq.append [| headPattern |] parameters
+                            else
+                                parameters
 
                         addScopeForPatterns patterns bindingExpression
 

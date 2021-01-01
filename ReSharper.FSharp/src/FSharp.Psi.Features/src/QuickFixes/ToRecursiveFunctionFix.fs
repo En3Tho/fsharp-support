@@ -31,7 +31,7 @@ type ToRecursiveFunctionFix(warning: UndefinedNameError) =
         |> Seq.tryHead
         |> Option.map (fun (binding: IBinding) ->
             match binding.HeadPattern with
-            | :? IParametersOwnerPat as lidPat -> lidPat.SourceName = referenceExpr.ShortName
+            | :? IReferencePat as refPat -> refPat.SourceName = referenceExpr.ShortName && binding.HasParameters
             | _ -> false)
         |> Option.defaultValue false
 

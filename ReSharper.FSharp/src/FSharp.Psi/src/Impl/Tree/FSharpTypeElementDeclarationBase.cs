@@ -79,6 +79,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
               result.Add(typeDeclaration);
           }
 
+        if (child is IMemberDeclaration {IsIndexer: false} memberDeclaration)
+          foreach (var accessor in memberDeclaration.AccessorDeclarations)
+            if (accessor.IsExplicit)
+              result.Add(accessor);
+
         if (child is ILetBindingsDeclaration let)
           foreach (var binding in let.Bindings)
             ProcessBinding(binding, result);
@@ -97,12 +102,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       }
     }
 
-    private static void ProcessBinding(IBinding binding, ICollection<ITypeMemberDeclaration> result)
+    private static void ProcessBinding(IBindingLikeDeclaration binding, ICollection<ITypeMemberDeclaration> result)
     {
       var headPattern = binding.HeadPattern;
       if (headPattern == null) return;
 
-      foreach (var declaration in headPattern.Declarations)
+      foreach (var declaration in headPattern.NestedPatterns)
         if (declaration is ITypeMemberDeclaration typeMemberDeclaration)
           result.Add(typeMemberDeclaration);
     }
@@ -165,7 +170,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
       var module =
         ModuleLikeDeclarationNavigator.GetByMember(
-          this as IModuleMember ?? 
+          this as IModuleMember ??
           TypeDeclarationGroupNavigator.GetByTypeDeclaration(this as IFSharpTypeOrExtensionDeclaration));
 
       if (module == null)

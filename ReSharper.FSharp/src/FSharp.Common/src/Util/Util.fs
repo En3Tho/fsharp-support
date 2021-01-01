@@ -37,7 +37,7 @@ module rec CommonUtil =
         
     type IDictionary<'TKey, 'TValue> with
         member x.remove (key: 'TKey) = x.Remove key |> ignore
-        member x.add (key: 'TKey, value: 'TValue) = x.Add(key, value) |> ignore
+        member x.add (key: 'TKey, value: 'TValue) = x.Add(key, value)
         member x.contains (key: 'TKey) = x.ContainsKey key
 
     type ISet<'T> with
@@ -155,6 +155,11 @@ module rec FcsUtil =
     let inline (|PatRange|) (pat: SynPat) = pat.Range
     let inline (|IdentRange|) (id: Ident) = id.idRange
     let inline (|TypeRange|) (typ: SynType) = typ.Range
+
+    let inline (|IdentText|_|) text (id: Ident) =
+        if id.idText = text then someUnit else None
+
+    let inline (|LongIdentLid|) (lid: LongIdentWithDots) = lid.Lid
 
 
 [<AutoOpen>]
