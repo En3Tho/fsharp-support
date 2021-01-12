@@ -63,12 +63,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     private IDeclaredElement CreateProperty(FSharpMemberOrFunctionOrValue mfv)
     {
-      foreach (var accessor in AccessorDeclarationsEnumerable)
-        if (accessor.IsExplicit)
-          return IsIndexer
-            ? new FSharpIndexerProperty(this)
-            : new FSharpPropertyWithExplicitAccessors(this);
-
       return new FSharpProperty<MemberDeclaration>(this, mfv);
     }
 

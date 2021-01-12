@@ -27,9 +27,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     protected override IDeclaredElement CreateDeclaredElement() => CreateDeclaredElement(GetFSharpSymbol());
 
     protected override IDeclaredElement CreateDeclaredElement([CanBeNull] FSharpSymbol fcsSymbol) =>
-      fcsSymbol is FSharpMemberOrFunctionOrValue mfv && (mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
-        ? new FSharpPropertyAccessor(this)
-        : null;
+      null;
 
     public IMemberDeclaration OwnerMember =>
       MemberDeclarationNavigator.GetByAccessorDeclaration(this);

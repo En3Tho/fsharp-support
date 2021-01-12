@@ -61,32 +61,6 @@ module ReplaceWithWildPat =
 
         | _ -> false
 
-
-type ReplaceWithWildPatScopedFix(pat: IFSharpPattern, highlightingType) =
-    inherit FSharpScopedQuickFixBase()
-
-    new (warning: RedundantUnionCaseFieldPatternsWarning) =
-        ReplaceWithWildPatScopedFix(warning.ParenPat, warning.GetType())
-
-    new (warning: RedundantParenPatWarning) =
-        ReplaceWithWildPatScopedFix(warning.ParenPat, warning.GetType())
-
-    override x.Text = "Replace with '_'"
-    override x.TryGetContextTreeNode() = pat :> _
-
-    override x.GetScopedFixingStrategy(solution) =
-        SameQuickFixSameHighlightingTypeStrategy(highlightingType, x, solution) :> _
-
-    override x.IsAvailable _ =
-        ReplaceWithWildPat.isAvailable pat
-
-    override x.ExecutePsiTransaction _ =
-        use writeCookie = WriteLockCookie.Create(pat.IsPhysical())
-        use disableFormatter = new DisableCodeFormatter()
-
-        ReplaceWithWildPat.replaceWithWildPat pat
-
-
 type ReplaceWithWildPatFix(pat: IFSharpPattern, isFromUnusedValue) =
     inherit FSharpQuickFixBase()
 
