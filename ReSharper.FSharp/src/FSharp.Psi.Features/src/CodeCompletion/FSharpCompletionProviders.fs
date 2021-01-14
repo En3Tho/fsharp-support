@@ -63,7 +63,7 @@ type FSharpLookupItemsProviderBase(logger: ILogger, getAllSymbols, filterResolve
                 let completionInfo =
                     checkResults
                         .GetDeclarationListInfo(parseResults, line, lineText, context.PartialLongName,
-                                                getAllSymbols, filterResolved) |> Async.RunSynchronously
+                                                getAllSymbols, filterResolved)
 
                 if completionInfo.Items.IsEmpty() then false else
 

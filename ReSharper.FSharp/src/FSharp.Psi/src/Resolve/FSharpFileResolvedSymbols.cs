@@ -93,7 +93,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
         return ResolvedSymbols.Empty;
 
       var checkResults = CheckerService.ParseAndCheckFile(SourceFile, OpName)?.Value.CheckResults;
-      var symbolUses = checkResults?.GetAllUsesOfAllSymbolsInFile().RunAsTask();
+      var symbolUses = checkResults?.GetAllUsesOfAllSymbolsInFile(null);
       if (symbolUses == null)
         return ResolvedSymbols.Empty;
 
@@ -228,7 +228,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
             continue;
 
           // IsFromPattern helps in cases where fake value is created at range,
-          // e.g. `fun Literal -> ()` has both pattern and binding symbols at pattern range. 
+          // e.g. `fun Literal -> ()` has both pattern and binding symbols at pattern range.
           if (symbolUse.IsFromPattern || !resolvedSymbols.Declarations.ContainsKey(startOffset))
             resolvedSymbols.Uses[startOffset] = new FSharpResolvedSymbolUse(symbolUse, nameRange);
           if (symbolUse.IsFromPattern)
@@ -242,7 +242,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     }
 
     private static bool CanIgnoreSymbol([NotNull] FSharpSymbol symbol) =>
-      symbol is FSharpEntity || 
+      symbol is FSharpEntity ||
       symbol is FSharpMemberOrFunctionOrValue mfv && (mfv.LogicalName == "op_RangeStep" || mfv.IsConstructor);
 
     private TextRange FixRange(int startOffset, int endOffset, [CanBeNull] string logicalName, IBuffer buffer,
