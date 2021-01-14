@@ -92,8 +92,8 @@
     </Message>
     <Range>expr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
-    <QuickFix>AddIgnoreFix</QuickFix>
     <QuickFix>IntroduceVarFix</QuickFix>
+    <QuickFix>AddIgnoreFix</QuickFix>
     <QuickFix>RemoveSubsequentFix</QuickFix>
     <QuickFix>ReplaceWithAssignmentExpressionFix</QuickFix>
   </Warning>
@@ -106,8 +106,8 @@
     </Message>
     <Range>expr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
-    <QuickFix>AddIgnoreFix</QuickFix>
     <QuickFix>IntroduceVarFix</QuickFix>
+    <QuickFix>AddIgnoreFix</QuickFix>
     <QuickFix>RemoveSubsequentFix</QuickFix>
   </Warning>
   
@@ -297,6 +297,14 @@
     <Range>identifier.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>NamespaceToModuleFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="TypeAbbreviationsCannotHaveAugmentations">
+    <Parameter type="ITypeExtensionDeclaration" name="extensionDecl"/>
+    <Message value="Type abbreviations cannot have augmentations"/>
+    <Range>extensionDecl.Identifier.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>ReplaceWithAbbreviatedTypeFix</QuickFix>
   </Error>
 
 </Errors>
