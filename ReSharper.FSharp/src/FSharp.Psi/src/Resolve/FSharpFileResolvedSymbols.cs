@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using FSharp.Compiler;
 using FSharp.Compiler.SourceCodeServices;
 using JetBrains.Annotations;
@@ -18,6 +19,7 @@ using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Text;
 using JetBrains.Util;
 using JetBrains.Util.DataStructures;
+using Microsoft.FSharp.Core;
 using PrettyNaming = FSharp.Compiler.PrettyNaming;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
@@ -93,7 +95,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
         return ResolvedSymbols.Empty;
 
       var checkResults = CheckerService.ParseAndCheckFile(SourceFile, OpName)?.Value.CheckResults;
-      var symbolUses = checkResults?.GetAllUsesOfAllSymbolsInFile().RunAsTask();
+      var symbolUses = checkResults?.GetAllUsesOfAllSymbolsInFile(FSharpOption<CancellationToken>.None);
       if (symbolUses == null)
         return ResolvedSymbols.Empty;
 

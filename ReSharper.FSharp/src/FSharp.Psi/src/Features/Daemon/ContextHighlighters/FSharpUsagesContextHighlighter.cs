@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using FSharp.Compiler.SourceCodeServices;
 using JetBrains.Annotations;
 using JetBrains.DocumentModel;
@@ -15,6 +16,7 @@ using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Util;
 using JetBrains.ReSharper.Psi.DataContext;
 using JetBrains.ReSharper.Psi.Tree;
+using Microsoft.FSharp.Core;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.ContextHighlighters
 {
@@ -90,7 +92,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.ContextHighligh
       var isGreaterOp =
         symbol is FSharpMemberOrFunctionOrValue mfv && mfv.LogicalName == StandardOperatorNames.GreaterThan;
 
-      var symbolUsages = checkResults?.GetUsesOfSymbolInFile(symbol).RunAsTask();
+      var symbolUsages = checkResults?.GetUsesOfSymbolInFile(symbol, FSharpOption<CancellationToken>.None);
       if (symbolUsages == null)
         return;
 
