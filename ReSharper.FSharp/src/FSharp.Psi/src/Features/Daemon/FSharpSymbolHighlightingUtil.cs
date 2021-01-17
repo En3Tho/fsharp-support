@@ -125,6 +125,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         if (!mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
          && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline))
           return FSharpHighlightingAttributeIdsModule.InlineFunction;
+        if (mfv.IsValCompiledAsMethod())
+          return FSharpHighlightingAttributeIdsModule.Method;
         return mfv.IsMutable
           ? FSharpHighlightingAttributeIdsModule.MutableFunction
           : FSharpHighlightingAttributeIdsModule.Function;
