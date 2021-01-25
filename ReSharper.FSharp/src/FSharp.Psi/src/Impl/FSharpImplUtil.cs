@@ -288,7 +288,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       {
         case IFSharpTypeOldDeclaration typeDeclaration:
           return typeDeclaration.AllAttributes;
-        case IMemberDeclaration memberDeclaration:
+        case IMemberSignatureOrDeclaration memberDeclaration:
           return memberDeclaration.Attributes;
         case IFSharpPattern fsPattern:
           return fsPattern.Attributes;
@@ -337,7 +337,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         ICompiledElement compiled when compiled.IsFromFSharpAssembly() => compiled.IsCompiledException(),
         _ => false
       };
-
+    
     public static bool IsUnion([NotNull] this ITypeElement typeElement) =>
       typeElement switch
       {
@@ -346,7 +346,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         _ => false
       };
 
-    public static bool IsUnionCase([NotNull] this ITypeElement typeElement) =>
+    public static bool IsUnionCase([NotNull] this ITypeElement typeElement) => 
       typeElement switch
       {
         IFSharpTypeElement fsTypeElement => fsTypeElement.GetPart<UnionCasePart>() != null,
@@ -393,7 +393,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       Assertion.Assert(moduleTypeElement.IsCompiledModule(), "moduleTypeElement.IsCompiledModule()");
 
       bool IsAssociatedType(ITypeElement t) =>
-        !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 &&
+        !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 && 
         !t.IsCompiledModule() && t.GetSourceName() == sourceName;
 
       var containingType = moduleTypeElement.GetContainingType();
@@ -474,7 +474,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         ? ModifiersUtil.GetAccessRights(repr.AccessModifier)
         : AccessRights.PUBLIC;
 
-    public static PartKind GetSimpleTypeKindFromAttributes(this IFSharpTypeDeclaration decl) =>
+    public static PartKind GetSimpleTypeKindFromAttributes(this IFSharpTypeDeclaration decl) => 
       GetTypeKind(decl.AllAttributes, out var kind) ? kind : PartKind.Class; // todo struct or class only
 
     public static bool GetTypeKind(TreeNodeCollection<IAttribute> attributes, out PartKind fSharpPartKind)
@@ -609,7 +609,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       var space = ModificationUtil.AddChildBefore(anchor, new Whitespace());
       ModificationUtil.AddChildBefore(space, tokenType.CreateLeafElement());
     }
-
+    
     public static IList<ITypeElement> ToTypeElements(this IList<IClrTypeName> names, IPsiModule psiModule)
     {
       var result = new List<ITypeElement>(names.Count);
@@ -709,18 +709,28 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       };
     }
 
-    public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) =>
+    public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) => 
       typeElement.GetAccessType() == ModuleMembersAccessKind.RequiresQualifiedAccess;
 
     [CanBeNull]
-    public static IFSharpExpression IgnoreParentParens([CanBeNull] this IFSharpExpression fsExpr)
+    private static T GetOutermostNode<T, TMatchingNode>([CanBeNull] this T node)
+      where T : class, ITreeNode 
+      where TMatchingNode : class, T
     {
-      if (fsExpr == null) return null;
+      if (node == null) return null;
 
-      while (fsExpr.Parent is IParenExpr parenExpr)
-        fsExpr = parenExpr;
-      return fsExpr;
+      while (node.Parent is TMatchingNode matchingNode)
+        node = matchingNode;
+      return node;
     }
+
+    [CanBeNull]
+    public static IFSharpExpression IgnoreParentParens([CanBeNull] this IFSharpExpression fsExpr) =>
+      fsExpr.GetOutermostNode<IFSharpExpression, IParenExpr>();
+
+    [CanBeNull]
+    public static ITypeUsage IgnoreParentParens([CanBeNull] this ITypeUsage typeUsage) =>
+      typeUsage.GetOutermostNode<ITypeUsage, IParenTypeUsage>();
 
     public static ITreeNode IgnoreParentChameleonExpr([NotNull] this ITreeNode treeNode) =>
       treeNode.Parent is IChameleonExpression parenExpr
@@ -737,16 +747,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         fsExpr = parenExpr.InnerExpression;
       return fsExpr;
     }
-
-    public static IFSharpPattern IgnoreParentParens([CanBeNull] this IFSharpPattern fsPattern)
-    {
-      if (fsPattern == null)
-        return null;
-
-      while (fsPattern.Parent is IParenPat parenPat)
-        fsPattern = parenPat;
-      return fsPattern;
-    }
+    
+    public static IFSharpPattern IgnoreParentParens([CanBeNull] this IFSharpPattern fsPattern) =>
+      fsPattern.GetOutermostNode<IFSharpPattern, IParenPat>();
 
     public static IFSharpPattern IgnoreInnerParens([CanBeNull] this IFSharpPattern fsPattern)
     {
@@ -757,9 +760,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         fsPattern = parenPat.Pattern;
       return fsPattern;
     }
-
+    
     [NotNull]
-    public static IFSharpReferenceOwner SetName([NotNull] this IFSharpReferenceOwner referenceOwner,
+    public static IFSharpReferenceOwner SetName([NotNull] this IFSharpReferenceOwner referenceOwner, 
       [NotNull] string name)
     {
       if (referenceOwner.FSharpIdentifier?.IdentifierToken is { } id)
@@ -799,7 +802,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       return result;
     }
 
-
+    
     public static ModuleMembersAccessKind GetAccessType([NotNull] this IDeclaredModuleDeclaration moduleDeclaration)
     {
       var autoOpen = false;
@@ -849,6 +852,54 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       // todo: calc types on demand in members (move cookie to FSharpTypesUtil)
       using (CompilationContextCookie.GetOrCreate(decl.GetPsiModule().GetContextFromModule()))
         return cache.GetOrCreateDeclaredElement(decl, factory);
+    }
+    
+    public static bool IsIndexer(this IMemberSignatureOrDeclaration decl) =>
+      decl.SourceName == StandardMemberNames.DefaultIndexerName && decl.SourceName == decl.CompiledName;
+
+    public static IDeclaredElement CreateMethod([NotNull] this IMemberSignatureOrDeclaration decl)
+    {
+      var compiledName = decl.CompiledName;
+      if (compiledName.StartsWith("op_", StringComparison.Ordinal) && decl.IsStatic)
+        return compiledName switch
+        {
+          StandardOperatorNames.Explicit => new FSharpConversionOperator<IMemberSignatureOrDeclaration>(decl, true),
+          StandardOperatorNames.Implicit => new FSharpConversionOperator<IMemberSignatureOrDeclaration>(decl, false),
+          _ => new FSharpSignOperator<IMemberSignatureOrDeclaration>(decl)
+        };
+
+      return new FSharpMethod<IMemberSignatureOrDeclaration>(decl);
+    }
+
+    public static IDeclaredElement CreateMemberDeclaredElement([NotNull] this IMemberSignatureOrDeclaration decl, FSharpSymbol fcsSymbol)
+    {
+      if (!(fcsSymbol is FSharpMemberOrFunctionOrValue mfv)) return null;
+
+      if (mfv.IsProperty) return CreateProperty(decl, mfv);
+
+      var property = mfv.AccessorProperty?.Value;
+      if (property != null)
+      {
+        var cliEvent = property.EventForFSharpProperty?.Value;
+        return cliEvent != null
+          ? new FSharpCliEvent<IMemberSignatureOrDeclaration>(decl)
+          : CreateProperty(decl, property);
+      }
+
+      return new FSharpMethod<IMemberSignatureOrDeclaration>(decl);
+    }
+
+    [NotNull]
+    public static IDeclaredElement CreateProperty([NotNull] this IMemberSignatureOrDeclaration decl,
+      FSharpMemberOrFunctionOrValue mfv)
+    {
+      foreach (var accessor in decl.AccessorDeclarationsEnumerable)
+        if (accessor.IsExplicit)
+          return decl.IsIndexer
+            ? new FSharpIndexerProperty(decl)
+            : new FSharpPropertyWithExplicitAccessors(decl);
+
+      return new FSharpProperty<IMemberSignatureOrDeclaration>(decl, mfv);
     }
   }
 }

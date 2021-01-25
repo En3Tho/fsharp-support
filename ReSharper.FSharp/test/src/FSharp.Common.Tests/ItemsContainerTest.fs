@@ -16,7 +16,7 @@ open JetBrains.ProjectModel.ProjectsHost.MsBuild.Internal
 open JetBrains.ProjectModel.ProjectsHost.MsBuild.Structure
 open JetBrains.ProjectModel.Update
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
-open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.ProjectItems.ItemsContainer
+open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host.ProjectItems.ItemsContainer
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.TestFramework
 open JetBrains.Util
@@ -93,7 +93,7 @@ let createViewFile path (solutionItems: IDictionary<FileSystemPath, IProjectItem
 let createViewFolder path id solutionItems =
     FSharpViewFolder (getOrCreateFolder path solutionItems, { Identity = id })
 
-let getOrCreateFile (AbsolutePath path) (solutionItems): IProjectFile =
+let getOrCreateFile (AbsolutePath path) solutionItems: IProjectFile =
     solutionItems.GetOrCreateValue(path, fun () ->
 
     let file = Mock<IProjectFile>()

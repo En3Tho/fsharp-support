@@ -128,8 +128,8 @@ type internal FSharpSigTreeBuilder(sourceFile, lexer, sigs, lifetime) =
                     ElementType.ABSTRACT_MEMBER_DECLARATION
                 else
                     match flags.MemberKind with
-                    | MemberKind.Constructor -> ElementType.SECONDARY_CONSTRUCTOR_DECLARATION
-                    | _ -> ElementType.MEMBER_DECLARATION
+                    | MemberKind.Constructor -> ElementType.CONSTRUCTOR_SIGNATURE
+                    | _ -> ElementType.MEMBER_SIGNATURE
             x.Done(range, mark, elementType)
 
         | SynMemberSig.ValField(Field(attrs, _, id, synType, _, _, _, _), range) ->
