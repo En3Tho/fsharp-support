@@ -337,7 +337,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         ICompiledElement compiled when compiled.IsFromFSharpAssembly() => compiled.IsCompiledException(),
         _ => false
       };
-
+    
     public static bool IsUnion([NotNull] this ITypeElement typeElement) =>
       typeElement switch
       {
@@ -346,7 +346,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         _ => false
       };
 
-    public static bool IsUnionCase([NotNull] this ITypeElement typeElement) =>
+    public static bool IsUnionCase([NotNull] this ITypeElement typeElement) => 
       typeElement switch
       {
         IFSharpTypeElement fsTypeElement => fsTypeElement.GetPart<UnionCasePart>() != null,
@@ -393,7 +393,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       Assertion.Assert(moduleTypeElement.IsCompiledModule(), "moduleTypeElement.IsCompiledModule()");
 
       bool IsAssociatedType(ITypeElement t) =>
-        !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 &&
+        !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 && 
         !t.IsCompiledModule() && t.GetSourceName() == sourceName;
 
       var containingType = moduleTypeElement.GetContainingType();
@@ -609,7 +609,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       var space = ModificationUtil.AddChildBefore(anchor, new Whitespace());
       ModificationUtil.AddChildBefore(space, tokenType.CreateLeafElement());
     }
-
+    
     public static IList<ITypeElement> ToTypeElements(this IList<IClrTypeName> names, IPsiModule psiModule)
     {
       var result = new List<ITypeElement>(names.Count);
@@ -709,7 +709,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       };
     }
 
-    public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) =>
+    public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) => 
       typeElement.GetAccessType() == ModuleMembersAccessKind.RequiresQualifiedAccess;
 
     [CanBeNull]
@@ -760,9 +760,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         fsPattern = parenPat.Pattern;
       return fsPattern;
     }
-
+    
     [NotNull]
-    public static IFSharpReferenceOwner SetName([NotNull] this IFSharpReferenceOwner referenceOwner,
+    public static IFSharpReferenceOwner SetName([NotNull] this IFSharpReferenceOwner referenceOwner, 
       [NotNull] string name)
     {
       if (referenceOwner.FSharpIdentifier?.IdentifierToken is { } id)
@@ -802,7 +802,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       return result;
     }
 
-
+    
     public static ModuleMembersAccessKind GetAccessType([NotNull] this IDeclaredModuleDeclaration moduleDeclaration)
     {
       var autoOpen = false;
