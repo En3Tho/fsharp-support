@@ -2,13 +2,13 @@
 IFSharpImplFile
   IAnonModuleDeclaration
     ITypeDeclarationGroup
-      FSharpTokenType+TypeTokenElement(type:TYPE, text:type)
-      Whitespace(type:WHITE_SPACE, text: ) spaces:" "
       IFSharpTypeDeclaration
+        FSharpTokenType+TypeTokenElement(type:TYPE, text:type)
+        Whitespace(type:WHITE_SPACE, text: ) spaces:" "
         FSharpIdentifierToken(type:IDENTIFIER, text:T)
         IPrimaryConstructorDeclaration
           IParametersPatternDeclaration
-            IParenPat
+            IUnitPat
               FSharpTokenType+LparenTokenElement(type:LPAREN, text:()
               FSharpTokenType+RparenTokenElement(type:RPAREN, text:))
         Whitespace(type:WHITE_SPACE, text: ) spaces:" "
@@ -21,7 +21,7 @@ IFSharpImplFile
             Whitespace(type:WHITE_SPACE, text: ) spaces:" "
             FSharpTokenType+InternalTokenElement(type:INTERNAL, text:internal)
             Whitespace(type:WHITE_SPACE, text: ) spaces:" "
-            IMemberSelfId
+            IWildSelfId
               FSharpTokenType+UnderscoreTokenElement(type:UNDERSCORE, text:_)
             FSharpTokenType+DotTokenElement(type:DOT, text:.)
             FSharpIdentifierToken(type:IDENTIFIER, text:Foo)

@@ -44,7 +44,8 @@ type FSharpIntroduceVariable(workflow, solution, driver) =
         NodeTypeSet(
            ElementType.RECORD_EXPR,
            ElementType.ANON_RECORD_EXPR,
-           ElementType.ARRAY_OR_LIST_EXPR,
+           ElementType.ARRAY_EXPR,
+           ElementType.LIST_EXPR,
            ElementType.PAREN_EXPR,
            ElementType.LAMBDA_EXPR,
            ElementType.MATCH_LAMBDA_EXPR,
@@ -298,7 +299,7 @@ type FSharpIntroduceVariable(workflow, solution, driver) =
         let elementFactory = sourceExpr.CreateElementFactory()
 
         let indentShift = contextExpr.Indent - sourceExpr.Indent
-        shiftExpr indentShift sourceExpr
+        shiftNode indentShift sourceExpr
 
         let letBindings = createBinding contextExpr contextDecl name
         setBindingExpression sourceExpr contextIndent letBindings

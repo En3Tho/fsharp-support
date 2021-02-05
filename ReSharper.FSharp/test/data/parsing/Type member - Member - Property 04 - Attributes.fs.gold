@@ -6,13 +6,13 @@ IFSharpImplFile
     FSharpIdentifierToken(type:GLOBAL, text:global)
     NewLine(type:NEW_LINE, text:\n) spaces:"\n"
     ITypeDeclarationGroup
-      FSharpTokenType+TypeTokenElement(type:TYPE, text:type)
-      Whitespace(type:WHITE_SPACE, text: ) spaces:" "
       IFSharpTypeDeclaration
+        FSharpTokenType+TypeTokenElement(type:TYPE, text:type)
+        Whitespace(type:WHITE_SPACE, text: ) spaces:" "
         FSharpIdentifierToken(type:IDENTIFIER, text:T)
         IPrimaryConstructorDeclaration
           IParametersPatternDeclaration
-            IParenPat
+            IUnitPat
               FSharpTokenType+LparenTokenElement(type:LPAREN, text:()
               FSharpTokenType+RparenTokenElement(type:RPAREN, text:))
         Whitespace(type:WHITE_SPACE, text: ) spaces:" "
@@ -35,7 +35,7 @@ IFSharpImplFile
             Whitespace(type:WHITE_SPACE, text:    ) spaces:"    "
             FSharpTokenType+MemberTokenElement(type:MEMBER, text:member)
             Whitespace(type:WHITE_SPACE, text: ) spaces:" "
-            IMemberSelfId
+            INamedSelfId
               FSharpIdentifierToken(type:IDENTIFIER, text:x)
             FSharpTokenType+DotTokenElement(type:DOT, text:.)
             FSharpIdentifierToken(type:IDENTIFIER, text:A)
@@ -64,7 +64,6 @@ IFSharpImplFile
               IChameleonExpression
                 ILiteralExpr
                   FSharpToken(type:INT32, text:1)
-            IMemberSelfId
             NewLine(type:NEW_LINE, text:\n) spaces:"\n"
             Whitespace(type:WHITE_SPACE, text:        ) spaces:"        "
             FSharpTokenType+AndTokenElement(type:AND, text:and)
