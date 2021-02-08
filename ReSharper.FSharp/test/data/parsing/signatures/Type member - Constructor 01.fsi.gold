@@ -21,14 +21,16 @@ IFSharpSigFile
             FSharpTokenType+ColonTokenElement(type:COLON, text::)
             Whitespace(type:WHITE_SPACE, text: ) spaces:" "
             IFunctionTypeUsage
-              INamedTypeUsage
-                ITypeReferenceName
-                  FSharpIdentifierToken(type:IDENTIFIER, text:int)
+              IParameterSignatureTypeUsage
+                INamedTypeUsage
+                  ITypeReferenceName
+                    FSharpIdentifierToken(type:IDENTIFIER, text:int)
               Whitespace(type:WHITE_SPACE, text: ) spaces:" "
               FSharpTokenType+RarrowTokenElement(type:RARROW, text:->)
               Whitespace(type:WHITE_SPACE, text: ) spaces:" "
-              INamedTypeUsage
-                ITypeReferenceName
-                  FSharpIdentifierToken(type:IDENTIFIER, text:T)
+              IParameterSignatureTypeUsage
+                INamedTypeUsage
+                  ITypeReferenceName
+                    FSharpIdentifierToken(type:IDENTIFIER, text:T)
         NewLine(type:NEW_LINE, text:\n) spaces:"\n"
 
