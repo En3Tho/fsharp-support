@@ -97,7 +97,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           if (mfv.IsProperty || mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
             return mfv.IsExtensionMember
               ? FSharpHighlightingAttributeIdsModule.ExtensionProperty
-              : FSharpHighlightingAttributeIdsModule.Property;
+              : mfv.HasSetterMethod || declaringEntity.ContainsMatchingSetterProperty(mfv)
+                ? FSharpHighlightingAttributeIdsModule.MutableProperty
+                : FSharpHighlightingAttributeIdsModule.Property;
           else
             return mfv.IsExtensionMember
               ? FSharpHighlightingAttributeIdsModule.ExtensionMethod

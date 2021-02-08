@@ -157,6 +157,20 @@ let rec getAbbreviatedEntity (entity: FSharpEntity) =
     else
         entity
 
+[<Extension; CompiledName("ContainsMatchingSetterProperty")>]
+let rec containsMatchingSetterProperty (entity: FSharpEntity, mfv: FSharpMemberOrFunctionOrValue) =
+    let members = entity.MembersFunctionsAndValues
+    let count = members.Count
+    let mutable i = 0
+    let mutable contains = false
+    while not contains && i < count do
+        let memberMfv = members.[i]
+        if memberMfv.DisplayName.Equals(mfv.DisplayName, StringComparison.Ordinal)
+        && (memberMfv.IsProperty && memberMfv.HasSetterMethod || memberMfv.IsPropertySetterMethod) then
+            contains <- true
+        i <- i + 1
+    contains
+
 [<Extension; CompiledName("IsPropertyConstraint")>]
 let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with

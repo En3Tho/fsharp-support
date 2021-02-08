@@ -24,4 +24,4 @@ type RedundantBackticksAnalyzer() =
         let range = identifier.GetNavigationRange()
         let highlighting = RedundantBackticksWarning(identifier)
         consumer.AddHighlighting(highlighting, range.StartOffsetRange().ExtendRight(2))
-        consumer.AddHighlighting(highlighting, range.EndOffsetRange().ExtendLeft(2), isSecondaryHighlighting = true)
+        consumer.AddHighlighting(highlighting, range.EndOffsetRange().ExtendLeft(2))
