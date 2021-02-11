@@ -195,7 +195,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           if (prm.IsPropertyConstraint()) return FSharpHighlightingAttributeIdsModule.Property;
           if (prm.IsOperatorConstraint()) return FSharpHighlightingAttributeIdsModule.Operator;
           if (prm.IsMethodConstraint()) return FSharpHighlightingAttributeIdsModule.Method;
-          return FSharpHighlightingAttributeIdsModule.Value;
+          return FSharpHighlightingAttributeIdsModule.Field;
       }
 
       // some highlighting is needed for tooltip provider
