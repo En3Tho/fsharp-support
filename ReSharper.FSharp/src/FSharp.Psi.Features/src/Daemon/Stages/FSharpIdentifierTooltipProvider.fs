@@ -10,15 +10,12 @@ open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.UI.RichText
 open JetBrains.Util
-
-let [<Literal>] RiderTooltipSeparator = "_HORIZONTAL_LINE_TOOLTIP_SEPARATOR_"
 
 [<SolutionComponent>]
 type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocService: FSharpXmlDocService,
@@ -95,9 +92,13 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
             (fun (result: RichText) part -> if result.IsEmpty then part else result + sep + part)
             RichText.Empty
 
+    let richTextEscapeNewLines (text: RichText) =
+        (RichText.Empty, text.GetFormattedParts()) ||> Seq.fold (fun result part ->
+            result.Append(part.Text.Replace("\n", "<br>")))
+
     let [<Literal>] opName = "FSharpIdentifierTooltipProvider"
 
-    static member GetFSharpToolTipText(checkResults: FSharpCheckFileResults, token: FSharpIdentifierToken) =
+    static member GetFSharpToolTipText(checkResults: FSharpCheckFileResults, token: IFSharpIdentifierToken) =
         // todo: fix getting qualifiers
         let tokenNames = [token.Name]
 
@@ -126,7 +127,7 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
         | null -> emptyPresentation
         | fsFile ->
 
-        match fsFile.FindTokenAt(documentRange.StartOffset).As<FSharpIdentifierToken>() with
+        match fsFile.FindTokenAt(documentRange.StartOffset).As<IFSharpIdentifierToken>() with
         | null -> emptyPresentation
         | token ->
 
@@ -160,7 +161,8 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
                           yield remarks |> renderL richTextR
                       | _ -> () ]
                     |> richTextJoin "\n\n"))
-        |> richTextJoin RiderTooltipSeparator
+        |> richTextJoin IdentifierTooltipProvider.RIDER_TOOLTIP_SEPARATOR
+        |> richTextEscapeNewLines
         |> RichTextBlock
 
     interface IFSharpIdentifierTooltipProvider
