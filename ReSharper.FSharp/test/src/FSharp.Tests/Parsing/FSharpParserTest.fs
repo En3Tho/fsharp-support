@@ -185,6 +185,10 @@ type FSharpParserTest() =
     [<Test>] member x.``Expr - Match 03 - When Expr``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Match 04 - Multiple When clauses``() = x.DoNamedTest()
 
+    [<Test>] member x.``Expr - Match lambda 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Match lambda 02 - Tuple``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Match lambda 03 - Multiple clauses``() = x.DoNamedTest()
+
     [<Test>] member x.``Expr - Do 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Do 02``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Do 03``() = x.DoNamedTest()
@@ -424,6 +428,8 @@ type FSharpParserTest() =
     [<Test>] member x.``Type member - Member - Property - Accessors 02``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property - Accessors 03``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property - Accessors 04 - Access modifiers 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 05 - Tuple``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 06``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 01``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 02 - Static``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 03 - Access modifier``() = x.DoNamedTest()
@@ -489,6 +495,7 @@ type FSharpSignatureParserTest() =
 
     override x.RelativeTestDataPath = "parsing/signatures"
 
+    [<Test>] member x.``Type decl - Union 01 - After nested module``() = x.DoNamedTest()
     [<Test>] member x.``Type decl group 01``() = x.DoNamedTest()
     [<Test>] member x.``Type decl group 02 - Attributes``() = x.DoNamedTest()
 

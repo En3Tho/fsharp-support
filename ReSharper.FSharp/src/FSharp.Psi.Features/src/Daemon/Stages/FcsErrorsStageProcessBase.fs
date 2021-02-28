@@ -44,6 +44,7 @@ module FSharpErrors =
     let [<Literal>] UndefinedName = 39
     let [<Literal>] UpcastUnnecessary = 66
     let [<Literal>] TypeTestUnnecessary = 67
+    let [<Literal>] IndeterminateType = 72
     let [<Literal>] EnumMatchIncomplete = 104
     let [<Literal>] NamespaceCannotContainValues = 201
     let [<Literal>] ModuleOrNamespaceRequired = 222
@@ -176,6 +177,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | TypeTestUnnecessary ->
             createHighlightingFromNodeWithMessage TypeTestUnnecessaryWarning range error
 
+        | IndeterminateType ->
+            createHighlightingFromNode IndeterminateTypeError range
+
         | UnusedValue ->
             match fsFile.GetNode<INamedPat>(range) with
             | null -> UnusedHighlighting(error.Message, range) :> _
@@ -192,6 +196,12 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             createHighlightingFromParentNode RuleNeverMatchedWarning range
 
         | MatchIncomplete ->
+            let fsPattern = fsFile.GetNode<IFSharpPattern>(range)
+            if isNotNull fsPattern then createGenericHighlighting error range else
+
+            let matchLambdaExpr = fsFile.GetNode<IMatchLambdaExpr>(range)
+            if isNotNull matchLambdaExpr then createGenericHighlighting error range else
+
             createHighlightingFromParentNodeWithMessage MatchIncompleteWarning range error
 
         | EnumMatchIncomplete ->
