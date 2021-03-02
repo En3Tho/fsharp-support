@@ -27,7 +27,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
     protected override ITypeElement GetTypeElement(IDeclaration declaration)
     {
       var typeDeclaration = declaration.GetContainingNode<ITypeDeclaration>();
-      if (typeDeclaration is ITypeExtensionDeclaration extension && !extension.IsTypePartDeclaration)
+      if (typeDeclaration is ITypeExtensionDeclaration { IsTypePartDeclaration: false } extension)
         return extension.GetContainingNode<ITypeDeclaration>()?.DeclaredElement;
 
       return typeDeclaration?.DeclaredElement;
@@ -81,7 +81,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
     public bool CanBeImplicitImplementation => false;
 
     public bool IsExplicitImplementation =>
-      GetDeclaration() is IMemberDeclaration member && member.IsExplicitImplementation;
+      GetDeclaration() is IMemberDeclaration { IsExplicitImplementation: true };
 
     public IList<IExplicitImplementation> ExplicitImplementations
     {
@@ -115,7 +115,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
       (decl.IsOverride || InterfaceImplementationNavigator.GetByTypeMember(decl as IMemberDeclaration) != null);
 
     public override bool IsAbstract =>
-      GetDeclaration() is IAbstractMemberDeclaration memberDeclaration && !memberDeclaration.HasDefaultImplementation;
+      GetDeclaration() is IAbstractMemberDeclaration { HasDefaultImplementation: false };
 
     public override bool IsVirtual =>
       GetDeclaration() switch
@@ -144,10 +144,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
         return true;
 
       var otherSymbol = otherMember.Mfv;
-      if (otherSymbol == null)
-        return false;
-
-      if (!otherSymbol.IsExtensionMember)
+      if (!(otherSymbol is { IsExtensionMember: true }))
         return false;
 
       var apparentEntity = mfv.ApparentEnclosingEntity;

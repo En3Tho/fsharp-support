@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using FSharp.Compiler.SourceCodeServices;
-using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled;
@@ -13,7 +11,6 @@ using JetBrains.ReSharper.Psi.Impl.Search;
 using JetBrains.ReSharper.Psi.Impl.Search.SearchDomain;
 using JetBrains.ReSharper.Psi.Search;
 using JetBrains.ReSharper.Psi.Tree;
-using JetBrains.ReSharper.Psi.Util;
 using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
@@ -46,25 +43,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
       if (declaredElement is IFSharpLocalDeclaration localDeclaration)
         return mySearchDomainFactory.CreateSearchDomain(localDeclaration.GetSourceFile());
 
-      if (declaredElement is IFSharpSymbolElement fsSymbolElement)
-      {
-        var fsSymbol = fsSymbolElement.Symbol;
-        if (!(fsSymbol is FSharpActivePatternCase activePatternCase))
-          return EmptySearchDomain.Instance;
-
-        if (fsSymbolElement is ResolvedFSharpSymbolElement)
-        {
-          var patternEntity = activePatternCase.Group.DeclaringEntity?.Value;
-          if (patternEntity != null)
-          {
-            var patternTypeElement = FSharpElementsUtil.GetDeclaredElement(patternEntity, fsSymbolElement.Module);
-            return patternTypeElement != null
-              ? myClrSearchFactory.GetDeclaredElementSearchDomain(patternTypeElement)
-              : EmptySearchDomain.Instance;
-          }
-        }
-      }
-
       if (declaredElement is TopActivePatternCase activePatternCaseElement)
       {
         var declaration = activePatternCaseElement.GetDeclaration();
@@ -89,46 +67,21 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
     public override IEnumerable<RelatedDeclaredElement> GetRelatedDeclaredElements(IDeclaredElement element)
     {
       if (element is IUnionCase unionCase)
-        return GetUnionCaseRelatedElements(unionCase);
+        return unionCase.GetGeneratedMembers().Select(member => new RelatedDeclaredElement(member));
 
       if (element is IGeneratedConstructorParameterOwner parameterOwner &&
           parameterOwner.GetGeneratedParameter() is { } parameter)
         return new[] {new RelatedDeclaredElement(parameter)};
 
+      if (element is IFSharpProperty property)
+        return property.Getters.Concat(property.Setters).Select(member => new RelatedDeclaredElement(member));
+
       return EmptyList<RelatedDeclaredElement>.Instance;
     }
 
-    private static IEnumerable<RelatedDeclaredElement> GetUnionCaseRelatedElements([NotNull] IUnionCase unionCase) =>
-      unionCase.GetGeneratedMembers().Select(member => new RelatedDeclaredElement(member));
-
     public override NavigateTargets GetNavigateToTargets(IDeclaredElement element)
     {
-      if (element is ResolvedFSharpSymbolElement resolvedSymbolElement &&
-          resolvedSymbolElement.Symbol is FSharpActivePatternCase activePatternCase)
-      {
-        var activePattern = activePatternCase.Group;
-
-        var entityOption = activePattern.DeclaringEntity;
-        var patternNameOption = activePattern.Name;
-        if (entityOption == null || patternNameOption == null)
-          return NavigateTargets.Empty;
-
-        var typeElement = entityOption.Value.GetTypeElement(resolvedSymbolElement.Module);
-        var pattern = typeElement.EnumerateMembers(patternNameOption.Value, true).FirstOrDefault() as IDeclaredElement;
-        if (pattern is IFSharpTypeMember)
-        {
-          if (!(pattern.GetDeclarations().FirstOrDefault() is IFSharpDeclaration patternDecl))
-            return NavigateTargets.Empty;
-
-          var caseElement = patternDecl.GetActivePatternByIndex(activePatternCase.Index);
-          if (caseElement != null)
-            return new NavigateTargets(caseElement, false);
-        }
-        else if (pattern != null)
-          return new NavigateTargets(pattern, false);
-      }
-
-      if (element is IFSharpGeneratedFromOtherElement generated && generated.OriginElement is { } origin)
+      if (element is ISecondaryDeclaredElement { OriginElement: { } origin })
         return new NavigateTargets(origin, false);
 
       if (!(element is IFSharpTypeMember fsTypeMember) || fsTypeMember.CanNavigateTo)
