@@ -22,6 +22,7 @@
     <Compile Include="src\Util\FSharpModulesUtil.fs" />
     <Compile Include="src\Util\FSharpNamingService.fs" />
     <Compile Include="src\Util\FSharpLambdaUtil.fs" />
+    <Compile Include="src\Util\FcsTaggedText.fs" />
     <Compile Include="src\CodeCompletion\CompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
@@ -233,7 +234,7 @@
 
   <ItemGroup>
     <Reference Include="FSharp.Compiler.Service, Version=2020.3.0.0, Culture=neutral, PublicKeyToken=3099b8d9d20e74bf">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\fcs\Release\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
+      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Proto\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
 

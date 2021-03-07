@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using FSharp.Compiler.SourceCodeServices;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings;
