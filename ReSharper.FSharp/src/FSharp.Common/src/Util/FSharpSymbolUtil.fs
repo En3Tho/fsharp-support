@@ -3,6 +3,7 @@ module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
 
 open System
 open FSharp.Compiler.SourceCodeServices
+open FSharp.Compiler.Symbols
 open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp
@@ -174,19 +175,19 @@ let rec containsMatchingSetterProperty (entity: FSharpEntity, mfv: FSharpMemberO
 [<Extension; CompiledName("IsPropertyConstraint")>]
 let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with
-    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal)
+    | ValueSome logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal)
     | _ -> false
 
 [<Extension; CompiledName("IsOperatorConstraint")>]
 let isOperatorConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with
-    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("op_", StringComparison.Ordinal)
+    | ValueSome logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("op_", StringComparison.Ordinal)
     | _ -> false
 
 [<Extension; CompiledName("IsMethodConstraint")>]
 let isMethodConstraintFSharpParameter (fsParam: FSharpParameter) =
     match fsParam.LogicalName with
-    | Some logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal) |> not
+    | ValueSome logicalName when fsParam.Type.IsFunctionType -> logicalName.StartsWith("get_", StringComparison.Ordinal) |> not
     | _ -> false
 
 [<Extension; CompiledName("GetAbbreviatedType")>]
