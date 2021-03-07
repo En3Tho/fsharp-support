@@ -80,8 +80,8 @@
     <Behavour attributeID="DEADCODE" overlapResolvePolicy="NONE"/>
     <QuickFix>RemoveUnusedLocalBindingFix</QuickFix>
     <QuickFix>ReplaceWithWildPatFix</QuickFix>
-    <QuickFix>AddUnderscorePrefixFix</QuickFix>
     <QuickFix>RemoveUnusedNamedAsPatFix</QuickFix>
+    <QuickFix>AddUnderscorePrefixFix</QuickFix>
   </Warning>
 
   <Warning staticGroup="FSharpErrors" name="UnitTypeExpected">
@@ -318,6 +318,28 @@
     <Range>extensionDecl.Identifier.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>ReplaceWithAbbreviatedTypeFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="RuntimeCoercionSourceSealed">
+    <Parameter type="ITypedLikeExpr" name="expr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>expr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>AddParensToTypedLikeExprFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="TypeConstraintMismatch">
+    <Parameter type="IFSharpExpression" name="expr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>expr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>AddParensToTypedLikeExprFix</QuickFix>
   </Error>
 
   <Error staticGroup="FSharpErrors" name="IndeterminateType">
