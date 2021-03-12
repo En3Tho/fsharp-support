@@ -237,7 +237,7 @@
 
   <ItemGroup>
     <Reference Include="FSharp.Compiler.Service, Version=39.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
+      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
 
