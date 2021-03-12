@@ -22,6 +22,8 @@ type RedundantParenExprTest() =
     override x.HighlightingPredicate(highlighting, _, _) =
         highlighting :? RedundantParenExprWarning
     
+    [<Test>] member x.``Active pattern 01``() = x.DoNamedTest()
+
     [<Test>] member x.``Literals 01``() = x.DoNamedTest()
 
     [<Test>] member x.``App - Local 01``() = x.DoNamedTest()
@@ -84,6 +86,8 @@ type RedundantParenExprTest() =
     [<Test>] member x.``Match - Clause expr - Seq 01``() = x.DoNamedTest()
     [<Test>] member x.``Match - Clause expr - Seq 02 - Semicolon``() = x.DoNamedTest()
 
+    [<Test>] member x.``New - App 01``() = x.DoNamedTest()
+
     [<Test>] member x.``Paren 01``() = x.DoNamedTest()
     [<Test>] member x.``Paren 02``() = x.DoNamedTest()
 
@@ -95,6 +99,8 @@ type RedundantParenExprTest() =
 
     [<Test>] member x.``Seq - Binary - Deindent 01``() = x.DoNamedTest()
     [<Test>] member x.``Seq - Fun - Deindent 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Tuple - App 01``() = x.DoNamedTest()
 
     [<Test>] member x.``When - Binary 01``() = x.DoNamedTest()
     [<Test>] member x.``When - Binary 02 - Pipe``() = x.DoNamedTest()

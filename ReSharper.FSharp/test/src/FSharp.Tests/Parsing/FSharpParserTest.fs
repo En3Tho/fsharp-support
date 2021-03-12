@@ -74,6 +74,7 @@ type FSharpParserTest() =
     [<Test>] member x.``Type decl - Record 04 - Attribute``() = x.DoNamedTest()
 
     [<Test>] member x.``Type decl - Struct 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type decl - Struct 02 - Fields``() = x.DoNamedTest()
 
     [<Test>] member x.``Let 01 - Simple``() = x.DoNamedTest()
     [<Test>] member x.``Let 02 - Typed``() = x.DoNamedTest()
@@ -108,6 +109,11 @@ type FSharpParserTest() =
     [<Test>] member x.``Let - Type parameters - Top - Parameters 02 - Upper case``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type parameters - Top - Ref 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type parameters - Top - Ref 02 - Upper case``() = x.DoNamedTest()
+
+    [<Test>] member x.``Expr - Active pattern 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Active pattern 02 - Multiple cases``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Active pattern 03 - Wild``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Active pattern 04 - Qualified``() = x.DoNamedTest()
 
     [<Test>] member x.``Expr - Paren 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Quote 01 - Typed``() = x.DoNamedTest()

@@ -5,8 +5,8 @@ open System
 open FSharp.Compiler.Syntax
 open JetBrains.Application.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
@@ -109,6 +109,7 @@ let operatorPrecedence (binaryApp: IBinaryAppExpr) =
 let precedence (expr: ITreeNode) =
     match expr with
     | :? ILibraryOnlyExpr
+    | :? IActivePatternExpr
     | :? ITraitCallExpr -> 0
 
     | :? ILetOrUseExpr -> 1
@@ -132,11 +133,12 @@ let precedence (expr: ITreeNode) =
         | _ -> 8
 
     | :? IDoLikeExpr -> 9
+    | :? INewExpr -> 10
 
     | :? IPrefixAppExpr as prefixApp ->
-        if isHighPrecedenceApp prefixApp then 11 else 10
+        if isHighPrecedenceApp prefixApp then 12 else 11
 
-    | :? IFSharpExpression -> 12
+    | :? IFSharpExpression -> 13
 
     | _ -> 0
 
@@ -145,7 +147,7 @@ let startsBlock (context: IFSharpExpression) =
     isNotNull (SetExprNavigator.GetByRightExpression(context))
 
 let getContextPrecedence (context: IFSharpExpression) =
-    if isNotNull (QualifiedExprNavigator.GetByQualifier(context)) then 11 else
+    if isNotNull (QualifiedExprNavigator.GetByQualifier(context)) then 12 else
 
     if startsBlock context then 0 else precedence context.Parent
 
@@ -229,7 +231,16 @@ let rec needsParensInDeclExprContext (expr: IFSharpExpression) =
 
     | _ -> false
 
+let escapesTupleAppArg (context: IFSharpExpression) (innerExpr: IFSharpExpression) =
+    match innerExpr with
+    | :? IParenExpr as parenExpr ->
+        match parenExpr.InnerExpression with
+        | :? ITupleExpr -> isNotNull (PrefixAppExprNavigator.GetByArgumentExpression(context))
+        | _ -> false
+    | _ -> false
+
 let rec needsParens (context: IFSharpExpression) (expr: IFSharpExpression) =
+    if escapesTupleAppArg context expr then true else
     if expr :? IParenExpr then false else
 
     let expr = expr.IgnoreInnerParens()
@@ -239,11 +250,11 @@ let rec needsParens (context: IFSharpExpression) (expr: IFSharpExpression) =
     if isHighPrecedenceApp ParentPrefixAppExpr && isNotNull (QualifiedExprNavigator.GetByQualifier(ParentPrefixAppExpr)) then true else
 
     // todo: calc once?
-    let allowHighPrecedenceAppParens = 
+    let allowHighPrecedenceAppParens () = 
         let settingsStore = context.GetSettingsStoreWithEditorConfig()
         settingsStore.GetValue(fun (key: FSharpFormatSettingsKey) -> key.AllowHighPrecedenceAppParens)
 
-    if isHighPrecedenceAppArg context && allowHighPrecedenceAppParens then true else
+    if isHighPrecedenceAppArg context && allowHighPrecedenceAppParens () then true else
 
     match expr with
     | :? IIfThenElseExpr ->
@@ -287,15 +298,16 @@ let rec needsParens (context: IFSharpExpression) (expr: IFSharpExpression) =
         checkPrecedence context expr
 
     | :? IReferenceExpr as refExpr ->
+        let qualifier = refExpr.Qualifier
         let typeArgumentList = refExpr.TypeArgumentList
 
         let attribute = AttributeNavigator.GetByExpression(context)
-        isNotNull attribute && (isNotNull attribute.Target || isNotNull typeArgumentList) ||
+        isNotNull attribute && (isNotNull attribute.Target || isNotNull typeArgumentList || isNotNull qualifier) ||
 
         isNotNull (AppExprNavigator.GetByArgument(context)) && getFirstQualifier refExpr :? IAppExpr ||
 
         // todo: tests
-        isNull typeArgumentList && isNull refExpr.Qualifier && PrettyNaming.IsOperatorName (refExpr.GetText()) ||
+        isNull typeArgumentList && isNull qualifier && PrettyNaming.IsOperatorName (refExpr.GetText()) ||
 
         checkPrecedence context expr
 
