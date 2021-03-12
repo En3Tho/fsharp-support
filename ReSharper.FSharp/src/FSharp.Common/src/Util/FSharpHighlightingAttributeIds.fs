@@ -37,19 +37,24 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] DisposableLocalValue = "ReSharper F# Disposable Value Identifier"
     let [<Literal>] DisposableStruct = "ReSharper F# Disposable Struct Identifier"
     let [<Literal>] DisposableClass = "ReSharper F# Disposable Class Identifier"
+    let [<Literal>] DisposableUnion = "ReSharper F# Disposable Union Identifier"
+    let [<Literal>] DisposableRecord = "ReSharper F# Disposable Record Identifier"
     let [<Literal>] DisposableInterface = "ReSharper F# Disposable Interface Identifier"
 
     let [<Literal>] Union = "ReSharper F# Union Identifier"
     let [<Literal>] StructUnion = "ReSharper F# Struct Union Identifier" // todo: add setting
     let [<Literal>] UnionCase = "ReSharper F# Union Case Identifier"
+    let [<Literal>] DisposableUnionCase = "ReSharper F# Disposable Union Case Identifier"
     let [<Literal>] StructUnionCase = "ReSharper F# Struct Union Case Identifier" // todo: add setting
+    let [<Literal>] DisposableStructUnionCase = "ReSharper F# Disposable Struct Union Case Identifier" // todo: add setting
 
     let [<Literal>] Record = "ReSharper F# Record Identifier"
     let [<Literal>] StructRecord = "ReSharper F# Struct Record Identifier"
+    let [<Literal>] DisposableStructRecord = "ReSharper F# Disposable Struct Record Identifier"
 
     let [<Literal>] ClassExtension = "ReSharper F# Class Extension Identifier" // todo: add setting
     let [<Literal>] StructExtension = "ReSharper F# Struct Extension Identifier" // todo: add setting
-    let [<Literal>] InterfaceExtension = "ReSharper F# Struct Extension Identifier" // todo: add setting
+    let [<Literal>] InterfaceExtension = "ReSharper F# Interface Extension Identifier" // todo: add setting
 
     let [<Literal>] Value = "ReSharper F# Value Identifier"
     let [<Literal>] MutableValue = "ReSharper F# Mutable Value Identifier"
@@ -252,7 +257,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.DisposableStruct,
       FallbackAttributeId = DefaultLanguageAttributeIds.STRUCT,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Types//Disposable class",
+      RiderPresentableName = "Types//Disposable struct",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
@@ -267,10 +272,28 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
+      FSharpHighlightingAttributeIds.DisposableUnion,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Union,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Disposable union",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.DisposableRecord,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Record,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Disposable record",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
       FSharpHighlightingAttributeIds.DisposableInterface,
       FallbackAttributeId = DefaultLanguageAttributeIds.INTERFACE,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Types//Disposable class",
+      RiderPresentableName = "Types//Disposable interface",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
@@ -320,10 +343,55 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
+      FSharpHighlightingAttributeIds.DisposableUnionCase,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.UnionCase,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Disposable union case",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.StructUnionCase,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.UnionCase,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Struct union case",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.DisposableStructUnionCase,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.StructUnionCase,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Disposable struct union case",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
       FSharpHighlightingAttributeIds.Record,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Class,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Record",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.StructRecord,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Record,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Struct Record",
+      Layer = HighlighterLayer.SYNTAX,
+      VSPriority = VSPriority.IDENTIFIERS,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.DisposableStructRecord,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.StructRecord,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Disposable struct record",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
@@ -360,7 +428,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.MutableField,
       FallbackAttributeId = FSharpHighlightingAttributeIds.MutableValue,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Members//Mutable Field",
+      RiderPresentableName = "Members//Mutable field",
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");

@@ -27,10 +27,18 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         return FSharpHighlightingAttributeIdsModule.Delegate;
 
       if (entity.IsFSharpUnion)
-        return FSharpHighlightingAttributeIdsModule.Union;
+        return entity.IsDisposable()
+            ? FSharpHighlightingAttributeIdsModule.DisposableUnion
+            : FSharpHighlightingAttributeIdsModule.Union;
 
       if (entity.IsFSharpRecord)
-        return FSharpHighlightingAttributeIdsModule.Record;
+        return entity.IsValueType
+          ? entity.IsDisposable()
+            ? FSharpHighlightingAttributeIdsModule.DisposableStructRecord
+            : FSharpHighlightingAttributeIdsModule.StructRecord
+          : entity.IsDisposable()
+            ? FSharpHighlightingAttributeIdsModule.DisposableRecord
+            : FSharpHighlightingAttributeIdsModule.Record;
 
       if (entity.IsMeasure)
         return FSharpHighlightingAttributeIdsModule.UnitOfMeasure;
@@ -183,8 +191,15 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
               ? FSharpHighlightingAttributeIdsModule.MutableField
               : FSharpHighlightingAttributeIdsModule.Field;
 
-        case FSharpUnionCase _:
-          return FSharpHighlightingAttributeIdsModule.UnionCase;
+        case FSharpUnionCase unionCase:
+          var type = unionCase.ReturnType.GetAbbreviatedType();
+          return type is { HasTypeDefinition: true, TypeDefinition: { IsValueType: true } }
+            ? type.IsDisposable()
+              ? FSharpHighlightingAttributeIdsModule.DisposableStructUnionCase
+              : FSharpHighlightingAttributeIdsModule.StructUnionCase
+            : type.IsDisposable()
+              ? FSharpHighlightingAttributeIdsModule.DisposableUnionCase
+              : FSharpHighlightingAttributeIdsModule.UnionCase;
 
         case FSharpGenericParameter _:
           return FSharpHighlightingAttributeIdsModule.TypeParameter;
