@@ -22,7 +22,6 @@
     <Compile Include="src\Util\FSharpModulesUtil.fs" />
     <Compile Include="src\Util\FSharpNamingService.fs" />
     <Compile Include="src\Util\FSharpLambdaUtil.fs" />
-    <Compile Include="src\Util\FcsTaggedText.fs" />
     <Compile Include="src\CodeCompletion\CompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
@@ -205,6 +204,7 @@
     <Compile Include="src\QuickFixes\AddParensToTypedLikeExprFix.fs" />
     <Compile Include="src\QuickFixes\SpecifyParameterTypeFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithInterpolatedStringFix.fs" />
+    <Compile Include="src\QuickFixes\RemoveConstructorFix.fs" />
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
     <Compile Include="src\PostfixTemplates\NotTemplate.fs" />
     <Compile Include="src\PostfixTemplates\LetPostfixTemplate.fs" />
