@@ -109,6 +109,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
         var startOffset = document.GetOffset(range.Start);
         var endOffset = document.GetOffset(range.End);
+
         var mfv = symbol as FSharpMemberOrFunctionOrValue;
         var activePatternCase = symbol as FSharpActivePatternCase;
 
@@ -224,12 +225,26 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
               }
             }
           }
+          else
+          {
+            // The `*` pattern includes parens and is parsed as special token
+            // let (*) (_, _) = ()
+            // Same as above
+            var len = endOffset - startOffset;
+            if (symbol is FSharpParameter { LogicalName: { IsValueSome: true, Value: "op_Multiply" } } && len == 3)
+            {
+              startOffset++;
+              endOffset--;
+            }
+          }
 
           var nameRange = FixRange(startOffset, endOffset, mfv?.LogicalName, buffer, lexer);
+
           startOffset = nameRange.StartOffset;
 
           // workaround for implicit type usages (e.g. in members with optional params), visualfsharp#3933
-          if (CanIgnoreSymbol(symbol) &&
+          if (nameRange.Length == "op_Range".Length && mfv?.LogicalName == "op_Range"
+           || CanIgnoreSymbol(symbol) &&
               !(lexer.FindTokenAt(nameRange.EndOffset - 1) && (lexer.TokenType?.IsIdentifier ?? false)))
             continue;
 
