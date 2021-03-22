@@ -4,96 +4,96 @@ open System
 open FSharp.Compiler
 open FSharp.Compiler.ExtensionTyping
 open FSharp.Compiler.Text
+open FSharp.Core.CompilerServices
 open JetBrains.Core
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Settings
-open JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol.Exceptions
-open Microsoft.FSharp.Core.CompilerServices
 open JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol
+open JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol.Exceptions
 open JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol.Models
 
 type IProxyExtensionTypingProvider =
+    inherit IExtensionTypingProvider
+
     abstract RuntimeVersion: unit -> string
     abstract DumpTypeProvidersProcess: unit -> string
-    inherit IExtensionTypingProvider
 
 [<SolutionComponent>]
 type ExtensionTypingProviderShim(solution: ISolution, toolset: ISolutionToolset,
-                                 featuresProvider: FSharpExperimentalFeaturesProvider,
-                                 typeProvidersLoadersFactory: TypeProvidersLoaderExternalProcessFactory) as this =
-    let solutionLifetime = solution.GetLifetime()
-    let defaultExtensionTypingProvider = ExtensionTypingProvider
-    let typeProvidersFeature = featuresProvider.OutOfProcessTypeProviders
+        experimentalFeatures: FSharpExperimentalFeaturesProvider,
+        typeProvidersLoadersFactory: TypeProvidersLoaderExternalProcessFactory) as this =
+    let lifetime = solution.GetLifetime()
+    let defaultShim = ExtensionTypingProvider
+    let outOfProcess = experimentalFeatures.OutOfProcessTypeProviders
+
     let mutable connection: TypeProvidersConnection = null
-    let mutable outOfProcessLifetime: LifetimeDefinition = null
+    let mutable typeProvidersHostLifetime: LifetimeDefinition = null
     let mutable typeProvidersManager = Unchecked.defaultof<IProxyTypeProvidersManager>
 
-    let isConnectionAlive () = isNotNull connection && connection.IsActive
-    let terminateConnection () = if isConnectionAlive() then outOfProcessLifetime.Terminate()
+    let isConnectionAlive () =
+        isNotNull connection && connection.IsActive
+
+    let terminateConnection () =
+        if isConnectionAlive() then typeProvidersHostLifetime.Terminate()
+
     let connect () =
         if not (isConnectionAlive ()) then
-            outOfProcessLifetime <- Lifetime.Define(solutionLifetime)
-            connection <- typeProvidersLoadersFactory.Create(outOfProcessLifetime.Lifetime).Run()
+            typeProvidersHostLifetime <- Lifetime.Define(lifetime)
+            connection <- typeProvidersLoadersFactory.Create(typeProvidersHostLifetime.Lifetime).Run()
             typeProvidersManager <- TypeProvidersManager(connection) :?> _
 
-    do solutionLifetime.Bracket((fun () -> ExtensionTypingProvider <- this),
-                                fun () -> ExtensionTypingProvider <- defaultExtensionTypingProvider)
-       toolset.Changed
-           .Advise(solutionLifetime, fun _ -> terminateConnection ())
-       typeProvidersFeature.Change
-           .Advise(solutionLifetime, fun enabled -> if enabled.HasNew && not enabled.New then terminateConnection ())
+    do
+        lifetime.Bracket((fun () -> ExtensionTypingProvider <- this),
+            fun () -> ExtensionTypingProvider <- defaultShim)
+
+        toolset.Changed.Advise(lifetime, fun _ -> terminateConnection ())
+        outOfProcess.Change.Advise(lifetime, fun enabled ->
+            if enabled.HasNew && not enabled.New then terminateConnection ())
 
     interface IProxyExtensionTypingProvider with
-
         member this.InstantiateTypeProvidersOfAssembly(runTimeAssemblyFileName: string,
-                                                       designTimeAssemblyNameString: string,
-                                                       resolutionEnvironment: ResolutionEnvironment,
-                                                       isInvalidationSupported: bool,
-                                                       isInteractive: bool,
-                                                       systemRuntimeContainsType: string -> bool,
-                                                       systemRuntimeAssemblyVersion: Version,
-                                                       compilerToolsPath: string list,
-                                                       logError: TypeProviderError -> unit,
-                                                       m: range) =
-            if not typeProvidersFeature.Value then
-               defaultExtensionTypingProvider.InstantiateTypeProvidersOfAssembly(
-                 runTimeAssemblyFileName, designTimeAssemblyNameString, resolutionEnvironment, isInvalidationSupported,
-                 isInteractive, systemRuntimeContainsType, systemRuntimeAssemblyVersion, compilerToolsPath, logError, m)
+                designTimeAssemblyNameString: string, resolutionEnvironment: ResolutionEnvironment,
+                isInvalidationSupported: bool, isInteractive: bool, systemRuntimeContainsType: string -> bool,
+                systemRuntimeAssemblyVersion: Version, compilerToolsPath: string list,
+                logError: TypeProviderError -> unit, m: range) =
+            if not outOfProcess.Value then
+               defaultShim.InstantiateTypeProvidersOfAssembly(runTimeAssemblyFileName, designTimeAssemblyNameString,
+                    resolutionEnvironment, isInvalidationSupported, isInteractive,
+                    systemRuntimeContainsType, systemRuntimeAssemblyVersion, compilerToolsPath, logError, m)
             else
                 connect()
                 try
-                    typeProvidersManager.GetOrCreate(
-                     runTimeAssemblyFileName, designTimeAssemblyNameString, resolutionEnvironment, isInvalidationSupported,
-                     isInteractive, systemRuntimeContainsType, systemRuntimeAssemblyVersion, compilerToolsPath)
+                    typeProvidersManager.GetOrCreate(runTimeAssemblyFileName, designTimeAssemblyNameString,
+                        resolutionEnvironment, isInvalidationSupported, isInteractive, systemRuntimeContainsType,
+                        systemRuntimeAssemblyVersion, compilerToolsPath)
                 with :? TypeProvidersInstantiationException as e  ->
-                    logError(TypeProviderError(e.FcsNumber, "", m, [e.Message]))
+                    logError (TypeProviderError(e.FcsNumber, "", m, [e.Message]))
                     []
 
         member this.GetProvidedTypes(pn: IProvidedNamespace) =
             match pn with
             | :? IProxyProvidedNamespace as pn -> pn.GetProvidedTypes()
-            | _ -> defaultExtensionTypingProvider.GetProvidedTypes(pn)
+            | _ -> defaultShim.GetProvidedTypes(pn)
 
         member this.ResolveTypeName(pn: IProvidedNamespace, typeName: string) =
             match pn with
             | :? IProxyProvidedNamespace as pn -> pn.ResolveProvidedTypeName typeName
-            | _ -> defaultExtensionTypingProvider.ResolveTypeName(pn, typeName)
+            | _ -> defaultShim.ResolveTypeName(pn, typeName)
 
-        member this.GetInvokerExpression(provider: ITypeProvider,
-                                         methodBase: ProvidedMethodBase,
-                                         paramExprs: ProvidedVar []) =
+        member this.GetInvokerExpression(provider: ITypeProvider, method: ProvidedMethodBase, args: ProvidedVar []) =
             match provider with
-            | :? IProxyTypeProvider as tp -> tp.GetInvokerExpression(methodBase, paramExprs)
-            | _ -> defaultExtensionTypingProvider.GetInvokerExpression(provider, methodBase, paramExprs)
+            | :? IProxyTypeProvider as tp -> tp.GetInvokerExpression(method, args)
+            | _ -> defaultShim.GetInvokerExpression(provider, method, args)
 
         member this.DisplayNameOfTypeProvider(provider: ITypeProvider, fullName: bool) =
             match provider with
             | :? IProxyTypeProvider as tp -> tp.GetDisplayName fullName
-            | _ -> defaultExtensionTypingProvider.DisplayNameOfTypeProvider(provider, fullName)
+            | _ -> defaultShim.DisplayNameOfTypeProvider(provider, fullName)
 
         member this.RuntimeVersion() =
             if not (isConnectionAlive ()) then null else
+
             connection.Execute(fun _ -> connection.ProtocolModel.RdTestHost.RuntimeVersion.Sync(Unit.Instance))
 
         member this.DumpTypeProvidersProcess() =
@@ -101,10 +101,12 @@ type ExtensionTypingProviderShim(solution: ISolution, toolset: ISolutionToolset,
 
             let inProcessDump =
                 $"[In-Process dump]:\n\n{typeProvidersManager.Dump()}"
+
             let outOfProcessDump =
-                $"[Out-Process dump]:\n\n{connection.Execute(fun _ -> connection.ProtocolModel.RdTestHost.Dump.Sync(Unit.Instance))}"
+                $"[Out-Process dump]:\n\n{connection.Execute(fun _ ->
+                    connection.ProtocolModel.RdTestHost.Dump.Sync(Unit.Instance))}"
 
             $"{inProcessDump}\n\n{outOfProcessDump}"
 
     interface IDisposable with
-        member this.Dispose() = terminateConnection()
+        member this.Dispose() = terminateConnection ()
