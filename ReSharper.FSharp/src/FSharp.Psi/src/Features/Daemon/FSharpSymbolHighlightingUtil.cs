@@ -1,5 +1,3 @@
-using System.Linq;
-using FSharp.Compiler.SourceCodeServices;
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings;
@@ -184,7 +182,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
               ? FSharpHighlightingAttributeIdsModule.MutableProperty
               : FSharpHighlightingAttributeIdsModule.Property;
           }
-            
+
           return field.IsLiteral
             ? FSharpHighlightingAttributeIdsModule.Literal
             : field.IsMutable

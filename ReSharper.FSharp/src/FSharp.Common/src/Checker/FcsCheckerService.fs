@@ -21,26 +21,27 @@ open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
 
-module FSharpCheckerService =
+module FcsCheckerService =
     let getSourceText (document: IDocument) =
         SourceText.ofString(document.GetText())
 
 
 [<ShellComponent; AllowNullLiteral>]
-type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotifier: OnSolutionCloseNotifier,
+type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotifier: OnSolutionCloseNotifier,
         settingsStore: ISettingsStore, settingsSchema: SettingsSchema, reactorMonitor: IFcsReactorMonitor) =
 
     let checker =
         Environment.SetEnvironmentVariable("FCS_CheckFileInProjectCacheSize", "20")
 
-        let settingsEntry =
-            let settingsKey = settingsSchema.GetKey<FSharpOptions>()
-            settingsKey.TryFindEntryByMemberName("BackgroundTypeCheck") :?> SettingsScalarEntry
+        let settingsStoreLive = settingsStore.BindToContextLive(lifetime, ContextRange.ApplicationWide)
+        let settingsKey = settingsSchema.GetKey<FSharpOptions>()
 
-        let enableBgCheck =
-            settingsStore
-                .BindToContextLive(lifetime, ContextRange.ApplicationWide)
-                .GetValueProperty(lifetime, settingsEntry, null)
+        let getSettingProperty name =
+            let setting = settingsKey.TryFindEntryByMemberName(name) :?> SettingsScalarEntry
+            settingsStoreLive.GetValueProperty(lifetime, setting, null)
+
+        let enableBgCheck = getSettingProperty "BackgroundTypeCheck"
+        let skipImpl = getSettingProperty "SkipImplementationAnalysis"
 
         lazy
             let checker =
@@ -48,6 +49,7 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
                                      keepAllBackgroundResolutions = false,
                                      keepAllBackgroundSymbolUses = false,
                                      reactorListener = reactorMonitor,
+                                     enablePartialTypeChecking = skipImpl.Value,
                                      ImplicitlyStartBackgroundWork = enableBgCheck.Value)
 
             enableBgCheck.Change.Advise_NoAcknowledgement(lifetime, fun (ArgValue enabled) ->
@@ -67,7 +69,7 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
 
     member x.ParseFile(path, document, parsingOptions, [<Optional; DefaultParameterValue(false)>] noCache: bool) =
         try
-            let source = FSharpCheckerService.getSourceText document
+            let source = FcsCheckerService.getSourceText document
             let fullPath = getFullPath path
             let parseAsync = x.Checker.ParseFile(fullPath, source, parsingOptions, cache = not noCache)
             let parseResults = parseAsync.RunAsTask()
@@ -76,7 +78,7 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
         | OperationCanceled -> reraise()
         | exn ->
             Util.Logging.Logger.LogException(exn)
-            logger.Warn(sprintf "Parse file error, parsing options: %A" parsingOptions)
+            logger.Warn($"Parse file error, parsing options: %A{parsingOptions}")
             None
 
     member x.ParseFile([<NotNull>] sourceFile: IPsiSourceFile) =
@@ -84,7 +86,7 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
         x.ParseFile(sourceFile.GetLocation(), sourceFile.Document, parsingOptions)
 
     member x.ParseAndCheckFile([<NotNull>] file: IPsiSourceFile, opName,
-                               [<Optional; DefaultParameterValue(false)>] allowStaleResults) =
+            [<Optional; DefaultParameterValue(false)>] allowStaleResults) =
         ProhibitTypeCheckCookie.AssertTypeCheckIsAllowed()
 
         match x.FcsProjectProvider.GetProjectOptions(file) with
@@ -92,7 +94,7 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
         | Some options ->
 
         let path = file.GetLocation().FullPath
-        let source = FSharpCheckerService.getSourceText file.Document
+        let source = FcsCheckerService.getSourceText file.Document
         logger.Trace("ParseAndCheckFile: start {0}, {1}", path, opName)
 
         use op = reactorMonitor.MonitorOperation opName
@@ -128,6 +130,18 @@ type FSharpCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNo
         if checker.IsValueCreated then
             checker.Value.InvalidateConfiguration(fcsProjectOptions, false)
 
+    member x.InvalidateFcsProject(project: IProject) =
+        if checker.IsValueCreated then
+            project.GetPsiModules()
+            |> Seq.choose x.FcsProjectProvider.GetProjectOptions
+            |> Seq.iter x.InvalidateFcsProject
+
+    member x.InvalidateFcsProjects(solution: ISolution, isApplicable: IProject -> bool) =
+        if checker.IsValueCreated then
+            solution.GetAllProjects()
+            |> Seq.filter isApplicable
+            |> Seq.iter x.InvalidateFcsProject
+
     /// Use with care: returns wrong symbol inside its non-recursive declaration, see dotnet/fsharp#7694.
     member x.ResolveNameAtLocation(sourceFile: IPsiSourceFile, names, coords, opName) =
         // todo: different type parameters count
@@ -155,9 +169,10 @@ type FSharpParseAndCheckResults =
 
 
 type IFcsProjectProvider =
-    abstract GetProjectOptions: IPsiSourceFile -> FSharpProjectOptions option
-    abstract GetParsingOptions: IPsiSourceFile -> FSharpParsingOptions
+    abstract GetProjectOptions: sourceFile: IPsiSourceFile -> FSharpProjectOptions option
+    abstract GetProjectOptions: psiModule: IPsiModule -> FSharpProjectOptions option
     abstract GetFileIndex: IPsiSourceFile -> int
+    abstract GetParsingOptions: sourceFile: IPsiSourceFile -> FSharpParsingOptions
 
     // Indicates if implementation file has an associated signature file.
     abstract HasPairFile: IPsiSourceFile -> bool
