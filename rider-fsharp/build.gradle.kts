@@ -73,6 +73,8 @@ intellij {
         version = "$baseVersion-SNAPSHOT"
     }
 
+    //version = "2021.1.1"
+
     instrumentCode = false
     downloadSources = false
 
