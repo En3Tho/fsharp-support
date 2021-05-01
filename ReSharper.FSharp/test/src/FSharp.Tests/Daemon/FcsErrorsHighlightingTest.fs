@@ -15,6 +15,8 @@ type FcsErrorsHighlightingTest() =
     [<Test>] member x.``No errors 01``() = x.DoNamedTest()
     [<Test>] member x.``Multiline range``() = x.DoNamedTest()
 
+    [<Test>] member x.``Non-recursive bindings 01``() = x.DoNamedTest()
+
     [<Test>] member x.``Syntax errors 01``() = x.DoNamedTest()
     [<Test>] member x.``Syntax errors 02``() = x.DoNamedTest()
 
@@ -34,6 +36,7 @@ type FcsErrorsHighlightingTest() =
     [<Test>] member x.``Unused value - Operators 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Unused value - Partial pattern 01``() = x.DoNamedTest()
+    [<Test>] member x.``Unused value - Partial pattern 02 - And``() = x.DoNamedTest()
     [<Test>] member x.``Unused value 01 - Object expression``() = x.DoNamedTest()
 
     [<Test>] member x.``Unfinished let``() = x.DoNamedTest()

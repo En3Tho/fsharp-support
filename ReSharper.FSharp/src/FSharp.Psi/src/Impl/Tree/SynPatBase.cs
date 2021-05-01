@@ -84,7 +84,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public override IEnumerable<IFSharpPattern> NestedPatterns => Pattern?.NestedPatterns.Prepend(this) ?? new[] {this};
 
     public TreeNodeCollection<IAttribute> Attributes =>
-      this.GetBinding()?.AllAttributes ??
+      this.GetBinding()?.Attributes ??
       TreeNodeCollection<IAttribute>.Empty;
 
     public bool IsMutable => Binding?.IsMutable ?? false;
@@ -135,7 +135,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
   internal partial class AndsPat
   {
     public override IEnumerable<IFSharpPattern> NestedPatterns =>
-      EmptyList<IFSharpPattern>.Instance;
+      Patterns.SelectMany(pat => pat.NestedPatterns);
   }
 
   internal partial class ArrayPat

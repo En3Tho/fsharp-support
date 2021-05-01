@@ -130,7 +130,7 @@ anonModuleDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; }:
 
 // Module members
 
-interface moduleMember:
+interface moduleMember  options { customParseFunction; noInternalParseFunction; }:
   nestedModuleDeclaration |
   typeDeclarationGroup |
   exceptionDeclaration |
@@ -142,15 +142,8 @@ interface moduleMember:
   hashDirective |
   bindingSignature;
 
-letBindingsDeclaration options { stubBase="DummyDeclaration"; } extras {
-  get { methodName="Attributes" path=<letBindingsDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
-}:
-  attributeList<ATTRIBUTE_LIST, AttributeLists>*
-  STATIC<STATIC, StaticKeyword>?
-  letOrUse{LET, BindingKeyword}
-  INLINE<INLINE, InlineKeyword>?
-  REC<REC, RecKeyword>?
-  LIST binding<BINDING, Bindings> SEP AND<FSHARP_AND, Separators>;
+letBindingsDeclaration options { stubBase="DummyDeclaration"; }:
+  binding<BINDING, Bindings>*;
 
 bindingSignature extras {
   get { methodName="Attributes" path=<bindingSignature:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
@@ -185,6 +178,15 @@ topBinding extras {
   get { methodName="ParameterPatterns" path=<topBinding:PARAMETERS_DECL/parametersPatternDeclaration:PATTERN> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
+  STATIC<STATIC, StaticKeyword>?
+  (
+    letOrUse{LET, BindingKeyword}
+    |
+    AND<LET, BindingKeyword>
+  )
+  INLINE<INLINE, InlineKeyword>?
+  REC<REC, RecKeyword>?
+  attributeList<ATTRIBUTE_LIST, AttributeLists>*
   MUTABLE<MUTABLE, MutableKeyword>?
   fSharpPattern<HEAD_PATTERN, HeadPattern>
   typeParameterOfMethodList<TYPE_PARAMETERS_LIST, TypeParameterList>?
@@ -197,6 +199,15 @@ localBinding extras {
   get { methodName="Attributes" path=<localBinding:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
   get { methodName="ParameterPatterns" path=<localBinding:PARAMETERS_DECL/parametersPatternDeclaration:PATTERN> };
 }:
+  attributeList<ATTRIBUTE_LIST, AttributeLists>*
+  STATIC<STATIC, StaticKeyword>?
+  (
+    letOrUse{LET, BindingKeyword}
+    |
+    AND<LET, BindingKeyword>
+  )
+  INLINE<INLINE, InlineKeyword>?
+  REC<REC, RecKeyword>?
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   MUTABLE<MUTABLE, MutableKeyword>?
   fSharpPattern<HEAD_PATTERN, HeadPattern>
@@ -758,8 +769,6 @@ binaryAppExpr options { stubBase="FSharpExpressionBase"; } extras {
 letOrUseExpr options { stubBase="FSharpExpressionBase"; } extras {
   get { methodName="BoundExpressions" path=<letOrUseExpr:BINDING/localBinding:EXPR> };
 }:
-  letOrUse{LET, BindingKeyword}
-  REC<REC, RecKeyword>?
   LIST binding<BINDING, Bindings> SEP AND<FSHARP_AND, Separators>  
   IN<IN, InKeyword>?
   fSharpExpression<IN_EXPR, InExpression>;
@@ -983,7 +992,8 @@ interface typeRepresentation:
   simpleTypeRepresentation |
   objectModelTypeRepresentation |
   delegateRepresentation |
-  typeAbbreviationRepresentation;
+  typeAbbreviationRepresentation |
+  ilAssemblyRepresentation;
 
 interface simpleTypeRepresentation:
   enumLikeTypeRepresentation |
@@ -1061,18 +1071,14 @@ interface enumCaseLikeDeclaration:
   enumCaseDeclaration |
   unionCaseDeclaration;
 
-enumRepresentation options { stubBase="TypeRepresentationBase"; } extras {
-  get { methodName="EnumCases" path=<enumRepresentation:ENUM_CASE_LIST/enumCaseList:ENUM_CASE> };
-}:
+enumRepresentation options { stubBase="TypeRepresentationBase"; }:
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
-  enumCaseList<ENUM_CASE_LIST, EnumCaseList>;
-
-enumCaseList:
   enumCaseDeclaration<ENUM_CASE, EnumCases>*;
 
 enumCaseDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; } extras {
   get { methodName="Attributes" path=<enumCaseDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
+  BAR<BAR, Bar>?
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   identifier<IDENTIFIER, Identifier>;
 
@@ -1098,13 +1104,8 @@ recordFieldDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase
   typeUsage<TYPE, Type>;
 
 
-unionRepresentation options { stubBase="TypeRepresentationBase"; } extras {
-  get { methodName="UnionCases" path=<unionRepresentation:UNION_CASE_LIST/unionCaseList:UNION_CASE> };
-}:
+unionRepresentation options { stubBase="TypeRepresentationBase"; }:
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
-  unionCaseList<UNION_CASE_LIST, UnionCaseList>;
-
-unionCaseList:
   unionCaseDeclaration<UNION_CASE, UnionCases>*;
 
 
@@ -1118,6 +1119,7 @@ unionCaseDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; } ex
   get { methodName="Attributes" path=<unionCaseDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
   get { methodName="Fields" path=<unionCaseDeclaration:FIELD_DECLARATION_LIST/unionCaseFieldDeclarationList:FIELD_DECLARATION> };
 }:
+  BAR<BAR, Bar>?
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
   identifier<IDENTIFIER, Identifier>
@@ -1168,6 +1170,13 @@ typeUsageOrUnionCaseDeclaration options { stubBase="FSharpProperTypeMemberDeclar
 }:
   typeUsage<TYPE, TypeUsage>
   unionCaseFieldDeclarationList<FIELD_DECLARATION_LIST, FieldList>?; // for generating common interface
+
+ilAssemblyRepresentation  options { stubBase="TypeRepresentationBase"; }:
+  LPAREN
+  HASH
+  STRING // todo: KEYWORD_STRING
+  HASH
+  RPAREN;
 
 moduleAbbreviationDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; } extras {
   get { methodName="TypeParameters" path=<moduleAbbreviationDeclaration:TYPE_PARAMETERS_LIST/typeParameterOfTypeList:TYPE_PARAMETER> };
@@ -1384,6 +1393,8 @@ valFieldDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; 
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   STATIC<STATIC, StaticKeyword>?
   VAL<VAL, ValKeyword>
+  MUTABLE<MUTABLE, MutableKeyword>?
+  accessModifier{ACCESS_MODIFIER, AccessModifier}?
   IDENTIFIER<IDENTIFIER, Identifier>
   COLON<FSHARP_COLON, Colon>
   typeUsage<TYPE, Type>;

@@ -43,6 +43,7 @@ module FSharpErrors =
     let [<Literal>] ValNotMutable = 27
     let [<Literal>] VarBoundTwice = 38
     let [<Literal>] UndefinedName = 39
+    let [<Literal>] ErrorFromAddingConstraint = 43
     let [<Literal>] UpcastUnnecessary = 66
     let [<Literal>] TypeTestUnnecessary = 67
     let [<Literal>] IndeterminateType = 72
@@ -112,6 +113,20 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | null -> null
         | parent -> highlightingCtor parent :> _
 
+    /// Finds node in the range and creates highlighting for the smallest containing node of the corresponding type.
+    let createHighlightingFromGrandparentNode highlightingCtor range: IHighlighting =
+        match nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null) with
+        | null -> null
+        | node ->
+
+        match node.GetContainingNode() with
+        | null -> null
+        | parent ->
+
+        match parent.GetContainingNode() with
+        | null -> null
+        | grandparent -> highlightingCtor grandparent :> _
+    
     let createHighlightingFromNodeWithMessage highlightingCtor range (error: FSharpDiagnostic): IHighlighting =
         let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
         if isNotNull expr then highlightingCtor (expr, error.Message) :> _ else
@@ -184,6 +199,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
             UnresolvedHighlighting(error.Message, range) :> _
 
+        | ErrorFromAddingConstraint ->
+            createHighlightingFromNodeWithMessage AddingConstraintError range error
+
         | UpcastUnnecessary ->
             createHighlightingFromNode UpcastUnnecessaryWarning range
 
@@ -200,7 +218,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
             let binding = TopBindingNavigator.GetByHeadPattern(pat)
             let decl = LetBindingsDeclarationNavigator.GetByBinding(binding)
-            if isNotNull decl && binding.HasParameters && not (Seq.isEmpty decl.AttributesEnumerable) then
+            if isNotNull decl && binding.HasParameters && not (Seq.isEmpty binding.AttributesEnumerable) then
                 IgnoredHighlighting.Instance :> _
             else
                 UnusedValueWarning(pat) :> _
@@ -274,7 +292,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             createHighlightingFromNodeAtOffset TypeAbbreviationsCannotHaveAugmentationsError range.EndOffset.Offset
 
         | LetAndForNonRecBindings ->
-            createHighlightingFromParentNode LetAndForNonRecBindingsError range
+            createHighlightingFromGrandparentNode LetAndForNonRecBindingsError range
 
         | UnusedThisVariable ->
             createHighlightingFromParentNode UnusedThisVariableWarning range

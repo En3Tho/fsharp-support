@@ -17,7 +17,7 @@ buildscript {
     }
     dependencies {
         // https://www.myget.org/feed/rd-snapshots/package/maven/com.jetbrains.rd/rd-gen
-        classpath("com.jetbrains.rd:rd-gen:0.211.195")
+        classpath("com.jetbrains.rd:rd-gen:0.211.238")
     }
 }
 
@@ -27,7 +27,7 @@ repositories {
 }
 
 plugins {
-    id("org.jetbrains.intellij") version "0.6.5"
+    id("org.jetbrains.intellij") version "0.7.2" // https://github.com/JetBrains/gradle-intellij-plugin/releases
     id("org.jetbrains.grammarkit") version "2018.1.7"
     id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
     kotlin("jvm") version "1.4.10"
@@ -119,17 +119,17 @@ val pluginFiles = listOf(
         "FSharp.Psi.Features/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Psi.Features")
 
 val typeProvidersFiles = listOf(
-        "FSharp.TypeProvidersProtocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol.dll",
-        "FSharp.TypeProvidersProtocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol.pdb",
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.exe",
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.pdb",
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.exe.config",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.dll",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.pdb",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader3.win.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader3.unix.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader5.win.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader5.unix.runtimeconfig.json")
+        "FSharp.TypeProviders.Protocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.dll",
+        "FSharp.TypeProviders.Protocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.pdb",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core.dll",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core.pdb",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader3.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader3.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader5.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader5.unix.runtimeconfig.json")
 
 val dotNetSdkPath by lazy {
     val sdkPath = intellij.ideaDependency.classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
@@ -158,8 +158,8 @@ configure<RdGenExtension> {
     val csOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.ProjectModelBase/src/Protocol")
     val ktOutput = File(repoRoot, "rider-fsharp/src/main/java/com/jetbrains/rider/plugins/fsharp/protocol")
 
-    val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProvidersProtocol/src/Server")
-    val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProvidersProtocol/src/Client")
+    val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Client")
+    val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Server")
 
     verbose = true
     hashFolder = "build/rdgen"
@@ -193,16 +193,16 @@ configure<RdGenExtension> {
     generator {
         language = "csharp"
         transform = "asis"
-        root = "model.RdFSharpTypeProvidersLoaderModel"
-        namespace = "JetBrains.Rider.FSharp.TypeProvidersProtocol.Server"
-        directory = "$typeProviderServerOutput"
+        root = "model.RdFSharpTypeProvidersModel"
+        namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Client"
+        directory = "$typeProviderClientOutput"
     }
     generator {
         language = "csharp"
         transform = "reversed"
-        root = "model.RdFSharpTypeProvidersLoaderModel"
-        namespace = "JetBrains.Rider.FSharp.TypeProvidersProtocol.Client"
-        directory = "$typeProviderClientOutput"
+        root = "model.RdFSharpTypeProvidersModel"
+        namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Server"
+        directory = "$typeProviderServerOutput"
     }
 }
 
@@ -237,8 +237,7 @@ tasks {
     // Initially introduced in:
     // https://github.com/JetBrains/ForTea/blob/master/Frontend/build.gradle.kts
     withType<RunIdeTask> {
-        // IDEs from SDK are launched with 512m by default, which is not enough for Rider.
-        // Rider uses this value when launched not from SDK.
+        // Match Rider's default heap size of 1.5Gb (default for runIde is 512Mb)
         maxHeapSize = "1500m"
     }
 
