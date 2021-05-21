@@ -4,7 +4,7 @@
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader</AssemblyName>
         <LangVersion>$(CSharpLanguageVersion)</LangVersion>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>net461;netcoreapp3.1</TargetFrameworks>
+        <TargetFrameworks>net472;netcoreapp3.1</TargetFrameworks>
         <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     </PropertyGroup>
     <ItemGroup>
