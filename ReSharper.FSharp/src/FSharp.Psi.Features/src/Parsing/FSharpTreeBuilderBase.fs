@@ -3,6 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
 open System.Collections.Generic
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Text
+open FSharp.Compiler.Xml
 open JetBrains.Diagnostics
 open JetBrains.DocumentModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Parsing
@@ -263,8 +264,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         if mark.IsSome then
             x.Done(mark.Value, elementType)
 
-    member x.MarkAndProcessAttributesOrIdOrRangeImpl(attrs: SynAttributes, xmlDoc: XmlDoc, id: Ident option,
-            range: range, markAttrs) =
+    member x.MarkAndProcessAttributesOrIdOrRange(attrs: SynAttributes, xmlDoc: XmlDoc, id: Ident option, range: range) =
         match attrs with
              | attrList :: _ ->
                  let minPos =
@@ -272,8 +272,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
                      if xmlDoc.IsEmpty then attrsRange.Start else posMin xmlDoc.Range.Start attrsRange.Start
 
                  let mark = x.Mark(minPos)
-                 if markAttrs then
-                    x.ProcessAttributeLists(attrs)
+                 x.ProcessAttributeLists(attrs)
                  mark
 
              | _ ->
@@ -288,19 +287,6 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
                      x.Mark(minDeclOrIdRange)
                  else
                     x.MarkXmlDocOwner(xmlDoc, null, minDeclOrIdRange)
-
-//                 let minPos = if xmlDoc.IsEmpty then range.Start else posMin xmlDoc.Range.Start range.Start
-//                 match id with
-//                 | Some(IdentRange idRange) ->
-//                     x.Mark(posMin idRange.Start minPos)
-//                 | None ->
-//                     x.Mark(minPos)
-
-    member x.MarkAndProcessAttributesOrIdOrRange(attrs: SynAttributes, xmlDoc: XmlDoc, id: Ident option, range: range) =
-        x.MarkAndProcessAttributesOrIdOrRangeImpl(attrs, xmlDoc, id, range, true)
-
-    member x.MarkAttributesOrIdOrRangeStart(attrs: SynAttributes, xmlDoc: XmlDoc, id: Ident option, range: range) =
-        x.MarkAndProcessAttributesOrIdOrRangeImpl(attrs, xmlDoc, id, range, false)
 
     member x.ProcessOpenDeclTarget(openDeclTarget, range) =
         let mark = x.MarkTokenOrRange(FSharpTokenType.OPEN, range)
@@ -408,7 +394,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
             let representationMark =
                 match cases with
                 | [] -> x.Mark(range)
-                | SynEnumCase(_, _, _, XmlDoc xmlDoc, _) :: _ ->
+                | SynEnumCase(_, _, _, _, XmlDoc xmlDoc, _) :: _ ->
                     x.MarkXmlDocOwner(xmlDoc, null, range)
 
             for case in cases do
@@ -490,7 +476,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
 
         x.Done(attr.Range, mark, ElementType.ATTRIBUTE)
 
-    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, XmlDoc xmlDoc, range)) =
+    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, _, XmlDoc xmlDoc, range)) =
         let mark = x.MarkXmlDocOwner(xmlDoc, FSharpTokenType.BAR, range)
         x.ProcessAttributeLists(attrs)
         x.Done(range, mark, ElementType.ENUM_CASE_DECLARATION)

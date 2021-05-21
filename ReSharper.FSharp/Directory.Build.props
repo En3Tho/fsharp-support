@@ -8,9 +8,8 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <FSharpCompilerServiceVersion>2021.1.7</FSharpCompilerServiceVersion>
+    <FSharpCompilerServiceVersion>2021.2.0</FSharpCompilerServiceVersion>
     <FSharpCoreVersion>5.0.0</FSharpCoreVersion>
-    <FantomasVersion>2021.1.0</FantomasVersion>
     <ValueTupleVersion>4.5.0</ValueTupleVersion>
   </PropertyGroup>
 
@@ -19,8 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.ValueTuple" Version="$(ValueTupleVersion)" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.0-preview.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -29,4 +27,14 @@
   </PropertyGroup>
 
   <Import Project="$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props" />
+
+  <PropertyGroup>
+    <Subplatform>$(DotNetSdkPath)\Build\SubplatformReference</Subplatform>
+
+    <PlatformSdkSubplatform>$(Subplatform).Platform_Sdk.Props</PlatformSdkSubplatform>
+    <PsiFeaturesSubplatform>$(Subplatform).Psi.Features_src.Props</PsiFeaturesSubplatform>
+    <PsiFeaturesTestSubplatform>$(Subplatform).Psi.Features_test_Framework.Props</PsiFeaturesTestSubplatform>
+    <RdBackendCommonSubplatform>$(Subplatform).Rider_RdBackend.Common.Props</RdBackendCommonSubplatform>
+    <RiderBackendSubplatform>$(Subplatform).Rider_Rider.Backend.Props</RiderBackendSubplatform>
+  </PropertyGroup>
 </Project>

@@ -3,15 +3,18 @@
         <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host</RootNamespace>
         <LangVersion>$(CSharpLanguageVersion)</LangVersion>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>net461;netcoreapp3.1</TargetFrameworks>
+        <TargetFrameworks>net472;netcoreapp3.1</TargetFrameworks>
         <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(TargetFramework)' == 'net461'">
+
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host</AssemblyName>
     </PropertyGroup>
+
     <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core</AssemblyName>
     </PropertyGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />
         <ProjectReference Include="..\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj" />
@@ -33,20 +36,32 @@
         </Reference>
     </ItemGroup>
 
+    <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
+        <PackageReference Include="System.Collections" Version="4.3.0" />
+        <PackageReference Include="System.Diagnostics.Debug" Version="4.3.0" />
+        <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
+    </ItemGroup>
+
     <ItemGroup>
-      <None Update="tploader3.win.runtimeconfig.json">
+      <None Update="tploader.netcoreapp31.win.runtimeconfig.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="tploader3.unix.runtimeconfig.json">
+      <None Update="tploader.netcoreapp31.unix.runtimeconfig.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="tploader5.unix.runtimeconfig.json">
+      <None Update="tploader.net5.unix.runtimeconfig.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="tploader5.win.runtimeconfig.json">
+      <None Update="tploader.net5.win.runtimeconfig.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="tploader.net6.unix.runtimeconfig.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="tploader.net6.win.runtimeconfig.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
 
-    <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
+    <Import Project="$(PsiFeaturesSubplatform)" Condition="Exists('$(PsiFeaturesSubplatform)')" />
 </Project>

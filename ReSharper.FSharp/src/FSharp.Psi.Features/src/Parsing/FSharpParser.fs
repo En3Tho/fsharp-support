@@ -13,18 +13,17 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Parsing
-open JetBrains.ReSharper.Psi.Tree
 
 type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sourceFile: IPsiSourceFile,
         checkerService: FcsCheckerService, symbolsCache: IFSharpResolvedSymbolsCache) =
 
     let tryCreateTreeBuilder lexer lifetime =
-        Option.bind (fun (parseResults: FSharpParseFileResults) ->
-            parseResults.ParseTree |> Option.map (function
-            | ParsedInput.ImplFile(ParsedImplFileInput(_,_,_,_,_,decls,_)) ->
+        Option.map (fun (parseResults: FSharpParseFileResults) ->
+            match parseResults.ParseTree  with
+            | ParsedInput.ImplFile(ParsedImplFileInput(modules = decls)) ->
                 FSharpImplTreeBuilder(lexer, document, decls, lifetime) :> FSharpTreeBuilderBase
-            | ParsedInput.SigFile(ParsedSigFileInput(_,_,_,_,sigs)) ->
-                FSharpSigTreeBuilder(lexer, document, sigs, lifetime) :> FSharpTreeBuilderBase))
+            | ParsedInput.SigFile(ParsedSigFileInput(modules = sigs)) ->
+                FSharpSigTreeBuilder(lexer, document, sigs, lifetime) :> FSharpTreeBuilderBase)
 
     let createFakeBuilder lexer lifetime =
         { new FSharpTreeBuilderBase(lexer, document, lifetime) with
@@ -69,17 +68,18 @@ type FSharpParser(lexer: ILexer, document: IDocument, path: FileSystemPath, sour
         member this.ParseFSharpFile(noCache) = parseFile noCache
         member this.ParseFile() = parseFile false :> _
 
-        member this.ParseExpression(chameleonExpr: IChameleonExpression, document) =
-            let document = if isNotNull document then document else chameleonExpr.GetSourceFile().Document
+        member this.ParseExpression(chameleonExpr: IChameleonExpression, syntheticDocument) =
+            let isSyntheticDocument = isNotNull syntheticDocument
+            let document = if isSyntheticDocument then syntheticDocument else chameleonExpr.GetSourceFile().Document
 
             let projectedOffset, lineShift =
                 let projectedOffset = chameleonExpr.GetTreeStartOffset().Offset
                 let offsetShift = projectedOffset - chameleonExpr.OriginalStartOffset
 
-                if offsetShift = 0 then
+                if offsetShift = 0 && isSyntheticDocument then
                     projectedOffset, 0
                 else
-                    let startLine = chameleonExpr.GetDocumentStartOffset().ToDocumentCoords().Line
+                    let startLine = document.GetCoordsByOffset(projectedOffset).Line
                     let lineShift = int startLine - chameleonExpr.SynExpr.Range.StartLine + 1
 
                     let lineStartShift = document.GetLineStartOffset(startLine) - chameleonExpr.OriginalLineStart

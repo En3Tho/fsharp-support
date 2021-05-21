@@ -102,34 +102,46 @@ repositories.forEach {
 
 val repoRoot = projectDir.parentFile!!
 val resharperPluginPath = File(repoRoot, "ReSharper.FSharp")
+
 val buildConfiguration = ext.properties["BuildConfiguration"] ?: "Debug"
+val primaryTargetFramework = "net472"
+val outputRelativePath = "bin/$buildConfiguration/$primaryTargetFramework"
 
 val libFiles = listOf(
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Core.dll",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Core.xml",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.DependencyManager.Nuget.dll",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Compiler.Interactive.Settings.dll",
-        "FSharp.Psi.Features/bin/$buildConfiguration/net461/Fantomas.dll")
+        "FSharp.Common/$outputRelativePath/FSharp.Core.dll",
+        "FSharp.Common/$outputRelativePath/FSharp.Core.xml",
+        "FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
+        "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
+        "FSharp.Common/$outputRelativePath/FSharp.Compiler.Interactive.Settings.dll")
 
 val pluginFiles = listOf(
-        "FSharp.ProjectModelBase/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
-        "FSharp.Common/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Common",
-        "FSharp.Psi/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Psi",
-        "FSharp.Psi.Features/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Psi.Features")
+        "FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
+        "FSharp.Common/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Common",
+        "FSharp.Psi/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi",
+        "FSharp.Psi.Features/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Features",
+        "FSharp.Fantomas.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol")
 
 val typeProvidersFiles = listOf(
-        "FSharp.TypeProviders.Protocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.dll",
-        "FSharp.TypeProviders.Protocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.pdb",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
+        "FSharp.TypeProviders.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.dll",
+        "FSharp.TypeProviders.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.pdb",
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
         "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core.dll",
         "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core.pdb",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader3.win.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader3.unix.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader5.win.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader5.unix.runtimeconfig.json")
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.unix.runtimeconfig.json")
+
+val fantomasFiles = listOf(
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.exe",
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.runtimeconfig.json",
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
+        "FSharp.Fantomas.Host/$outputRelativePath/FSharp.Compiler.Service.dll",
+        "FSharp.Fantomas.Host/$outputRelativePath/Fantomas.dll")
 
 val dotNetSdkPath by lazy {
     val sdkPath = intellij.ideaDependency.classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
@@ -160,6 +172,9 @@ configure<RdGenExtension> {
 
     val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Client")
     val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Server")
+
+    val fantomasServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Server")
+    val fantomasClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Client")
 
     verbose = true
     hashFolder = "build/rdgen"
@@ -204,15 +219,31 @@ configure<RdGenExtension> {
         namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Server"
         directory = "$typeProviderServerOutput"
     }
+
+    generator {
+        language = "csharp"
+        transform = "asis"
+        root = "model.RdFantomasModel"
+        namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Client"
+        directory = "$fantomasClientOutput"
+    }
+    generator {
+        language = "csharp"
+        transform = "reversed"
+        root = "model.RdFantomasModel"
+        namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Server"
+        directory = "$fantomasServerOutput"
+    }
 }
 
 tasks {
     withType<PrepareSandboxTask> {
         var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" } + typeProvidersFiles
         files = files.map { "$resharperPluginPath/src/$it" }
+        val fantomasFiles = fantomasFiles.map { "$resharperPluginPath/src/$it" }
 
         if (name == IntelliJPlugin.PREPARE_TESTING_SANDBOX_TASK_NAME) {
-            val testHostPath = "$resharperPluginPath/test/src/FSharp.Tests.Host/bin/$buildConfiguration/net461"
+            val testHostPath = "$resharperPluginPath/test/src/FSharp.Tests.Host/$outputRelativePath"
             val testHostName = "$testHostPath/JetBrains.ReSharper.Plugins.FSharp.Tests.Host"
             files = files + listOf("$testHostName.dll", "$testHostName.pdb")
         }
@@ -221,16 +252,22 @@ tasks {
             from(it) { into("${intellij.pluginName}/dotnet") }
         }
 
+        fantomasFiles.forEach {
+            from(it) { into("${intellij.pluginName}/fantomas") }
+        }
+
         into("${intellij.pluginName}/projectTemplates") {
             from("projectTemplates")
         }
 
         doLast {
-            files.forEach {
-                val file = file(it)
+            fun validateFile(path: String, destFolder: String) {
+                val file = file(path)
                 if (!file.exists()) throw RuntimeException("File $file does not exist")
-                logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName}/dotnet")
+                logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName}/$destFolder")
             }
+            files.forEach { validateFile(it, "dotnet") }
+            fantomasFiles.forEach { validateFile(it, "fantomas") }
         }
     }
 

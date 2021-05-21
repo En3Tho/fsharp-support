@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net461</TargetFramework>
+        <TargetFramework>net472</TargetFramework>
         <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol</RootNamespace>
         <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol</AssemblyName>
         <LangVersion>$(CSharpLanguageVersion)</LangVersion>
@@ -17,6 +17,6 @@
         </Reference>
     </ItemGroup>
 
-    <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.Psi.Features_src.Props')" />
-    <Import Project="$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props" Condition="Exists('$(DotNetSdkPath)\Build\SubplatformReference.ReSharperAutomationTools_src_ReSharperHost.Props')" />
+    <Import Project="$(RdBackendCommonSubplatform)" Condition="Exists('$(RdBackendCommonSubplatform)')" />
+    <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
 </Project>

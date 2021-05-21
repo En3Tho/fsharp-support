@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host</AssemblyName>
+        <OutputType>Exe</OutputType>
+        <LangVersion>$(CSharpLanguageVersion)</LangVersion>
+        <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host</RootNamespace>
+        <SignAssembly>false</SignAssembly>
+    </PropertyGroup>
+
+    <!-- TODO: remove when targetting netstandard2.0/net5, needed for legacy target frameworks -->
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <PlatformTarget>AnyCPU</PlatformTarget>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <PlatformTarget>AnyCPU</PlatformTarget>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\FSharp.Fantomas.Protocol\FSharp.Fantomas.Protocol.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Fantomas" Version="4.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.runtimeconfig.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <Import Project="$(PsiFeaturesSubplatform)" Condition="Exists('$(PsiFeaturesSubplatform)')" />
+    <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+</Project>

@@ -178,6 +178,7 @@ type FSharpParserTest() =
     [<Test>] member x.``Expr - ForEach - Range 02 - Step``() = x.DoNamedTest()
     [<Test>] member x.``Expr - ForEach 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Expr - CompExpr - Arg 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - Range 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - Range 02 - Step``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr 01 - Return``() = x.DoNamedTest()
@@ -264,6 +265,7 @@ type FSharpParserTest() =
 
     [<Test>] member x.``Expr - App - Logic 01 - And``() = x.DoNamedTest()
     [<Test>] member x.``Expr - App - Logic 02 - Or``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - App - Nested 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Expr - App - Precedence 01 - High``() = x.DoNamedTest()
     [<Test>] member x.``Expr - App - Precedence 02 - Low``() = x.DoNamedTest()
@@ -430,6 +432,9 @@ type FSharpParserTest() =
 
     [<Test>] member x.``Type member - Do 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Type member - Let bindings - XmlDoc 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Let bindings - XmlDoc 02 - Attrs``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Let bindings - XmlDoc 03 - Attrs``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Let bindings - Static 01``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Let bindings - Static 02 - Rec``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Let bindings 01``() = x.DoNamedTest()
@@ -503,6 +508,16 @@ type FSharpParserTest() =
     [<Test>] member x.``Module member - Open 02 - Qualifier``() = x.DoNamedTest()
     [<Test>] member x.``Module member - Open - Type 01``() = x.DoNamedTest()
     [<Test>] member x.``Module member - Open - Type 02 - Type param``() = x.DoNamedTest()
+
+    [<Test>] member x.``Pattern - Array 01``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Array 02 - Multiline``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Array 03 - Empty``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Array 04 - Single element``() = x.DoNamedTest()
+
+    [<Test>] member x.``Pattern - List 01``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - List 02 - Multiline``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - List 03 - Empty``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - List 04 - Single element``() = x.DoNamedTest()
 
     [<Test>] member x.``Pattern - Record 01``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Record 02 - Qualified name``() = x.DoNamedTest()

@@ -20,6 +20,7 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.TestFramework
+open JetBrains.TestFramework
 open JetBrains.TestFramework.Projects
 open JetBrains.Util.Dotnet.TargetFrameworkIds
 open Moq
@@ -31,8 +32,8 @@ do()
 
 module FSharpTestAttribute =
     let extensions =
-        [ FSharpProjectFileType.FsExtension
-          FSharpSignatureProjectFileType.FsiExtension ]
+        [| FSharpProjectFileType.FsExtension
+           FSharpSignatureProjectFileType.FsiExtension |]
         |> HashSet
 
     let targetFrameworkId =
@@ -45,13 +46,19 @@ module PackageReferences =
 
 
 type FSharpTestAttribute(extension) =
-    inherit Attribute()
+    inherit TestPackagesAttribute()
+
+    member val ReferenceFSharpCore = true with get, set
 
     new () =
         FSharpTestAttribute(FSharpProjectFileType.FsExtension)
 
-    interface ITestPlatformProvider with
+    interface ITestTargetFrameworkIdProvider with
         member x.GetTargetFrameworkId() = FSharpTestAttribute.targetFrameworkId
+        member this.Inherits = false
+
+    interface ITestMsCorLibFlagProvider with
+        member this.GetMsCorLibFlag() = ReferenceDlls.MsCorLib
 
     interface ITestFileExtensionProvider with
         member x.Extension = extension
@@ -68,7 +75,11 @@ type FSharpTestAttribute(extension) =
         member x.Process(path, properties, projectDescriptor) =
             if FSharpTestAttribute.extensions.Contains(path.ExtensionWithDot) then
                 for targetFrameworkId in projectDescriptor.ProjectProperties.ActiveConfigurations.TargetFrameworkIds do
-                    properties.SetBuildAction(BuildAction.COMPILE, targetFrameworkId)  
+                    properties.SetBuildAction(BuildAction.COMPILE, targetFrameworkId)
+
+    override this.GetPackages _ =
+        [| if this.ReferenceFSharpCore then
+               TestPackagesAttribute.ParsePackageName(FSharpCorePackage) |] :> _
 
 type FSharpSignatureTestAttribute() =
     inherit FSharpTestAttribute(FSharpSignatureProjectFileType.FsiExtension)
