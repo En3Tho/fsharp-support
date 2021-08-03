@@ -1,6 +1,7 @@
 namespace rec JetBrains.ReSharper.Plugins.FSharp.Checker
 
 open System
+open System.Collections.Generic
 open System.Runtime.InteropServices
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Text
@@ -14,11 +15,14 @@ open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services
 open JetBrains.ReSharper.Plugins.FSharp
+open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.CSharp
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
+open JetBrains.ReSharper.Psi.VB
 open JetBrains.Util
 
 module FcsCheckerService =
@@ -26,21 +30,30 @@ module FcsCheckerService =
         SourceText.ofString(document.GetText())
 
 
+type FcsProject =
+    { OutputPath: FileSystemPath
+      FileIndices: Dictionary<FileSystemPath, int>
+      ProjectOptions: FSharpProjectOptions
+      ParsingOptions: FSharpParsingOptions
+      ImplementationFilesWithSignatures: ISet<FileSystemPath> }
+
+    member x.IsKnownFile(sourceFile: IPsiSourceFile) =
+        x.FileIndices.ContainsKey(sourceFile.GetLocation())
+
+
 [<ShellComponent; AllowNullLiteral>]
 type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotifier: OnSolutionCloseNotifier,
-        settingsStore: ISettingsStore, settingsSchema: SettingsSchema, reactorMonitor: IFcsReactorMonitor) =
+        settingsStore: ISettingsStore) =
 
     let checker =
         Environment.SetEnvironmentVariable("FCS_CheckFileInProjectCacheSize", "20")
 
         let settingsStoreLive = settingsStore.BindToContextLive(lifetime, ContextRange.ApplicationWide)
-        let settingsKey = settingsSchema.GetKey<FSharpOptions>()
 
         let getSettingProperty name =
-            let setting = settingsKey.TryFindEntryByMemberName(name) :?> SettingsScalarEntry
+            let setting = SettingsUtil.getEntry<FSharpOptions> settingsStore name
             settingsStoreLive.GetValueProperty(lifetime, setting, null)
 
-        let enableBgCheck = getSettingProperty "BackgroundTypeCheck"
         let skipImpl = getSettingProperty "SkipImplementationAnalysis"
 
         lazy
@@ -48,12 +61,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
                 FSharpChecker.Create(projectCacheSize = 200,
                                      keepAllBackgroundResolutions = false,
                                      keepAllBackgroundSymbolUses = false,
-                                     reactorListener = reactorMonitor,
-                                     enablePartialTypeChecking = skipImpl.Value,
-                                     ImplicitlyStartBackgroundWork = enableBgCheck.Value)
-
-            enableBgCheck.Change.Advise_NoAcknowledgement(lifetime, fun (ArgValue enabled) ->
-                checker.ImplicitlyStartBackgroundWork <- enabled)
+                                     enablePartialTypeChecking = skipImpl.Value)
 
             checker
 
@@ -63,9 +71,9 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
                 checker.Value.InvalidateAll())
 
     member val FcsProjectProvider = Unchecked.defaultof<IFcsProjectProvider> with get, set
+    member val AssemblyReaderShim = Unchecked.defaultof<IFcsAssemblyReaderShim> with get, set
 
     member x.Checker = checker.Value
-    member x.FcsReactorMonitor = reactorMonitor
 
     member x.ParseFile(path, document, parsingOptions, [<Optional; DefaultParameterValue(false)>] noCache: bool) =
         try
@@ -85,22 +93,22 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         let parsingOptions = x.FcsProjectProvider.GetParsingOptions(sourceFile)
         x.ParseFile(sourceFile.GetLocation(), sourceFile.Document, parsingOptions)
 
-    member x.ParseAndCheckFile([<NotNull>] file: IPsiSourceFile, opName,
+    member x.ParseAndCheckFile([<NotNull>] sourceFile: IPsiSourceFile, opName,
             [<Optional; DefaultParameterValue(false)>] allowStaleResults) =
         ProhibitTypeCheckCookie.AssertTypeCheckIsAllowed()
 
-        match x.FcsProjectProvider.GetProjectOptions(file) with
+        match x.FcsProjectProvider.GetProjectOptions(sourceFile) with
         | None -> None
-        | Some options ->
+        | Some(options) ->
 
-        let path = file.GetLocation().FullPath
-        let source = FcsCheckerService.getSourceText file.Document
+        let path = sourceFile.GetLocation().FullPath
+        let source = FcsCheckerService.getSourceText sourceFile.Document
         logger.Trace("ParseAndCheckFile: start {0}, {1}", path, opName)
 
-        use op = reactorMonitor.MonitorOperation opName
+        x.AssemblyReaderShim.PrepareDependencies(sourceFile.PsiModule)
 
         // todo: don't cancel the computation when file didn't change
-        match x.Checker.ParseAndCheckDocument(path, source, options, allowStaleResults, op.OperationName).RunAsTask() with
+        match x.Checker.ParseAndCheckDocument(path, source, options, allowStaleResults, opName).RunAsTask() with
         | Some (parseResults, checkResults) ->
             logger.Trace("ParseAndCheckFile: finish {0}, {1}", path, opName)
             Some { ParseResults = parseResults; CheckResults = checkResults }
@@ -128,7 +136,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
 
     member x.InvalidateFcsProject(fcsProjectOptions: FSharpProjectOptions) =
         if checker.IsValueCreated then
-            checker.Value.InvalidateConfiguration(fcsProjectOptions, false)
+            checker.Value.InvalidateConfiguration(fcsProjectOptions)
 
     member x.InvalidateFcsProject(project: IProject) =
         if checker.IsValueCreated then
@@ -163,14 +171,17 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         x.ResolveNameAtLocation(context.GetSourceFile(), List.ofSeq names, coords, opName)
 
 
-type FSharpParseAndCheckResults = 
+type FSharpParseAndCheckResults =
     { ParseResults: FSharpParseFileResults
       CheckResults: FSharpCheckFileResults }
 
 
 type IFcsProjectProvider =
+    abstract GetFcsProject: psiModule: IPsiModule -> FcsProject option
+
     abstract GetProjectOptions: sourceFile: IPsiSourceFile -> FSharpProjectOptions option
     abstract GetProjectOptions: psiModule: IPsiModule -> FSharpProjectOptions option
+
     abstract GetFileIndex: IPsiSourceFile -> int
     abstract GetParsingOptions: sourceFile: IPsiSourceFile -> FSharpParsingOptions
 
@@ -190,3 +201,9 @@ type IFcsProjectProvider =
 type IScriptFcsProjectProvider =
     abstract GetScriptOptions: IPsiSourceFile -> FSharpProjectOptions option
     abstract GetScriptOptions: FileSystemPath * string -> FSharpProjectOptions option
+
+
+type IFcsAssemblyReaderShim =
+    /// Creates type defs to prevent C#->F# resolve during accessing typeDefs inside FCS.
+    /// C#->F# resolve may require type checking which currently will lead to a deadlock.
+    abstract PrepareDependencies: psiModule: IPsiModule -> unit

@@ -29,7 +29,7 @@ open JetBrains.Util
 [<AutoOpen>]
 module FcsProjectProvider =
     let isProjectModule (psiModule: IPsiModule) =
-        psiModule :? IProjectPsiModule 
+        psiModule :? IProjectPsiModule
 
     let isMiscModule (psiModule: IPsiModule) =
         psiModule.IsMiscFilesProjectModule()
@@ -58,16 +58,15 @@ module FcsProjectProvider =
 type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: ChangeManager,
         checkerService: FcsCheckerService, fcsProjectBuilder: FcsProjectBuilder,
         scriptFcsProjectProvider: IScriptFcsProjectProvider, scheduler: ISolutionLoadTasksScheduler,
-        fsFileService: IFSharpFileService, psiModules: IPsiModules, locks: IShellLocks, logger: ILogger) as this =
+        fsFileService: IFSharpFileService, fsItemsContainer: FSharpItemsContainer,
+        modulePathProvider: ModulePathProvider, locks: IShellLocks, logger: ILogger) as this =
     inherit RecursiveProjectModelChangeDeltaVisitor()
 
     let locker = JetFastSemiReenterableRWLock()
 
     let fcsProjects = Dictionary<IPsiModule, FcsProject>()
     let referencedModules = Dictionary<IPsiModule, ReferencedModule>()
-
-    // todo: keep standalone projects
-//    let fcsStandaloneProjects = Dictionary<IPsiModule, FSharpProjectOptions>() // todo
+    let projectsPsiModules = OneToSetMap<IModule, IPsiModule>()
 
     let dirtyModules = HashSet<IPsiModule>()
     let fcsProjectInvalidated = new Signal<IPsiModule>(lifetime, "FcsProjectInvalidated")
@@ -92,12 +91,10 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
         referencedModules.Remove(psiModule) |> ignore
         fcsProjects.Remove(psiModule) |> ignore
-        dirtyModules.Remove(psiModule) |> ignore
 
-        if not (psiModule.IsValid()) then
-            let project = psiModule.ContainingProjectModule.As<IProject>()
-            if isNotNull project then
-                solution.GetComponent<FSharpItemsContainer>().RemoveProject(project)
+        projectsPsiModules.Remove(psiModule.ContainingProjectModule, psiModule) |> ignore
+
+        dirtyModules.Remove(psiModule) |> ignore
 
         // todo: remove removed psiModules? (don't we remove them anyway?) (standalone projects only?)
         logger.Trace("Done invalidating project: {0}", psiModule)
@@ -123,6 +120,9 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     let tryGetFcsProject (psiModule: IPsiModule): FcsProject option =
         use lock = locker.UsingReadLock()
         tryGetValue psiModule fcsProjects
+
+    let createReferencedModule psiModule =
+        ReferencedModule.create modulePathProvider psiModule
 
     let rec createFcsProject (project: IProject) (psiModule: IPsiModule): FcsProject =
         match tryGetValue psiModule fcsProjects with
@@ -151,9 +151,10 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         let fcsProject = { fcsProject with ProjectOptions = fcsProjectOptions }
 
         fcsProjects.[psiModule] <- fcsProject
+        projectsPsiModules.Add(project, psiModule) |> ignore
 
         for referencedPsiModule in referencedProjectPsiModules do
-            let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, ReferencedModule.Create)
+            let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, createReferencedModule)
             referencedModule.ReferencingModules.Add(psiModule) |> ignore
 
         fcsProject
@@ -175,18 +176,19 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         getOrCreateFcsProject sourceFile.PsiModule
 
     let isScriptLike file =
-        fsFileService.IsScriptLike(file) || isMiscModule file.PsiModule || isNull (file.GetProject())        
+        fsFileService.IsScriptLike(file) || isMiscModule file.PsiModule || isNull (file.GetProject())
 
     let getParsingOptionsForSingleFile ([<NotNull>] sourceFile: IPsiSourceFile) isScript =
         { FSharpParsingOptions.Default with
             SourceFiles = [| sourceFile.GetLocation().FullPath |]
             ConditionalCompilationDefines = ImplicitDefines.scriptDefines
+            IsInteractive = isScript
             IsExe = isScript }
 
     let invalidateProject (project: IProject) =
-        for psiModule in psiModules.GetPsiModules(project) do
+        for psiModule in projectsPsiModules.GetValuesSafe(project) do
             dirtyModules.Add(psiModule) |> ignore
-    
+
     member x.FcsProjectInvalidated = fcsProjectInvalidated
 
     member x.ProcessChange(obj: ChangeEventArgs) =
@@ -208,6 +210,9 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
              if project.IsFSharp then
                  if change.ContainsChangeType(invalidateProjectChangeType) then
                      invalidateProject project
+                     
+                     if change.IsRemoved then
+                        fsItemsContainer.RemoveProject(project)
 
                  elif change.IsSubtreeChanged then
                      let mutable invalidate = false
@@ -291,7 +296,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                 let path = sourceFile.GetLocation()
                 tryGetValue path fsProject.FileIndices)
             |> Option.defaultWith (fun _ -> -1)
-        
+
         member x.ModuleInvalidated = x.FcsProjectInvalidated :> _
 
         member x.InvalidateReferencesToProject(project: IProject) =
@@ -306,6 +311,9 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
         member x.InvalidateDirty() =
             processDirtyFcsProjects ()
+
+        member this.GetFcsProject(psiModule) =
+            getOrCreateFcsProject psiModule
 
 /// Invalidates psi caches when a non-F# project is built and FCS cached resolve results become stale
 [<SolutionComponent>]

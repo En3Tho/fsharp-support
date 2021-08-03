@@ -8,7 +8,7 @@ open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
 
 [<Language(typeof<FSharpLanguage>)>]
-type FSharpBlockCommentActionProvider() = 
+type FSharpBlockCommentActionProvider() =
     interface IBlockCommentActionProvider with
 
         member x.StartBlockCommentMarker = "(*"

@@ -10,7 +10,9 @@ open JetBrains.ReSharper.Psi.ExtensionsAPI
 let tryGetNamedArgRefExpr (expr: IFSharpExpression) =
     let binaryAppExpr = expr.As<IBinaryAppExpr>()
     if isNull binaryAppExpr then null else
-    if binaryAppExpr.Operator.Reference.GetName() <> "=" then null else
+
+    let operatorExpr = binaryAppExpr.Operator
+    if isNull operatorExpr || operatorExpr.Reference.GetName() <> "=" then null else
 
     binaryAppExpr.LeftArgument.As<IReferenceExpr>()
 
@@ -19,9 +21,9 @@ let isNamedArgReference (expr: IFSharpExpression) =
     let refExpr = tryGetNamedArgRefExpr expr
     if isNull refExpr then false else
 
-    match refExpr.Reference.GetFSharpSymbol() with
+    match refExpr.Reference.GetFcsSymbol() with
     | :? FSharpParameter -> true
-    | :? FSharpField as fsField -> fsField.IsUnionCaseField 
+    | :? FSharpField as fsField -> fsField.IsUnionCaseField
     | _ -> false
 
 
@@ -35,8 +37,14 @@ let getArgsOwner (expr: IFSharpExpression) =
     let exprContext = if isNull tupleExpr then expr else tupleExpr :> _
     FSharpArgumentOwnerNavigator.GetByArgumentExpression(exprContext.IgnoreParentParens())
 
+let getReference (fsArgsOwner: IFSharpArgumentsOwner) =
+    match fsArgsOwner with
+    | :? IFSharpReferenceOwner as refOwner -> refOwner.Reference
+    | :? IPrefixAppExpr as prefixAppExpr -> prefixAppExpr.InvokedFunctionReference
+    | _ -> null
+
 let getMatchingParameter (expr: IFSharpExpression) =
-    let argsOwner = getArgsOwner(expr)
+    let argsOwner = getArgsOwner expr
     if isNull argsOwner then null else
 
     let namedArgRefExpr = tryGetNamedArgRefExpr expr
@@ -48,16 +56,17 @@ let getMatchingParameter (expr: IFSharpExpression) =
 
     if isNotNull namedParam then namedParam else
 
-    let symbolReference = argsOwner.Reference
+    let symbolReference = getReference argsOwner
     if isNull symbolReference then null else
 
-    let mfv = symbolReference.GetFSharpSymbol().As<FSharpMemberOrFunctionOrValue>()
+    let mfv = symbolReference.GetFcsSymbol().As<FSharpMemberOrFunctionOrValue>()
     if isNull mfv then null else
 
     let paramOwner = symbolReference.Resolve().DeclaredElement.As<IParametersOwner>()
     if isNull paramOwner then null else
 
     let param =
+        let parameters = paramOwner.Parameters
         if isNotNull namedArgRefExpr then
             // If this is a named argument, but FCS couldn't match it, try matching ourselves by name
             paramOwner.Parameters
@@ -67,9 +76,15 @@ let getMatchingParameter (expr: IFSharpExpression) =
             | None -> None
             | Some paramIndex ->
 
-            let invokingExtensionMethod = mfv.IsExtensionMember && Some mfv.ApparentEnclosingEntity <> mfv.DeclaringEntity
+            let invokingExtensionMethod =
+                mfv.IsExtensionMember && Some mfv.ApparentEnclosingEntity <> mfv.DeclaringEntity
+
             let offset = if invokingExtensionMethod then 1 else 0
-            Some paramOwner.Parameters.[paramIndex + offset]
+            let paramIndex = paramIndex + offset
+            if paramIndex < parameters.Count then
+                Some(parameters.[paramIndex])
+            else
+                None
 
     // Skip unnamed parameters
     match param with

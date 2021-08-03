@@ -15,7 +15,7 @@ type FSharpNamingTest() =
     inherit BaseTestWithTextControl()
 
     override x.RelativeTestDataPath = "features/naming"
-    
+
     [<Test>] member x.``Let 01 - Simple``() = x.DoNamedTest()
     [<Test>] member x.``Let 02 - Tuple``() = x.DoNamedTest()
     [<Test>] member x.``Let 03 - Literal - Module``() = x.DoNamedTest()
@@ -44,6 +44,13 @@ type FSharpNamingTest() =
     [<Test>] member x.``Pipe - Right 02 - Nested``() = x.DoNamedTest()
     [<Test>] member x.``Pipe - Left 01``() = x.DoNamedTest()
     [<Test>] member x.``Pipe - Left 02 - Nested``() = x.DoNamedTest()
+
+    [<Test>] member x.``Union case field 01``() = x.DoNamedTest()
+    [<Test>] member x.``Union case field 02``() = x.DoNamedTest()
+    [<Test>] member x.``Union case field 03``() = x.DoNamedTest()
+    [<Test>] member x.``Union case field 04``() = x.DoNamedTest()
+    [<Test>] member x.``Union case field 05``() = x.DoNamedTest()
+    [<Test>] member x.``Union case field 06``() = x.DoNamedTest()
 
     [<Test>] member x.``Wild - Let - Top 01``() = x.DoNamedTest()
     [<Test>] member x.``Wild - Let - Top 02 - StringBuilder``() = x.DoNamedTest()

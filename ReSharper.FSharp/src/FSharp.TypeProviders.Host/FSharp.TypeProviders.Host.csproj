@@ -12,14 +12,14 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
-        <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Core</AssemblyName>
+        <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />
         <ProjectReference Include="..\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj" />
     </ItemGroup>
-    
+
     <ItemGroup>
       <Content Include="app.config">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>

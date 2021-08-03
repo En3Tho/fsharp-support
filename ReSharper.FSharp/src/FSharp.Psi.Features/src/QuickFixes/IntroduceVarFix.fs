@@ -6,11 +6,15 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.TextControl
 
-type IntroduceVarFix(expr: IFSharpExpression) =
+module IntroduceVarFix =
+    let [<Literal>] introduceVarText = "Introduce 'let' binding"
+    let [<Literal>] introduceVarOutsideLambdaText = "Introduce 'let' binding outside lambda"
+
+type IntroduceVarFix(expr: IFSharpExpression, removeExpr, escapeLambdas, addMutable, text) =
     inherit FSharpQuickFixBase()
 
     let mutable expr = expr
-    
+
     let suggestInnerExpression (expr: IFSharpExpression) =
         let binaryAppExpr = expr.As<IBinaryAppExpr>()
         if isNotNull binaryAppExpr && FSharpIntroduceVariable.CanInsertBeforeRightOperand(binaryAppExpr) then
@@ -19,18 +23,25 @@ type IntroduceVarFix(expr: IFSharpExpression) =
             null
 
     new (warning: UnitTypeExpectedWarning) =
-        IntroduceVarFix(warning.Expr)
+        IntroduceVarFix(warning.Expr, true, false, false, IntroduceVarFix.introduceVarText)
 
     new (warning: FunctionValueUnexpectedWarning) =
-        IntroduceVarFix(warning.Expr)
+        IntroduceVarFix(warning.Expr, true, false, false, IntroduceVarFix.introduceVarText)
 
     new (error: UnitTypeExpectedError) =
-        IntroduceVarFix(error.Expr)
+        IntroduceVarFix(error.Expr, true, false, false, IntroduceVarFix.introduceVarText)
 
-    override x.Text = "Introduce 'let' binding"
+    new (error: CantTakeAddressOfExpressionError) =
+        IntroduceVarFix(error.Expr.Expression, false, false, true, IntroduceVarFix.introduceVarText)
+
+    new (error: MemberIsNotAccessibleError) =
+        // todo: method calls: check that values are defined outside lambda
+        IntroduceVarFix(error.RefExpr, false, true, false, IntroduceVarFix.introduceVarOutsideLambdaText)
+
+    override x.Text = text
 
     override x.IsAvailable _ =
-        FSharpIntroduceVariable.CanIntroduceVar(expr)
+        FSharpIntroduceVariable.CanIntroduceVar(expr, false)
 
     member x.SelectExpression(solution, textControl) =
         let innerExpression = suggestInnerExpression expr
@@ -39,7 +50,7 @@ type IntroduceVarFix(expr: IFSharpExpression) =
         let expressions =
             [| expr, "Whole expression"
                innerExpression, "Last operand" |]
-            
+
         x.SelectExpression(expressions, solution, textControl)
 
     override x.Execute(solution, textControl) =
@@ -49,4 +60,4 @@ type IntroduceVarFix(expr: IFSharpExpression) =
         base.Execute(solution, textControl)
 
         textControl.Selection.SetRange(expr.GetDocumentRange().TextRange)
-        FSharpIntroduceVariable.IntroduceVar(expr, textControl, true)
+        FSharpIntroduceVariable.IntroduceVar(expr, textControl, removeExpr, escapeLambdas, addMutable)

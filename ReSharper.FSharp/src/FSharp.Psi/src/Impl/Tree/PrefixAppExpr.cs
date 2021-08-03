@@ -13,30 +13,25 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
   {
     private readonly CachedPsiValue<IList<IArgument>> myParameterArguments = new FileCachedPsiValue<IList<IArgument>>();
 
-    public FSharpSymbolReference Reference => InvokedReferenceExpression?.Reference;
+    public bool IsHighPrecedence =>
+      FunctionExpression is { } funExpr && ArgumentExpression is { } argExpr && funExpr.NextSibling == argExpr;
 
     public IReferenceExpr InvokedReferenceExpression
     {
       get
       {
         var funExpr = (IPrefixAppExpr) this;
-        while (funExpr.FunctionExpression.IgnoreInnerParens() is IPrefixAppExpr appExpr)
-        {
+        while (funExpr.FunctionExpression.IgnoreInnerParens() is IPrefixAppExpr appExpr) 
           funExpr = appExpr;
-        }
 
         if (!(funExpr.FunctionExpression.IgnoreInnerParens() is IReferenceExpr referenceExpr))
-        {
           return null;
-        }
 
         return referenceExpr;
       }
     }
 
     public IFSharpIdentifier FSharpIdentifier => InvokedReferenceExpression?.Identifier;
-
-    public IFSharpReferenceOwner SetName(string name) => this;
 
     public FSharpSymbolReference InvokedFunctionReference
     {
@@ -47,10 +42,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
           return null;
 
         var reference = referenceExpr.Reference;
-        var fsSymbol = reference.GetFSharpSymbol();
+        var fcsSymbol = reference.GetFcsSymbol();
 
         // todo: union cases, exceptions
-        if (!(fsSymbol is FSharpMemberOrFunctionOrValue mfv))
+        if (!(fcsSymbol is FSharpMemberOrFunctionOrValue mfv))
           return null;
 
         var paramGroups = mfv.CurriedParameterGroups;
@@ -79,8 +74,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public IList<IArgument> Arguments => ParameterArguments.Where(arg => arg != null).ToList();
 
     public IList<IArgument> ParameterArguments => myParameterArguments.GetValue(this,
-      () => InvokedReferenceExpression != null
-        ? this.CalculateParameterArguments(AppliedExpressions)
+      () => InvokedReferenceExpression is { } invokedReferenceExpression
+        ? invokedReferenceExpression.CalculateParameterArguments(AppliedExpressions)
         : EmptyList<IArgument>.InstanceList);
   }
 }

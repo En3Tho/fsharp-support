@@ -18,7 +18,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     protected override bool UseBaseNameForSingleField => true;
 
-    protected override IUnionCaseLikeDeclaration FieldOwnerDeclaration => 
+    protected override IUnionCaseLikeDeclaration FieldOwnerDeclaration =>
       UnionCaseDeclarationNavigator.GetByField(this);
 
     protected override IList<FSharpField> GetTypeFields(FSharpSymbol type) =>
@@ -37,7 +37,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     protected override bool UseBaseNameForSingleField => false;
 
-    protected override IUnionCaseLikeDeclaration FieldOwnerDeclaration => 
+    protected override IUnionCaseLikeDeclaration FieldOwnerDeclaration =>
       ExceptionDeclarationNavigator.GetByField(this);
 
     protected override IList<FSharpField> GetTypeFields(FSharpSymbol type) =>
@@ -82,12 +82,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     protected TreeNodeCollection<ICaseFieldDeclaration> GetFields() =>
       FieldOwnerDeclaration?.Fields ?? TreeNodeCollection<ICaseFieldDeclaration>.Empty;
 
-    public override FSharpSymbol GetFSharpSymbol()
+    public override FSharpSymbol GetFcsSymbol()
     {
-      if (base.GetFSharpSymbol() is FSharpField namedField) // todo: named params have type FSharpParameters
+      if (base.GetFcsSymbol() is FSharpField namedField) // todo: named params have type FSharpParameters
         return namedField;
 
-      var typeSymbol = FieldOwnerDeclaration?.GetFSharpSymbol();
+      var typeSymbol = FieldOwnerDeclaration?.GetFcsSymbol();
       var index = Index;
       var fields = GetTypeFields(typeSymbol);
       return fields != null && index <= fields.Count

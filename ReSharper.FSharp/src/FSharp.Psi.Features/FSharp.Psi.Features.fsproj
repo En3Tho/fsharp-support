@@ -50,8 +50,10 @@
       <SubType>Designer</SubType>
     </ErrorsGen>
     <Compile Include="src\Daemon\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
-    <Compile Include="src\Daemon\Stages\FSharpIdentifierTooltipProvider.fs" />
-    <Compile Include="src\Daemon\Stages\FSharpSyntaxHighlightingQuickDocTooltipRequest.fs" />
+    <Compile Include="src\Daemon\Tooltips\FSharpIdentifierTooltipProvider.fs" />
+    <Compile Include="src\Daemon\Tooltips\FSharpSyntaxHighlightingQuickDocTooltipRequest.fs" />
+    <Compile Include="src\Daemon\Tooltips\FSharpQuickDocSuppressor.fs" />
+    <Compile Include="src\Daemon\Tooltips\ZoneMarker.fs" />
     <Compile Include="src\Daemon\Stages\FcsErrorsStageProcessBase.fs" />
     <Compile Include="src\Daemon\Stages\FSharpDaemonBehaviour.fs" />
     <Compile Include="src\Daemon\Stages\ScriptLoadPathsStage.fs" />
@@ -88,6 +90,7 @@
     <Compile Include="src\Daemon\Analyzers\LambdaAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\SelfIdAnalyzer.fs" />
     <Compile Include="src\Daemon\Analyzers\InterpolatedStringCandidateAnalyzer.fs" />
+    <Compile Include="src\Daemon\Analyzers\IfExpressionAnalyzer.fs" />
     <Compile Include="src\Comment\FSharpBlockCommentActionProvider.fs" />
     <Compile Include="src\Comment\FSharpLineCommentActionProvider.fs" />
     <Compile Include="src\Debugger\FSharpBreakpointVariantsProvider.fs" />
@@ -105,8 +108,9 @@
     <Compile Include="src\Search\FSharpGeneratedElementsSearch.fs" />
     <Compile Include="src\Search\RecordCtorSearch.fs" />
     <Compile Include="src\ExtendSelection\FSharpExtendSelectionProvider.fs" />
-    <Compile Include="src\Formatter\FantomasFormatterProvider.fs" />
-    <Compile Include="src\Formatter\FSharpReformatCode.fs" />
+    <Compile Include="src\CodeCleanup\FantomasHost.fs" />
+    <Compile Include="src\CodeCleanup\FSharpReformatCode.fs" />
+    <Compile Include="src\CodeCleanup\OptimizeImports.fs" />
     <Compile Include="src\Fsi\FsiSandboxUtil.fs" />
     <Compile Include="src\Fsi\FsiOptions.fs" />
     <Compile Include="src\Fsi\FsiDetector.fs" />
@@ -127,6 +131,7 @@
     <Compile Include="src\Generate\GenerateProvider.fs" />
     <Compile Include="src\Intentions\DataProviders.fs" />
     <Compile Include="src\Intentions\FSharpContextActionBase.fs" />
+    <Compile Include="src\Intentions\Deconstruction.fs" />
     <Compile Include="src\Intentions\ToRecursiveLetBindingsAction.fs" />
     <Compile Include="src\Intentions\ToMultilineRecord.fs" />
     <Compile Include="src\Intentions\ToRecursiveModuleAction.fs" />
@@ -207,6 +212,10 @@
     <Compile Include="src\QuickFixes\ReplaceWithInterpolatedStringFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithPredefinedOperatorFix.fs" />
     <Compile Include="src\QuickFixes\RemoveConstructorFix.fs" />
+    <Compile Include="src\QuickFixes\ReplaceWithConditionFix.fs" />
+    <Compile Include="src\QuickFixes\AddInstanceMemberSelfIdFix.fs" />
+    <Compile Include="src\QuickFixes\ToStaticMemberFix.fs" />
+    <Compile Include="src\QuickFixes\ReplaceWithTypeRefExprFix.fs" />
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
     <Compile Include="src\PostfixTemplates\NotTemplate.fs" />
     <Compile Include="src\PostfixTemplates\LetPostfixTemplate.fs" />

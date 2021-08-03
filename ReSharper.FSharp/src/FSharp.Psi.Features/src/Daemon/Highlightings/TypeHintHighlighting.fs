@@ -36,7 +36,7 @@ and [<SolutionComponent>] TypeHintAdornmentProvider() =
             match highlighter.UserData with
             | :? TypeHintHighlighting as dm -> dm.IsValid()
             | _ -> false
-    
+
         member x.CreateDataModel(highlighter) =
             match highlighter.UserData with
             | :? TypeHintHighlighting as thh ->
@@ -47,10 +47,9 @@ and [<SolutionComponent>] TypeHintAdornmentProvider() =
                     override x.ContextMenuItems = null
                     override x.IsNavigable = false
                     override x.ExecuteNavigation _ = ()
-                    override x.SelectionRange = Nullable<_>()
+                    override x.SelectionRange = Nullable()
                     override x.IconId = null
                     override x.IsPreceding = false
                     override x.Order = 0
-                    override x.InlayHintsMode = InlayHintsMode.Default
-                }
+                    override x.InlayHintsMode = InlayHintsMode.Default }
             | _ -> null

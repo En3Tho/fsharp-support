@@ -54,22 +54,30 @@ module FSharpErrors =
     let [<Literal>] UnrecognizedOption = 243
     let [<Literal>] NoImplementationGiven = 365
     let [<Literal>] NoImplementationGivenWithSuggestion = 366
+    let [<Literal>] MemberIsNotAccessible = 491
+    let [<Literal>] MethodIsNotAnInstanceMethod = 493
     let [<Literal>] UseBindingsIllegalInImplicitClassConstructors = 523
     let [<Literal>] UseBindingsIllegalInModules = 524
     let [<Literal>] OnlyClassCanTakeValueArguments = 552
     let [<Literal>] LetAndForNonRecBindings = 576
     let [<Literal>] ExpectedExpressionAfterLet = 588
     let [<Literal>] SuccessiveArgsShouldBeSpacedOrTupled = 597
+    let [<Literal>] StaticFieldUsedWhenInstanceFieldExpected = 627
+    let [<Literal>] InstanceMemberRequiresTarget = 673
     let [<Literal>] ConstructRequiresListArrayOrSequence = 747
     let [<Literal>] ConstructRequiresComputationExpression = 748
+    let [<Literal>] ObjectOfIndeterminateTypeUsedRequireTypeConstraint = 752
     let [<Literal>] FieldRequiresAssignment = 764
     let [<Literal>] EmptyRecordInvalid = 789
+    let [<Literal>] PropertyIsStatic = 809
     let [<Literal>] LocalClassBindingsCannotBeInline = 894
     let [<Literal>] TypeAbbreviationsCannotHaveAugmentations = 964
     let [<Literal>] UnusedValue = 1182
     let [<Literal>] UnusedThisVariable = 1183
+    let [<Literal>] CantTakeAddressOfExpression = 3236
 
     let [<Literal>] undefinedIndexerMessageSuffix = " does not define the field, constructor or member 'Item'."
+    let [<Literal>] undefinedGetSliceMessageSuffix = " does not define the field, constructor or member 'GetSlice'."
     let [<Literal>] ifExprMissingElseBranch = "This 'if' expression is missing an 'else' branch."
     let [<Literal>] expressionIsAFunctionMessage = "This expression is a function value, i.e. is missing arguments. Its type is "
     let [<Literal>] typeConstraintMismatchMessage = "Type constraint mismatch. The type "
@@ -126,7 +134,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         match parent.GetContainingNode() with
         | null -> null
         | grandparent -> highlightingCtor grandparent :> _
-    
+
     let createHighlightingFromNodeWithMessage highlightingCtor range (error: FSharpDiagnostic): IHighlighting =
         let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
         if isNotNull expr then highlightingCtor (expr, error.Message) :> _ else
@@ -150,7 +158,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         match token.GetContainingNode() with
         | null -> null
         | node -> highlightingCtor node :> _
-    
+
     let createHighlighting (error: FSharpDiagnostic) (range: DocumentRange): IHighlighting =
         match error.ErrorNumber with
         | TypeEquation ->
@@ -189,15 +197,18 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             createHighlightingFromNode VarBoundTwiceError range
 
         | UndefinedName ->
-            if (endsWith undefinedIndexerMessageSuffix error.Message &&
-                    let indexer = fsFile.GetNode<IItemIndexerExpr>(range) in isNotNull indexer) then
+            let message = error.Message
+            let isUndefinedIndexerText =
+                endsWith undefinedIndexerMessageSuffix message || endsWith undefinedGetSliceMessageSuffix message
+
+            if isUndefinedIndexerText && isNotNull (fsFile.GetNode<IItemIndexerExpr>(range)) then
                 UndefinedIndexerError(fsFile.GetNode(range)) :> _ else
 
             let identifier = fsFile.GetNode(range)
             let referenceOwner = FSharpReferenceOwnerNavigator.GetByIdentifier(identifier)
-            if isNotNull referenceOwner then UndefinedNameError(referenceOwner.Reference, error.Message) :> _ else
+            if isNotNull referenceOwner then UndefinedNameError(referenceOwner.Reference, message) :> _ else
 
-            UnresolvedHighlighting(error.Message, range) :> _
+            UnresolvedHighlighting(message, range) :> _
 
         | ErrorFromAddingConstraint ->
             createHighlightingFromNodeWithMessage AddingConstraintError range error
@@ -283,8 +294,26 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
             | _ -> createGenericHighlighting error range
 
+        | MemberIsNotAccessible ->
+            createHighlightingFromNode MemberIsNotAccessibleError range
+
+        | MethodIsNotAnInstanceMethod ->
+            let refExpr = nodeSelectionProvider.GetExpressionInRange<IReferenceExpr>(fsFile, range, false, null)
+            if isNotNull refExpr then MemberIsStaticError(refExpr) :> _ else
+
+            let appExpr = nodeSelectionProvider.GetExpressionInRange<IPrefixAppExpr>(fsFile, range, false, null)
+            if isNull appExpr then null else
+
+            let appRefExpr = appExpr.FunctionExpression.As<IReferenceExpr>()
+            if isNotNull appRefExpr then MemberIsStaticError(appRefExpr) :> _ else
+
+            null
+
         | UseBindingsIllegalInImplicitClassConstructors ->
             createHighlightingFromNode UseKeywordIllegalInPrimaryCtorError range
+
+        | PropertyIsStatic ->
+            createHighlightingFromNode MemberIsStaticError range
 
         | LocalClassBindingsCannotBeInline ->
             createHighlightingFromParentNode LocalClassBindingsCannotBeInlineError range
@@ -299,6 +328,12 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | UnusedThisVariable ->
             createHighlightingFromParentNode UnusedThisVariableWarning range
 
+        | CantTakeAddressOfExpression ->
+            createHighlightingFromNode CantTakeAddressOfExpressionError range
+
+        | ObjectOfIndeterminateTypeUsedRequireTypeConstraint ->
+            createHighlightingFromNode IndexerIndeterminateTypeError range
+
         | FieldRequiresAssignment ->
             createHighlightingFromNodeWithMessage FieldRequiresAssignmentError range error
 
@@ -307,6 +342,14 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
         | SuccessiveArgsShouldBeSpacedOrTupled ->
             createHighlightingFromNode SuccessiveArgsShouldBeSpacedOrTupledError range
+
+        | StaticFieldUsedWhenInstanceFieldExpected ->
+            createHighlightingFromNode MemberIsStaticError range
+
+        | InstanceMemberRequiresTarget ->
+            match fsFile.GetNode<IMemberDeclaration>(range) with
+            | null -> null
+            | memberDecl -> InstanceMemberRequiresTargetError(memberDecl) :> _
 
         | ConstructRequiresListArrayOrSequence ->
             createHighlightingFromNode YieldRequiresSeqExpressionError range
@@ -330,7 +373,11 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             | _ -> null
 
         | NamespaceCannotContainValues ->
-            createHighlightingFromNode NamespaceCannotContainValuesError range
+            let binding = fsFile.GetNode<IBindingLikeDeclaration>(range)
+            if isNotNull binding then NamespaceCannotContainBindingsError(binding) :> _ else
+
+            let expr = fsFile.GetNode<IDoLikeStatement>(range)
+            if isNotNull expr then NamespaceCannotContainExpressionsError(expr) :> _ else null
 
         | _ -> createGenericHighlighting error range
 

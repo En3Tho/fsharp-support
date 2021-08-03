@@ -4,7 +4,6 @@ using JetBrains.Metadata.Reader.API;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2;
-using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
@@ -14,7 +13,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     protected FSharpTypeMembersOwnerTypePart([NotNull] IFSharpTypeOldDeclaration declaration,
       [NotNull] ICacheBuilder cacheBuilder)
       : base(declaration, ModifiersUtil.GetDecoration(declaration.AccessModifier, declaration.Attributes),
-        declaration.TypeParameters, cacheBuilder)
+        declaration.TypeParameterDeclarations, cacheBuilder)
     {
       var extendListShortNames = new FrugalLocalHashSet<string>();
       extendListShortNames = ProcessMembers(declaration.TypeMembersEnumerable, extendListShortNames);
@@ -25,7 +24,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       ExtendsListShortNames = extendListShortNames.ToArray();
     }
 
-    private static FrugalLocalHashSet<string> ProcessMembers(TreeNodeEnumerable<IFSharpTypeMemberDeclaration> members,
+    private static FrugalLocalHashSet<string> ProcessMembers(IEnumerable<IFSharpTypeMemberDeclaration> members,
       FrugalLocalHashSet<string> names)
     {
       foreach (var member in members)

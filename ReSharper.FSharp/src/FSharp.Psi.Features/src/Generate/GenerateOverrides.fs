@@ -53,7 +53,7 @@ let generateMember (context: IFSharpTreeNode) (indent: int) (element: IFSharpGen
     let factory = context.CreateElementFactory()
     let settingsStore = context.GetSettingsStoreWithEditorConfig()
     let spaceAfterComma = settingsStore.GetValue(fun (key: FSharpFormatSettingsKey) -> key.SpaceAfterComma)
-    
+
     let paramGroups =
         if mfv.IsProperty then [] else
         factory.CreateMemberParamDeclarations(argNames, spaceAfterComma, element.AddTypes, element.DisplayContext)
@@ -66,7 +66,7 @@ let generateMember (context: IFSharpTreeNode) (indent: int) (element: IFSharpGen
     if element.Mfv.IsCliEvent() then
         let attribute = context.CreateElementFactory().CreateAttribute("CLIEvent")
         FSharpAttributesUtil.addOuterAttributeListWithIndent true indent memberDeclaration
-        FSharpAttributesUtil.addAttribute memberDeclaration.AttributeLists.[0] attribute
+        FSharpAttributesUtil.addAttribute memberDeclaration.AttributeLists.[0] attribute |> ignore
 
     if element.AddTypes then
         let lastParam = memberDeclaration.ParametersDeclarations.LastOrDefault()

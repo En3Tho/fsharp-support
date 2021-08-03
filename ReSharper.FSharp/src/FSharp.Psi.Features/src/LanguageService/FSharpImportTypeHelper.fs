@@ -1,6 +1,5 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.LanguageService
 
-open System.Collections.Generic
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Intentions.QuickFixes
 open JetBrains.ReSharper.Plugins.FSharp.Psi
@@ -14,10 +13,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Finder
 open JetBrains.ReSharper.Psi.Modules
-open JetBrains.ReSharper.Psi.Naming
-open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Resources.Shell
-open JetBrains.Util
 
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpImportTypeHelper() =
@@ -25,9 +21,7 @@ type FSharpImportTypeHelper() =
 
     let isApplicable (context: IFSharpReferenceOwner) =
         let referenceName = context.As<ITypeReferenceName>()
-        if isNotNull (OpenStatementNavigator.GetByReferenceName(referenceName)) then false else
-
-        true
+        not (isNotNull (OpenStatementNavigator.GetByReferenceName(referenceName)))
 
     interface IImportTypeHelper with
         member x.FindTypeCandidates(reference, importTypeCacheFactory) =
@@ -39,12 +33,7 @@ type FSharpImportTypeHelper() =
 
             let sourceFile = context.GetSourceFile()
             let psiModule = context.GetPsiModule()
-
-            let containingModules = 
-                reference.GetElement().ContainingNodes<IModuleLikeDeclaration>().ToEnumerable()
-                |> Seq.map (fun decl -> decl.DeclaredElement)
-                |> Seq.filter isNotNull
-                |> HashSet
+            let containingModules = getContainingModules context
 
             let names = reference.GetAllNames().ResultingList()
             let factory = importTypeCacheFactory.Invoke(context)
@@ -84,11 +73,10 @@ type FSharpImportTypeHelper() =
             let referenceName = context.As<ITypeArgumentOwner>()
             if isNotNull referenceName then
                 let typeArgumentList = referenceName.TypeArgumentList
-                if isNull typeArgumentList || typeArgumentList.Types.Count = 0 then () else
+                if isNull typeArgumentList || typeArgumentList.TypeUsages.Count = 0 then () else
 
-                let typesCount = typeArgumentList.Types.Count
+                let typesCount = typeArgumentList.TypeUsages.Count
                 candidates <- candidates |> Seq.filter (fun c -> c.TypeParameters.Count = typesCount)
-
 
             let typeReferenceName = context.As<ITypeReferenceName>()
             if isNotNull (AttributeNavigator.GetByReferenceName(typeReferenceName)) then
@@ -115,23 +103,8 @@ type FSharpQuickFixUtilComponent() =
         FSharpReferenceBindingUtil.SetRequiredQualifiers(reference, typeElement)
         if FSharpResolveUtil.resolvesToQualified typeElement reference FcsOpName then reference else
 
-        let moduleToOpen = getModuleToOpen typeElement
-        let fsFile = referenceOwner.FSharpFile
-        let namingService = NamingManager.GetNamingLanguageService(fsFile.Language)
+        addOpens reference typeElement
 
-        let nameToOpen =
-            toQualifiedList fsFile moduleToOpen
-            |> List.map (fun el ->
-                let sourceName = el.GetSourceName()
-                namingService.MangleNameIfNecessary(sourceName))
-            |> String.concat "."
-
-        if nameToOpen.IsNullOrEmpty() then reference else
-
-        let settings = fsFile.GetSettingsStoreWithEditorConfig()
-        addOpen (referenceOwner.GetDocumentStartOffset()) fsFile settings nameToOpen
-        reference
-    
     interface IFSharpQuickFixUtilComponent with
         member x.BindTo(reference, typeElement, _, _) =
             x.BindTo(reference :?> _, typeElement) :> _
@@ -139,7 +112,7 @@ type FSharpQuickFixUtilComponent() =
         member x.AddImportsForExtensionMethod(reference, _) = reference
 
         member this.BindTo(reference, typeElement) =
-            this.BindTo(reference :?> _, typeElement) :> _
+            this.BindTo(reference :?> _, typeElement)
 
 
 // todo: ExtensionMethodImportUtilBase

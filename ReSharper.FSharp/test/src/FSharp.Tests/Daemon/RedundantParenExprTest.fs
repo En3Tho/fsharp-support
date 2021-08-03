@@ -1,5 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features.Daemon
 
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Plugins.FSharp.Tests
@@ -16,12 +17,12 @@ type RedundantParenExprTest() =
     override x.RelativeTestDataPath = "features/daemon/redundantParens/expr"
 
     override x.DoTest(lifetime, project) =
-        use cookie = FSharpExperimentalFeatures.EnableRedundantParenAnalysisCookie.Create()
+        use cookie = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.RedundantParenAnalysis)
         base.DoTest(lifetime, project)
 
     override x.HighlightingPredicate(highlighting, _, _) =
         highlighting :? RedundantParenExprWarning
-    
+
     [<Test>] member x.``Active pattern 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Literal 01``() = x.DoNamedTest()
@@ -33,16 +34,16 @@ type RedundantParenExprTest() =
     [<Test>] member x.``App - Precedence - High 01``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - High 02 - Multiple``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - High 03 - Multiple - Last``() = x.DoNamedTest()
-
     [<Test>] member x.``App - Precedence - Low 01``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - Low 02``() = x.DoNamedTest()
-
+    [<Test>] member x.``App - Precedence - Low 03``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - List 01``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - List 02``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - List 03``() = x.DoNamedTest()
 
     [<Test>] member x.``App - Precedence - Indexer 01``() = x.DoNamedTest()
     [<Test>] member x.``App - Precedence - Indexer 02 - Multiple``() = x.DoNamedTest()
+    [<Test>] member x.``App - Precedence - Indexer 03``() = x.DoNamedTest()
 
     [<Test>] member x.``Arg - High precedence 01``() = x.DoNamedTest()
     [<Test>] member x.``Arg - High precedence 02 - Member``() = x.DoNamedTest()
@@ -103,6 +104,7 @@ type RedundantParenExprTest() =
 
     [<Test>] member x.``Tuple - App 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Interpolated string``() = x.DoNamedTest()
+    [<Test>] member x.``Tuple - New 01``() = x.DoNamedTest()
 
     [<Test>] member x.``When - Binary 01``() = x.DoNamedTest()
     [<Test>] member x.``When - Binary 02 - Pipe``() = x.DoNamedTest()

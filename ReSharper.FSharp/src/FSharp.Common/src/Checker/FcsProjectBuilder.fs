@@ -12,28 +12,17 @@ open JetBrains.ProjectModel.Properties.Managed
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host.ProjectItems.ItemsContainer
 open JetBrains.ReSharper.Plugins.FSharp.Util
-open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.Util
 open JetBrains.Util.Dotnet.TargetFrameworkIds
-
-type FcsProject =
-    { OutputPath: FileSystemPath
-      FileIndices: Dictionary<FileSystemPath, int>
-      ProjectOptions: FSharpProjectOptions
-      ParsingOptions: FSharpParsingOptions
-      ImplementationFilesWithSignatures: ISet<FileSystemPath> }
-
-    member x.IsKnownFile(sourceFile: IPsiSourceFile) =
-        x.FileIndices.ContainsKey(sourceFile.GetLocation())
-
 
 type ReferencedModule =
     { ReferencedPath: FileSystemPath
       ReferencingModules: HashSet<IPsiModule> }
 
-    static member Create(psiModule: IPsiModule) =
-        { ReferencedPath = getOutputPath psiModule
+module ReferencedModule =
+    let create (modulePathProvider: ModulePathProvider) (psiModule: IPsiModule) =
+        { ReferencedPath = modulePathProvider.GetModulePath(psiModule)
           ReferencingModules = HashSet() }
 
 
@@ -57,10 +46,12 @@ type FSharpTargetsProjectLoadModificator() =
 [<AutoOpen>]
 module ProjectOptions =
     let sandboxParsingOptions =
+        // todo: add implicit defines
         { FSharpParsingOptions.Default with SourceFiles = [| "Sandbox.fs" |] }
 
     [<RequireQualifiedAccess>]
     module ImplicitDefines =
+        // todo: don't pass to FCS, only use in internal lexing; these defines added by FCS too
         let sourceDefines = [ "EDITING"; "COMPILED" ]
         let scriptDefines = [ "EDITING"; "INTERACTIVE" ]
 
@@ -69,7 +60,8 @@ module ProjectOptions =
 
 
 [<SolutionComponent>]
-type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFSharpItemsContainer, logger: ILogger) =
+type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFSharpItemsContainer, logger: ILogger,
+        modulePathProvider: ModulePathProvider) =
 
     let itemsDelimiters = [| ';'; ','; ' ' |]
 
@@ -93,8 +85,8 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
 
     let getReferences psiModule =
         getReferencedModules psiModule
-        |> Seq.map getModuleFullPath
-        |> Seq.map (fun r -> "-r:" + r)
+        |> Seq.map modulePathProvider.GetModulePath
+        |> Seq.map (fun r -> "-r:" + r.FullPath)
 
     let getOutputType (outputType: ProjectOutputType) =
         match outputType with
@@ -158,9 +150,9 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
             let definedConstants = splitAndTrim itemsDelimiters cfg.DefineConstants
             otherOptions.AddRange(definedConstants |> Seq.map (fun c -> "--define:" + c))
 
-            otherOptions.Add("--target:" + getOutputType cfg.OutputType)
+            otherOptions.Add($"--target:{getOutputType cfg.OutputType}")
 
-            otherOptions.Add(sprintf "--warn:%d" cfg.WarningLevel)
+            otherOptions.Add$"--warn:{cfg.WarningLevel}"
 
             if cfg.TreatWarningsAsErrors then
                 otherOptions.Add("--warnaserror")
@@ -196,7 +188,7 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
         Array.iteri (fun i p -> fileIndices.[p] <- i) filePaths
 
         let projectOptions =
-            { ProjectFileName = sprintf "%O.%O.fsproj" project.ProjectFileLocation targetFrameworkId
+            { ProjectFileName = $"{project.ProjectFileLocation}.{targetFrameworkId}.fsproj"
               ProjectId = None
               SourceFiles = Array.map (fun (p: FileSystemPath ) -> p.FullPath) filePaths
               OtherOptions = otherOptions.ToArray()
@@ -208,28 +200,13 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
               UnresolvedReferences = None
               Stamp = None }
 
-        let hasFSharpCoreReference options =
-            options.OtherOptions
-            |> Seq.exists (fun s ->
-                s.StartsWith("-r:", StringComparison.Ordinal) &&
-                s.EndsWith("FSharp.Core.dll", StringComparison.Ordinal))
-
-        let shouldAddFSharpCore options =
-            not (hasFSharpCoreReference options || options.OtherOptions |> Array.contains "--compiling-fslib")
-
-        let options =
-            if shouldAddFSharpCore projectOptions then 
-                { projectOptions with
-                    OtherOptions = FSharpCoreFix.ensureCorrectFSharpCore projectOptions.OtherOptions }
-            else projectOptions
-
         let parsingOptions, errors =
-            checkerService.Checker.GetParsingOptionsFromCommandLineArgs(List.ofArray options.OtherOptions)
+            checkerService.Checker.GetParsingOptionsFromCommandLineArgs(List.ofArray projectOptions.OtherOptions)
 
         let defines = ImplicitDefines.sourceDefines @ parsingOptions.ConditionalCompilationDefines
 
         let parsingOptions = { parsingOptions with
-                                    SourceFiles = options.SourceFiles
+                                    SourceFiles = projectOptions.SourceFiles
                                     ConditionalCompilationDefines = defines }
 
         if not errors.IsEmpty then

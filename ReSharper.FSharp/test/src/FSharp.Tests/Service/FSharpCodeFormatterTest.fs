@@ -1,6 +1,7 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
 open JetBrains.ReSharper.FeaturesTestFramework.Formatter
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Plugins.FSharp.Tests
@@ -14,7 +15,7 @@ type FSharpCodeFormatterTest() =
     override x.RelativeTestDataPath = "features/service/codeFormatter"
 
     override x.DoNamedTest() =
-        use cookie = FSharpExperimentalFeatures.EnableFormatterCookie.Create()
+        use cookie = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.Formatter)
         base.DoNamedTest()
 
     [<Test>] member x.``Expr - App - CompExpr 01``() = x.DoNamedTest()
@@ -66,7 +67,9 @@ type FSharpCodeFormatterTest() =
     [<Test>] member x.``Type decl - Exception 01``() = x.DoNamedTest()
     [<Test>] member x.``Type decl - Exception 02 - Fields``() = x.DoNamedTest()
 
-    [<Test>] member x.``Type decl - Record 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type decl - Record 01``() = x.DoNamedTest() // todo: fix KeepExistingLineBreakBeforeDeclarationBody
+    [<Test>] member x.``Type decl - Record 02``() = x.DoNamedTest()
+    [<Test>] member x.``Type decl - Record 03``() = x.DoNamedTest()
     [<Test>] member x.``Type decl - Union 01 - Spaces``() = x.DoNamedTest()
     [<Test>] member x.``Type decl - Union 02 - Indent``() = x.DoNamedTest()
 
@@ -129,9 +132,6 @@ type FSharpCodeFormatterTest() =
     [<Test>] member x.``Sequential expr alignment 02 - Separators``() = x.DoNamedTest()
     [<Test>] member x.``Binary expr alignment 01``() = x.DoNamedTest()
     [<Test>] member x.``Binary expr alignment 02 - Pipe operator``() = x.DoNamedTest()
-    [<Test>] member x.``Record declaration alignment 01``() = x.DoNamedTest()
-    [<Test>] member x.``Record declaration alignment 02 - Semicolons``() = x.DoNamedTest()
-    [<Test>] member x.``Record declaration alignment 03 - Mutable``() = x.DoNamedTest()
     [<Test>] member x.``Record expr alignment 01``() = x.DoNamedTest()
     [<Test>] member x.``Record expr alignment 02 - Copy``() = x.DoNamedTest()
     [<Test>] member x.``Anon record expr alignment 01``() = x.DoNamedTest()

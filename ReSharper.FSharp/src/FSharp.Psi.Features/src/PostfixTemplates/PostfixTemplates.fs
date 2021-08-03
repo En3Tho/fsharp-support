@@ -2,27 +2,37 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.PostfixTemplates
 
 open System
 open JetBrains.Diagnostics
+open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.PostfixTemplates
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates.Contexts
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
 open JetBrains.Util.Extension
 
+module FSharpPostfixTemplates =
+    let isApplicableTypeUsage (typeUsage: ITypeUsage) =
+        let typeUsage = skipIntermediateParentsOfSameType<ITypeUsage> typeUsage
+        let typedExpr = TypedLikeExprNavigator.GetByTypeUsage(typeUsage)
+        isNotNull typedExpr
+
+
 [<AllowNullLiteral>]
-type FSharpPostfixTemplateContext(treeNode: ITreeNode, executionContext: PostfixTemplateExecutionContext) as this =
-    inherit PostfixTemplateContext(treeNode, executionContext)
+type FSharpPostfixTemplateContext(node: ITreeNode, executionContext: PostfixTemplateExecutionContext) =
+    inherit PostfixTemplateContext(node, executionContext)
 
-    override x.Language = FSharpLanguage.Instance :> _
+    override this.Language = FSharpLanguage.Instance :> _
 
-    override x.GetAllExpressionContexts() =
-        [| FSharpPostfixExpressionContext(this, treeNode) :> PostfixExpressionContext |] :> _
+    override this.GetAllExpressionContexts() =
+        [| FSharpPostfixExpressionContext(this, node) :> PostfixExpressionContext |] :> _
 
 
 and FSharpPostfixExpressionContext(postfixContext, expression) =
@@ -32,15 +42,11 @@ and FSharpPostfixExpressionContext(postfixContext, expression) =
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpPostfixTemplateContextFactory() =
     interface IPostfixTemplateContextFactory with
-        member x.GetReparseStrings() = EmptyArray.Instance
+        member this.GetReparseStrings() = EmptyArray.Instance
 
-        member x.TryCreate(treeNode, executionContext) =
-            if isNull treeNode then null else
-
-            let solution = executionContext.Solution
-            if not (solution.FSharpPostfixTemplatesEnabled()) then null else
-
-            FSharpPostfixTemplateContext(treeNode, executionContext) :> _
+        member this.TryCreate(node, executionContext) =
+            if isNull node then null else
+            FSharpPostfixTemplateContext(node, executionContext) :> _
 
 
 [<Language(typeof<FSharpLanguage>)>]
@@ -48,24 +54,30 @@ type FSharpPostfixTemplatesProvider(templatesManager, sessionExecutor, usageStat
     inherit PostfixTemplatesItemProviderBase<FSharpCodeCompletionContext, FSharpPostfixTemplateContext>(
         templatesManager, sessionExecutor, usageStatistics)
 
-    override x.TryCreatePostfixContext(fsCompletionContext) =
+    let isApplicableToken (token: ITreeNode) =
+        let tokenType = getTokenType token
+        tokenType == FSharpTokenType.DOT ||
+        tokenType == FSharpTokenType.IEEE64 ||
+        tokenType == FSharpTokenType.DECIMAL ||
+        tokenType == FSharpTokenType.RESERVED_LITERAL_FORMATS ||
+        tokenType == FSharpTokenType.IDENTIFIER && getTokenType token.PrevSibling == FSharpTokenType.DOT
+
+    let isApplicableParent (parent: ITreeNode): bool =
+        match parent with
+        | :? IFSharpExpression -> true
+        | :? ITypeUsage as typeUsage -> FSharpPostfixTemplates.isApplicableTypeUsage typeUsage
+        | _ -> false
+
+    override this.TryCreatePostfixContext(fsCompletionContext) =
+        if fsCompletionContext.NodeInFile.IsFSharpSigFile() then null else
+
+        let token = fsCompletionContext.TokenBeforeCaret
+        if isNull token || not (isApplicableParent token.Parent && isApplicableToken token) then null else
+
         let context = fsCompletionContext.BasicContext
-        let solution = context.Solution
-
-        if not (solution.FSharpPostfixTemplatesEnabled()) then null else
-
         let settings = context.ContextBoundSettingsStore
-        let executionContext = PostfixTemplateExecutionContext(solution, context.TextControl, settings, "__")
-
-        match fsCompletionContext.TokenBeforeCaret with
-        | identifier when
-                isNotNull identifier &&
- 
-                let parent = identifier.Parent
-                (parent :? IFSharpExpression || parent :? IReferenceName) ->
-            FSharpPostfixTemplateContext(identifier, executionContext)
-
-        | _ -> null
+        let executionContext = PostfixTemplateExecutionContext(context.Solution, context.TextControl, settings, "__")
+        FSharpPostfixTemplateContext(token, executionContext)
 
 
 [<AbstractClass>]
@@ -74,26 +86,22 @@ type FSharpPostfixTemplateBehaviorBase(info) =
 
     let rec getContainingArgExpr (expr: IFSharpExpression) =
         match PrefixAppExprNavigator.GetByArgumentExpression(expr) with
-        | null -> expr
+        | null ->
+            match BinaryAppExprNavigator.GetByRightArgument(expr) with
+            | null -> expr
+            | binaryAppExpr -> binaryAppExpr :> _
         | appExpr -> getContainingArgExpr appExpr
 
     let getContainingTypeExpression (typeName: IReferenceName) =
-        match NamedTypeUsageNavigator.GetByReferenceName(typeName.As()) with
-        | null -> null
-        | namedTypeUsage ->
-
-        let castExpr = CastExprNavigator.GetByTypeUsage(namedTypeUsage)
-        if isNotNull castExpr then
-            getContainingArgExpr castExpr else
-
-        let typedExpr = TypedExprNavigator.GetByType(namedTypeUsage)
+        let namedTypeUsage = NamedTypeUsageNavigator.GetByReferenceName(typeName.As())
+        let typedExpr = TypedLikeExprNavigator.GetByTypeUsage(namedTypeUsage)
         if isNotNull typedExpr then
             getContainingArgExpr typedExpr else
 
         null
 
-    
-    let getParentExpression (token: IFSharpTreeNode): IFSharpExpression =
+
+    let rec getParentExpression (token: IFSharpTreeNode): IFSharpExpression =
         match token with
         | TokenType FSharpTokenType.RESERVED_LITERAL_FORMATS _ ->
             match token.Parent.As<IConstExpr>() with
@@ -104,6 +112,9 @@ type FSharpPostfixTemplateBehaviorBase(info) =
             let constExpr = token.CreateElementFactory().CreateConstExpr(literalText)
             let newChild = ModificationUtil.ReplaceChild(parent.FirstChild, constExpr.FirstChild)
             getContainingArgExpr (newChild.Parent.As())
+
+        | TokenType FSharpTokenType.DOT _ when (token.NextSibling :? IFSharpIdentifier) ->
+            getParentExpression (token.NextSibling.As())
 
         | :? IFSharpIdentifier as identifier ->
             let refExpr = ReferenceExprNavigator.GetByIdentifier(identifier)
@@ -121,7 +132,29 @@ type FSharpPostfixTemplateBehaviorBase(info) =
 
         | _ -> null
 
-    member x.GetExpression(context: PostfixExpressionContext) =
+    member this.GetExpression(context: PostfixExpressionContext) =
         let token = context.Expression :?> IFSharpTreeNode
         let parent = getParentExpression token
         getContainingArgExpr parent
+
+
+[<AbstractClass>]
+type FSharpPostfixTemplateBase() =
+    member this.Language = FSharpLanguage.Instance
+
+    abstract CreateBehavior: PostfixTemplateInfo -> PostfixTemplateBehavior
+    abstract TryCreateInfo: PostfixTemplateContext -> PostfixTemplateInfo
+
+    abstract IsEnabled: ISolution -> bool
+    default this.IsEnabled(solution) =
+        solution.IsFSharpExperimentalFeatureEnabled(ExperimentalFeature.PostfixTemplates)
+
+    interface IPostfixTemplate with
+        member this.Language = this.Language :> _
+        member this.CreateBehavior(info) = this.CreateBehavior(info)
+
+        member this.TryCreateInfo(context) =
+            if this.IsEnabled(context.PsiModule.GetSolution()) then
+                this.TryCreateInfo(context)
+            else
+                null

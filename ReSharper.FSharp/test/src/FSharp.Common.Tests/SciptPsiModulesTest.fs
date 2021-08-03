@@ -49,12 +49,11 @@ type ScriptPsiModulesTest() =
             let scriptModulesProvider = solution.GetComponent<FSharpScriptPsiModulesProvider>()
             scriptModulesProvider.Dump(writer)
             x.DumpSourceFilePersistentIds(solution, writer))
+        x.SolutionManager.CloseSolution()
 
     member x.OpenSolution(lifetime: Lifetime): ISolution =
         let tempSolutionPath = x.CopyTestDataDirectoryToTemp2(lifetime, x.TestMethodName)
-        let solution = x.SolutionManager.OpenSolution(tempSolutionPath / x.SolutionFileName)
-        lifetime.OnTermination(fun _ -> x.SolutionManager.CloseSolution()) |> ignore
-        solution
+        x.SolutionManager.OpenSolution(tempSolutionPath / x.SolutionFileName)
 
     member x.DumpSourceFilePersistentIds(solution: ISolution, writer: TextWriter) =
         writer.WriteLine()
@@ -97,8 +96,7 @@ type MyTestSolutionToolset(lifetime: Lifetime, logger: ILogger) =
 
 [<ZoneActivator>]
 type SolutionHostZoneActivator() =
-    interface IActivate<IHostSolutionZone> with
-        member x.ActivatorEnabled() = true
+    interface IActivate<IHostSolutionZone>
 
 
 [<SolutionInstanceComponent>]

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Diagnostics;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Util;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
@@ -23,7 +24,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       binding.SetIsMutable(true);
     }
 
-    public override IBindingLikeDeclaration Binding => this.GetBinding();
+    public override IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
   }
 
   internal partial class LocalReferencePat
@@ -67,7 +68,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     public bool CanBeMutable => Binding != null;
 
-    public IBindingLikeDeclaration Binding => this.GetBinding();
+    public IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
   }
 
   internal partial class ParametersOwnerPat
@@ -84,7 +85,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public override IEnumerable<IFSharpPattern> NestedPatterns => Pattern?.NestedPatterns.Prepend(this) ?? new[] {this};
 
     public TreeNodeCollection<IAttribute> Attributes =>
-      this.GetBinding()?.Attributes ??
+      this.GetBindingFromHeadPattern()?.Attributes ??
       TreeNodeCollection<IAttribute>.Empty;
 
     public bool IsMutable => Binding?.IsMutable ?? false;
@@ -96,7 +97,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       binding.SetIsMutable(true);
     }
 
-    public override IBindingLikeDeclaration Binding => this.GetBinding();
+    public override IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
   }
 
   internal partial class LocalAsPat
@@ -104,7 +105,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public override IFSharpIdentifierLikeNode NameIdentifier => Identifier;
     public bool IsDeclaration => true;
     public override IEnumerable<IFSharpPattern> NestedPatterns => Pattern?.NestedPatterns.Prepend(this) ?? new[] {this};
-    
+
     public bool IsMutable => Binding?.IsMutable ?? false;
 
     public void SetIsMutable(bool value)
@@ -116,7 +117,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     public bool CanBeMutable => Binding is LocalBinding;
 
-    private IBindingLikeDeclaration Binding => this.GetBinding();
+    private IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
   }
 
   internal partial class OrPat

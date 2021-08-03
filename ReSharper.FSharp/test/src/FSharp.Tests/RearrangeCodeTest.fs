@@ -21,11 +21,17 @@ type RearrangeCodeTest() =
     [<Test>] member x.``Expr - Tuple - Match 02``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Tuple - Match 03``() = x.DoNamedTest()
 
+    [<Test>] member x.``Pattern - Or 01``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Tuple - As 01``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Tuple - As 02``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Tuple - As 03 - Remove parens``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Tuple 01``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Tuple 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Enum case 01``() = x.DoNamedTest()
     [<Test>] member x.``Enum case 02 - Xml doc``() = x.DoNamedTest()
+    [<Test>] member x.``Enum case 03 - Xml doc``() = x.DoNamedTest()
+    [<Test>] member x.``Enum case 04 - Xml doc``() = x.DoNamedTest()
 
     [<Test>] member x.``Field - Exception 01``() = x.DoNamedTest()
 
@@ -43,6 +49,8 @@ type RearrangeCodeTest() =
     [<Test>] member x.``Field - Union case - Separate line 01``() = x.DoNamedTest()
     [<Test>] member x.``Field - Union case - Separate line 02``() = x.DoNamedTest()
 
+    [<Test>] member x.``Match clause - Last - Down - Not applicable - Module 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match clause - Last - Down - Not applicable - Seq 01``() = x.DoNamedTest()
     [<Test>] member x.``Match clause - Last - Down 01``() = x.DoNamedTest()
     [<Test>] member x.``Match clause - Last - Down 02 - Multiline``() = x.DoNamedTest()
     [<Test; Explicit>] member x.``Match clause - Last - Down 03 - Lambda body``() = x.DoNamedTest()
@@ -60,6 +68,12 @@ type RearrangeCodeTest() =
     [<Test>] member x.``Match clause - Match 01``() = x.DoNamedTest()
     [<Test>] member x.``Match clause - Match - Fix indent 01``() = x.DoNamedTest()
     [<Test>] member x.``Match clause - Match - Fix indent 02 - Multiline``() = x.DoNamedTest()
+
+    [<Test>] member x.``Parameter - Function 01``() = x.DoNamedTest()
+    [<Test>] member x.``Parameter - Function 02``() = x.DoNamedTest()
+    [<Test>] member x.``Parameter - Function 03``() = x.DoNamedTest()
+    [<Test>] member x.``Parameter - Function 04``() = x.DoNamedTest()
+    [<Test>] member x.``Parameter - Lambda 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Union case - No bar 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case - No bar 02 - Single line``() = x.DoNamedTest()

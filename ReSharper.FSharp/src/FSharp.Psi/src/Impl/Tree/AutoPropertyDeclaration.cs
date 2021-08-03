@@ -11,7 +11,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public override IFSharpIdentifierLikeNode NameIdentifier => (IFSharpIdentifierLikeNode) Identifier;
 
     protected override IDeclaredElement CreateDeclaredElement() =>
-      GetFSharpSymbol() is { } fcsSymbol
+      GetFcsSymbol() is { } fcsSymbol
         ? CreateDeclaredElement(fcsSymbol)
         : null;
 
@@ -26,7 +26,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
         ? new FSharpProperty<AutoPropertyDeclaration>(this, property.Value)
         : null;
     }
-    
+
     public override bool IsOverride => this.IsOverride();
   }
 }

@@ -12,7 +12,7 @@ open JetBrains.ReSharper.Resources.Shell
 
 type ReplaceWithAssignmentExpressionFix(warning: UnitTypeExpectedWarning) =
     inherit FSharpQuickFixBase()
-   
+
     let expr = warning.Expr.As<IBinaryAppExpr>()
 
     override x.IsAvailable _ =
@@ -22,7 +22,7 @@ type ReplaceWithAssignmentExpressionFix(warning: UnitTypeExpectedWarning) =
         | :? IReferenceExpr as ref ->
             let declaredElement = ref.Reference.Resolve().DeclaredElement
 
-            match ref.Reference.GetFSharpSymbol() with
+            match ref.Reference.GetFcsSymbol() with
             | :? FSharpField as field ->
                 field.IsMutable ||
 
@@ -44,7 +44,7 @@ type ReplaceWithAssignmentExpressionFix(warning: UnitTypeExpectedWarning) =
         | _ -> false
 
     override x.Text = "Replace with '<-' assignment"
-    
+
     override x.ExecutePsiTransaction _ =
         use writeCookie = WriteLockCookie.Create(expr.IsPhysical())
         use disableFormatter = new DisableCodeFormatter()

@@ -2,6 +2,7 @@
 
 open FSharp.Compiler.Symbols
 open JetBrains.Application.Settings
+open JetBrains.Diagnostics
 open JetBrains.ReSharper.Feature.Services.ContextActions
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
@@ -67,6 +68,15 @@ module SpecifyTypes =
 
         ModificationUtil.ReplaceChild(pattern, typedPat) |> ignore
 
+    let specifyPropertyType displayContext (fcsType: FSharpType) (decl: IMemberDeclaration) =
+        Assertion.Assert(isNull decl.ReturnTypeInfo, "isNull decl.ReturnTypeInfo")
+        Assertion.Assert(decl.ParametersDeclarationsEnumerable.IsEmpty(),
+            "decl.ParametersDeclarationsEnumerable.IsEmpty()")
+
+        let factory = decl.CreateElementFactory()
+        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(fcsType.Format(displayContext)))
+        ModificationUtil.AddChildAfter(decl.Identifier, returnTypeInfo) |> ignore
+
 [<ContextAction(Name = "AnnotateFunction", Group = "F#",
                 Description = "Annotate function with parameter types and return type")>]
 type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
@@ -106,7 +116,7 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
         let refPat = binding.HeadPattern.As<IReferencePat>()
         if isNull refPat then () else
 
-        let symbolUse = refPat.GetFSharpSymbolUse()
+        let symbolUse = refPat.GetFcsSymbolUse()
         if isNull symbolUse then () else
 
         let mfv = symbolUse.Symbol :?> FSharpMemberOrFunctionOrValue

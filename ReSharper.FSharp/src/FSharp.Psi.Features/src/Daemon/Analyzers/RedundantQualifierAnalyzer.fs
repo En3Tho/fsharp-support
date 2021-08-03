@@ -32,7 +32,7 @@ let isRedundant (data: ElementProblemAnalyzerData) (referenceOwner: IFSharpRefer
     let referenceName = referenceOwner.As<IReferenceName>()
     if isNotNull referenceName && isInOpen referenceName then false else
 
-    let fcsSymbol = reference.GetFSharpSymbol()
+    let fcsSymbol = reference.GetFcsSymbol()
     if isNull fcsSymbol then false else
 
     let fcsSymbol: FSharpSymbol =
@@ -53,7 +53,7 @@ let isRedundant (data: ElementProblemAnalyzerData) (referenceOwner: IFSharpRefer
     | _ ->
 
     // todo: try to check next qualified names in case we got into multiple-result resolve, i.e. for module?
-    FSharpResolveUtil.resolvesToFcsSymbolUnqualified fcsSymbol reference OpName &&
+    FSharpResolveUtil.resolvesToFcsSymbol fcsSymbol reference false OpName &&
     not (FSharpResolveUtil.mayShadowPartially referenceOwner data fcsSymbol)
 
 [<ElementProblemAnalyzer([| typeof<IReferenceExpr>; typeof<IReferenceName>; typeof<ITypeExtensionDeclaration> |],

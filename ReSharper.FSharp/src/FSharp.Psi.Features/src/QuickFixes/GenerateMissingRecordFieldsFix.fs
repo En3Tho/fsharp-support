@@ -7,6 +7,7 @@ open JetBrains.Diagnostics
 open JetBrains.ReSharper.Feature.Services.LiveTemplates.LiveTemplates
 open JetBrains.ReSharper.Feature.Services.LiveTemplates.Hotspots
 open JetBrains.ReSharper.Feature.Services.LiveTemplates.Templates
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions
@@ -38,7 +39,7 @@ type GenerateMissingRecordFieldsFix(recordExpr: IRecordExpr) =
 
     override x.IsAvailable _ =
         if not (isValid recordExpr) then false else
-        if isNull recordExpr.LeftBrace || isNull recordExpr.RightBrace then false else 
+        if isNull recordExpr.LeftBrace || isNull recordExpr.RightBrace then false else
 
         match recordExpr.Reference with
         | null -> failwith "Could not get reference"
@@ -62,7 +63,7 @@ type GenerateMissingRecordFieldsFix(recordExpr: IRecordExpr) =
         let elementFactory = fsFile.CreateElementFactory()
 
         use writeCookie = WriteLockCookie.Create(recordExpr.IsPhysical())
-        use enableFormatter = FSharpExperimentalFeatures.EnableFormatterCookie.Create()
+        use enableFormatter = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.Formatter)
 
         let isSingleLine = recordExpr.IsSingleLine
 

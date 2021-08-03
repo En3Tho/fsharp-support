@@ -66,4 +66,25 @@ type FSharpDeclaredElementIconProvider() =
             | :? IActivePatternCase ->
                 PsiSymbolsThemedIcons.EnumMember.Id
 
+            | :? IFSharpProperty as property when property.HasExplicitAccessors ->
+                canApplyExtensions <- false
+
+                let icon = PsiSymbolsThemedIcons.Property.Id
+                let icon =
+                    match property.IsReadable, property.IsWritable with
+                    | true, true -> compose icon PsiSymbolsThemedIcons.ModifiersReadWrite.Id
+                    | true, false -> compose icon PsiSymbolsThemedIcons.ModifiersRead.Id
+                    | false, true -> compose icon PsiSymbolsThemedIcons.ModifiersWrite.Id
+                    | _ -> icon
+
+                let icon =
+                    if property.IsStatic then
+                        compose icon PsiSymbolsThemedIcons.ModifiersStatic.Id
+                    else icon
+
+                match property.RepresentationAccessRights with
+                | AccessRights.PRIVATE -> compose icon PsiSymbolsThemedIcons.ModifiersPrivate.Id
+                | AccessRights.INTERNAL -> compose icon PsiSymbolsThemedIcons.ModifiersInternal.Id
+                | _ -> icon
+
             | _ -> null

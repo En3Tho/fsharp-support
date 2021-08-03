@@ -40,8 +40,8 @@ let resolvesToUnqualified (declaredElement: IDeclaredElement) (reference: FSharp
 let resolvesToQualified (declaredElement: IDeclaredElement) (reference: FSharpSymbolReference) opName =
     resolvesTo declaredElement reference true opName
 
-let resolvesToFcsSymbolUnqualified (fcsSymbol: FSharpSymbol) (reference: FSharpSymbolReference) opName =
-    match reference.ResolveWithFcs(opName, false) with
+let resolvesToFcsSymbol (fcsSymbol: FSharpSymbol) (reference: FSharpSymbolReference) qualified opName =
+    match reference.ResolveWithFcs(opName, qualified) with
     | None -> false
     | Some symbolUse ->
 
@@ -70,7 +70,7 @@ let mayShadowPartially (newExpr: ITreeNode) (data: ElementProblemAnalyzerData) (
     let symbolScope = getSymbolScope data.SourceFile.PsiModule
     let typeElements =
         symbolScope.GetElementsByShortName(sourceName) // todo: find by source name
-        |> Array.filter (fun e -> e :? ITypeElement && not (e.Equals(typeElement))) 
+        |> Array.filter (fun e -> e :? ITypeElement && not (e.Equals(typeElement)))
 
     if Array.isEmpty typeElements then false else
 

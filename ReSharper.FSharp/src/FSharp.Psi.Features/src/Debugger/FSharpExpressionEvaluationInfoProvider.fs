@@ -30,7 +30,7 @@ type FSharpExpressionEvaluationInfoProvider() =
             if isNull qualifier then null else
 
             let getArgText (arg: IIndexerArg) =
-                let argExpr = arg.As<IIndexerArgExpr>()
+                let argExpr = arg.As<IIndexerArg>()
                 if isNull argExpr then null else getTextToEvaluate argExpr.Expression
 
             let args = indexerExpr.Args
@@ -38,7 +38,7 @@ type FSharpExpressionEvaluationInfoProvider() =
             if argsText |> Seq.exists isNull then null else
 
             let argsText = String.concat "," argsText
-            qualifier + "[" + argsText + "]"            
+            qualifier + "[" + argsText + "]"
 
         | _ -> null
 

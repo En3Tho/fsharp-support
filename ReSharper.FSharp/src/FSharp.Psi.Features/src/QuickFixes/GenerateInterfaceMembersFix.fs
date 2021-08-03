@@ -36,13 +36,14 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
         fcsType.AllInterfaces
         |> Seq.filter (fun t -> t.HasTypeDefinition)
         |> Seq.map FcsEntityInstance.create
+        |> Seq.filter isNotNull
         |> Seq.toList
 
     override x.Text = "Generate missing members"
 
     override x.IsAvailable _ =
         let fcsEntity = impl.FcsEntity
-        isNotNull fcsEntity && fcsEntity.IsInterface 
+        isNotNull fcsEntity && fcsEntity.IsInterface
 
     override x.ExecutePsiTransaction _ =
         use writeCookie = WriteLockCookie.Create(impl.IsPhysical())
@@ -56,7 +57,7 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
                     FSharpTypeDeclarationNavigator.GetByTypeRepresentation(repr)
                 | decl -> decl
 
-            let fcsEntity = typeDeclaration.GetFSharpSymbol() :?> FSharpEntity
+            let fcsEntity = typeDeclaration.GetFcsSymbol() :?> FSharpEntity
             fcsEntity.DeclaredInterfaces |> Seq.find (fun e ->
                 e.HasTypeDefinition && e.TypeDefinition.IsEffectivelySameAs(impl.FcsEntity))
 
@@ -72,7 +73,7 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
             |> Seq.concat
             |> HashSet
 
-        let allInterfaceMembers = 
+        let allInterfaceMembers =
             getInterfaces interfaceType |> List.collect (fun fcsEntityInstance ->
                 fcsEntityInstance.Entity.MembersFunctionsAndValues
                 |> Seq.map (fun mfv -> FcsMfvInstance.create mfv displayContext fcsEntityInstance.Substitution)
@@ -81,12 +82,12 @@ type GenerateInterfaceMembersFix(error: NoImplementationGivenInterfaceError) =
         let needsTypesAnnotations =
             GenerateOverrides.getMembersNeedingTypeAnnotations allInterfaceMembers
 
-        let membersToGenerate = 
+        let membersToGenerate =
             allInterfaceMembers
             |> List.filter (fun mfvInstance ->
                 not (mfvInstance.Mfv.IsAccessor()) &&
 
-                let xmlDocId = FSharpElementsUtil.GetXmlDocId(mfvInstance.Mfv)
+                let xmlDocId = mfvInstance.Mfv.GetXmlDocId()
                 not (implementedMembers.Contains(xmlDocId)))
             |> List.sortBy (fun mfvInstance -> mfvInstance.Mfv.LogicalName) // todo: better sorting?
             |> List.map (fun mfvInstance -> mfvInstance, needsTypesAnnotations.Contains(mfvInstance.Mfv))

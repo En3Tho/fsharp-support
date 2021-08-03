@@ -37,12 +37,12 @@ object RdFSharpModel : Ext(SolutionModel.Solution) {
 
     private val RdFSharpTestHost = aggregatedef("RdFSharpTestHost") {
         sink("fileChecked", string).async
-        sink("projectChecked", string).async
         sink("fcsProjectInvalidated", structdef("RdFcsProject") {
             field("projectName", string)
             field("targetFramework", string)
         })
         call("getLastModificationStamp", string, dateTime)
+        call("getCultureInfoAndSetNew", string, string)
         call("getSourceCache", string, structdef("RdFSharpSource") {
             field("source", string)
             field("timestamp", dateTime)

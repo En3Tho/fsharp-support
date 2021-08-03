@@ -1,10 +1,13 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 
 open System.Collections.Concurrent
+open System.Xml
 open FSharp.Compiler.Symbols
 open JetBrains.Annotations
 open JetBrains.Application.Infra
+open JetBrains.Application.UI.Components.Theming
 open JetBrains.ProjectModel
+open JetBrains.ReSharper.Feature.Services.QuickDoc.Render
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
@@ -15,9 +18,21 @@ open JetBrains.Util
 
 [<SolutionComponent>]
 type FSharpXmlDocService(psiServices: IPsiServices, xmlDocThread: XmlIndexThread, psiConfig: IPsiConfiguration,
-        psiModules: IPsiModules, assemblyInfoDatabase: AssemblyInfoDatabase) =
+        psiModules: IPsiModules, assemblyInfoDatabase: AssemblyInfoDatabase, theming: ITheming, factory: XmlDocSectionFactory) =
+
+    static let сrefManager =
+        { new CrefManager() with
+            member x.Process(cref, _, _, _, _) = XmlDocPresenterUtil.ProcessCref(cref)
+            member x.Create _ = null }
 
     let indexCache = ConcurrentDictionary<string, XmlDocIndex>()
+
+    let formatXmlDoc (node: XmlNode) =
+        let result = RichText()
+        XmlDocHtmlPresenter
+            .ConvertProcessor(node, null, null :> DeclaredElementInstance, false, FSharpLanguage.Instance, сrefManager, factory, theming)
+            .AppendTextBody(result, true)
+        result
 
     let getIndex dllFile =
         indexCache.TryGetValue(dllFile)
@@ -39,20 +54,32 @@ type FSharpXmlDocService(psiServices: IPsiServices, xmlDocThread: XmlIndexThread
                         XmlDocIndex(dllPath.ChangeExtension(ExtensionConstants.Xml), true, psiConfig, xmlDocThread))
                 indexCache.[dllFile] <- index
                 Some index
-            | _ -> None) 
+            | _ -> None)
 
     [<CanBeNull>]
-    member x.GetXmlDoc(fsXmlDoc: FSharpXmlDoc) =
-        match fsXmlDoc with
-        | FSharpXmlDoc.FromXmlText(xmlDoc) ->
-            let text = xmlDoc.UnprocessedLines |> Array.map (fun s -> s.Trim()) |> String.concat "\n"
-            RichTextBlock(text)
+    member x.GetXmlDoc(fsXmlDoc: FSharpXmlDoc, summaryOnly) =
+        let xmlNode =
+            match fsXmlDoc with
+            | FSharpXmlDoc.FromXmlText(xmlDoc) ->
+                let xmlDocument = XmlDocument()
+                try
+                    xmlDocument.LoadXml("<root>" + xmlDoc.GetXmlText() + "</root>")
+                    xmlDocument.SelectSingleNode("root")
+                with e ->
+                    xmlDocument.LoadXml("<summary>" + e.Message + "</summary>")
+                    xmlDocument :> _
 
-        | FSharpXmlDoc.FromXmlFile (dllFile, memberName) ->
-            getIndex dllFile
-            |> Option.map (fun index ->
-                let summary = XMLDocUtil.ExtractSummary(index.GetXml(memberName))
-                XmlDocRichTextPresenter.Run(summary, false, FSharpLanguage.Instance))
-            |> Option.defaultValue null
+            | FSharpXmlDoc.FromXmlFile (dllFile, memberName) ->
+                getIndex dllFile
+                |> Option.map (fun index -> index.GetXml(memberName))
+                |> Option.defaultValue null
 
-        | FSharpXmlDoc.None -> null
+            | FSharpXmlDoc.None -> null
+
+        if isNull xmlNode || xmlNode.InnerText.IsNullOrWhitespace() then null else
+
+        if summaryOnly then
+            let summary = XMLDocUtil.ExtractSummary(xmlNode)
+            XmlDocRichTextPresenter.Run(summary, false, FSharpLanguage.Instance)
+        else
+            xmlNode |> formatXmlDoc |> RichTextBlock

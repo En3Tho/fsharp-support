@@ -150,7 +150,7 @@ let patternName (pattern: FSharpActivePatternGroup) =
     let joinedNames = String.concat "|" pattern.Names
     let wildCase = if pattern.IsTotal then "|" else "_|"
     "|" + joinedNames + wildCase
-    
+
 [<Extension; CompiledName("GetAbbreviatedEntity")>]
 let rec getAbbreviatedEntity (entity: FSharpEntity) =
     if entity.IsFSharpAbbreviation && entity.AbbreviatedType.HasTypeDefinition then
@@ -192,7 +192,7 @@ let isMethodConstraintFSharpParameter (fsParam: FSharpParameter) =
 
 [<Extension; CompiledName("GetAbbreviatedType")>]
 let rec getAbbreviatedType (fcsType: FSharpType) =
-    if fcsType.IsAbbreviation then
+    if isNotNull fcsType && fcsType.IsAbbreviation then
         getAbbreviatedType fcsType.AbbreviatedType
     else
         fcsType
@@ -250,6 +250,8 @@ type FcsEntityInstance =
 module FcsEntityInstance =
     let create fcsType =
         let fcsType = getAbbreviatedType fcsType
+        if isNull fcsType || not fcsType.HasTypeDefinition then Unchecked.defaultof<_> else
+
         let fcsEntity = fcsType.TypeDefinition
         let substitution = Seq.zip fcsEntity.GenericParameters fcsType.GenericArguments |> Seq.toList
 

@@ -19,7 +19,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     }
 
     [CanBeNull]
-    public IFSharpTypeOldDeclaration GetAssociatedTypeDeclaration(out string sourceName)
+    public IFSharpTypeOrExtensionDeclaration GetAssociatedTypeDeclaration(out string sourceName)
     {
       sourceName = null;
 
@@ -30,11 +30,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       foreach (var moduleMember in parentModule.Members)
       {
         // Only type declarations are taken into account, exception declarations are ignored.
-        if (!(moduleMember is ITypeDeclarationGroup typeDeclarationGroup)) 
+        if (!(moduleMember is ITypeDeclarationGroup typeDeclarationGroup))
           continue;
 
         foreach (var typeDeclaration in typeDeclarationGroup.TypeDeclarations)
-          if (typeDeclaration.CompiledName == sourceName && typeDeclaration.TypeParameters.IsEmpty)
+          if (typeDeclaration.CompiledName == sourceName && typeDeclaration.TypeParameterDeclarations.IsEmpty)
             return typeDeclaration;
       }
 

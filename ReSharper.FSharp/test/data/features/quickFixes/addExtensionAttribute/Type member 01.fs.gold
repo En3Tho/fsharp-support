@@ -1,0 +1,8 @@
+﻿namespace Ns
+
+open System.Runtime.CompilerServices
+
+[<Extension>]
+type T() =
+    [<{caret}Extension>]
+    static member M() = ()

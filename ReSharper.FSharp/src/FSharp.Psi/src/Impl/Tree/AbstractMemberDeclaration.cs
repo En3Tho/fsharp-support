@@ -27,8 +27,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
           return myHasDefaultImplementation.Value;
 
         lock (this)
-          return myHasDefaultImplementation ??= 
-            CalcHasDefaultImplementation(GetFSharpSymbol() as FSharpMemberOrFunctionOrValue);
+          return myHasDefaultImplementation ??=
+            CalcHasDefaultImplementation(GetFcsSymbol() as FSharpMemberOrFunctionOrValue);
       }
     }
 
@@ -45,12 +45,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
           m.IsOverrideOrExplicitInterfaceImplementation &&
           logicalName == m.LogicalName && mfvType.Equals(m.FullType)) ?? false;
     }
-    
+
     protected override string DeclaredElementName => NameIdentifier.GetCompiledName(Attributes);
     public override IFSharpIdentifierLikeNode NameIdentifier => (IFSharpIdentifierLikeNode) Identifier;
 
     protected override IDeclaredElement CreateDeclaredElement() =>
-      GetFSharpSymbol() is { } fcsSymbol
+      GetFcsSymbol() is { } fcsSymbol
         ? CreateDeclaredElement(fcsSymbol)
         : null;
 

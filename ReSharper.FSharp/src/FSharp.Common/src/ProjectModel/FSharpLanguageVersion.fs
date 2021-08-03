@@ -15,7 +15,7 @@ type FSharpLanguageLevel =
     /// Anon records
     | FSharp46 = 46
 
-    /// Implicit yield, wild pat self id, constructor/static method parameters deindent 
+    /// Implicit yield, wild pat self id, constructor/static method parameters deindent
     | FSharp47 = 47
 
     /// String interpolation, nameof, open types
@@ -57,7 +57,7 @@ module FSharpLanguageLevel =
     let key = Key<Boxed<FSharpLanguageLevel>>("LanguageLevel")
 
     let private ofPsiModuleNoCache (psiModule: IPsiModule) =
-        let levelProvider = 
+        let levelProvider =
             psiModule.GetPsiServices()
                 .GetComponent<SolutionFeaturePartsContainer>()
                 .GetFeatureParts<ILanguageLevelProvider<FSharpLanguageLevel, FSharpLanguageVersion>>(fun p ->
@@ -81,23 +81,24 @@ module FSharpLanguageLevel =
 
 [<RequireQualifiedAccess>]
 module FSharpLanguageVersion =
-    let tryParseCompilationOption emptyVersion unknownVersion (langVersion: string) =
-        if langVersion.IsNullOrEmpty() then emptyVersion else
+    let tryParseCompilationOption (emptyVersion: FSharpLanguageVersion) (langVersion: string): FSharpLanguageVersion option =
+        if langVersion.IsNullOrEmpty() then Some(emptyVersion) else
 
         match langVersion with
-        | IgnoreCase "Default" -> FSharpLanguageVersion.Default
-        | IgnoreCase "LatestMajor" -> FSharpLanguageVersion.LatestMajor 
-        | IgnoreCase "Latest" -> FSharpLanguageVersion.Latest 
-        | IgnoreCase "Preview" -> FSharpLanguageVersion.Preview
+        | IgnoreCase "Default" -> Some(FSharpLanguageVersion.Default)
+        | IgnoreCase "LatestMajor" -> Some(FSharpLanguageVersion.LatestMajor)
+        | IgnoreCase "Latest" -> Some(FSharpLanguageVersion.Latest)
+        | IgnoreCase "Preview" -> Some(FSharpLanguageVersion.Preview)
 
-        | "4.6" -> FSharpLanguageVersion.FSharp46
-        | "4.7" -> FSharpLanguageVersion.FSharp47
-        | "5" | "5.0" -> FSharpLanguageVersion.FSharp50
+        | "4.6" -> Some(FSharpLanguageVersion.FSharp46)
+        | "4.7" -> Some(FSharpLanguageVersion.FSharp47)
+        | "5" | "5.0" -> Some(FSharpLanguageVersion.FSharp50)
 
-        | _ -> unknownVersion
+        | _ -> None
 
-    let parseCompilationOption langVersion =
-        tryParseCompilationOption FSharpLanguageVersion.Default FSharpLanguageVersion.Latest langVersion
+    let parseCompilationOption langVersion: FSharpLanguageVersion =
+        tryParseCompilationOption FSharpLanguageVersion.Default langVersion
+        |> Option.defaultValue FSharpLanguageVersion.Latest
 
     let toString (version: FSharpLanguageVersion) =
         match version with

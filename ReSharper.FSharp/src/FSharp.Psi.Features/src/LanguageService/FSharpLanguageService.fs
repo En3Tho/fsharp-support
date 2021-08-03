@@ -31,7 +31,7 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
 
     let getSymbolsCache (psiModule: IPsiModule) =
         if isNull psiModule then null else
-        psiModule.GetSolution().GetComponent<IFSharpResolvedSymbolsCache>()
+        psiModule.GetSolution().GetComponent<IFcsResolvedSymbolsCache>()
 
     override x.IsCaseSensitive = true
     override x.SupportTypeMemberCache = true
@@ -66,7 +66,7 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
         let fsFile = file.As<IFSharpFile>()
         let sourceFile = fsFile.GetSourceFile()
         FSharpCacheDeclarationProcessor.GetObjectExpressions(fsFile, sourceFile) |> Seq.cast
-    
+
     override x.CalcOffset(declaration) =
         match declaration with
         | :? IAsPat as asPat -> asPat.Identifier.GetTreeStartOffset()
@@ -81,11 +81,11 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
             ReferenceAccessType.READ
 
         | :? IFSharpLocalDeclaration as localDecl ->
-            let fsSymbol = localDecl.GetFSharpSymbol()
-            if not (fsSymbol :? FSharpMemberOrFunctionOrValue) then ReferenceAccessType.OTHER else
+            let fcsSymbol = localDecl.GetFcsSymbol()
+            if not (fcsSymbol :? FSharpMemberOrFunctionOrValue) then ReferenceAccessType.OTHER else
 
-            let mfv = fsSymbol :?> FSharpMemberOrFunctionOrValue
-            if not mfv.FullType.IsFunctionType then ReferenceAccessType.READ else 
+            let mfv = fcsSymbol :?> FSharpMemberOrFunctionOrValue
+            if not mfv.FullType.IsFunctionType then ReferenceAccessType.READ else
 
             ReferenceAccessType.OTHER
 
@@ -133,5 +133,5 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
         member x.CreateParser(document: IDocument) =
             let lexer = TokenBuffer(lexerFactory.CreateLexer(document.Buffer)).CreateLexer()
             FSharpParser(lexer, document, checkerService, null) :> _
-        
+
         member x.CreateElementFactory(psiModule) = FSharpElementFactory(x, psiModule) :> _

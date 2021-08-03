@@ -5,6 +5,7 @@ type R1 =
 
 type R2 =
     { F1: int
-      F2: int }
+      mutable F2: int
+      F3: int }
 
 type R3 = { F: int }

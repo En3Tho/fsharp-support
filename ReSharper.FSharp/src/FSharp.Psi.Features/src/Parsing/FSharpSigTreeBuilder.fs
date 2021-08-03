@@ -7,8 +7,8 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Util
 
-type internal FSharpSigTreeBuilder(sourceFile, lexer, sigs, lifetime) =
-    inherit FSharpTreeBuilderBase(sourceFile, lexer, lifetime)
+type internal FSharpSigTreeBuilder(sourceFile, lexer, sigs, lifetime, path) =
+    inherit FSharpTreeBuilderBase(sourceFile, lexer, lifetime, path)
 
     override x.CreateFSharpFile() =
         let mark = x.Mark()
@@ -62,18 +62,7 @@ type internal FSharpSigTreeBuilder(sourceFile, lexer, sigs, lifetime) =
 
             x.Done(referenceNameMark, ElementType.EXPRESSION_REFERENCE_NAME)
             x.Done(patMark, ElementType.TOP_REFERENCE_PAT)
-            
-            let (SynValInfo(_, SynArgInfo(returnAttrs, _, _))) = arity
-
-            let returnInfoStart =
-                match returnAttrs with
-                | { Range = attrsRange } :: _ -> attrsRange
-                | _ -> synType.Range
-
-            let returnInfoStart = x.Mark(returnInfoStart)
-            x.ProcessAttributeLists(returnAttrs)
-            x.ProcessType(synType)
-            x.Done(returnInfoStart, ElementType.RETURN_TYPE_INFO)
+            x.ProcessReturnTypeInfo(arity, synType)
 
             match exprOption with
             | Some expr -> x.MarkChameleonExpression(expr)
@@ -119,7 +108,7 @@ type internal FSharpSigTreeBuilder(sourceFile, lexer, sigs, lifetime) =
         match memberSig with
         | SynMemberSig.Member(SynValSig(attrs, id, _, synType, arity, _, _, XmlDoc xmlDoc, _, _, _), flags, range) ->
             let mark = x.MarkAndProcessAttributesOrIdOrRange(attrs, xmlDoc, Some id, range)
-            x.ProcessSignatureType(arity, synType)
+            x.ProcessReturnTypeInfo(arity, synType)
             let elementType =
                 if flags.IsDispatchSlot then
                     ElementType.ABSTRACT_MEMBER_DECLARATION

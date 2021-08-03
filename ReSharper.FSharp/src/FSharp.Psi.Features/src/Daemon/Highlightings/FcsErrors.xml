@@ -291,10 +291,18 @@
     <QuickFix>RemoveYieldFix</QuickFix>
   </Error>
 
-  <Error staticGroup="FSharpErrors" name="NamespaceCannotContainValues">
-    <Parameter type="IFSharpIdentifier" name="identifier"/>
-    <Message value="Namespaces cannot contain values or functions"/>
-    <Range>identifier.GetHighlightingRange()</Range>
+  <Error staticGroup="FSharpErrors" name="NamespaceCannotContainBindings">
+    <Parameter type="IBindingLikeDeclaration" name="binding"/>
+    <Message value="Namespaces cannot contain bindings"/>
+    <Range>binding.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>NamespaceToModuleFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="NamespaceCannotContainExpressions">
+    <Parameter type="IDoLikeStatement" name="expr"/>
+    <Message value="Namespaces cannot contain expressions"/>
+    <Range>expr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>NamespaceToModuleFix</QuickFix>
   </Error>
@@ -348,6 +356,16 @@
     <Range>refExpr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>SpecifyParameterTypeFix</QuickFix>
+    <QuickFix>SpecifyPropertyTypeFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="IndexerIndeterminateType">
+    <Parameter type="IItemIndexerExpr" name="indexerExpr"/>
+    <Message value="The operator 'expr.[idx]' has been used on an object of indeterminate type based on information prior to this program point."/>
+    <Range>indexerExpr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>SpecifyParameterTypeFix</QuickFix>
+    <QuickFix>SpecifyPropertyTypeFix</QuickFix>
   </Error>
 
   <Error staticGroup="FSharpErrors" name="AddingConstraint">
@@ -367,6 +385,41 @@
     <Range>ctorDecl.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>RemoveConstructorFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="InstanceMemberRequiresTarget">
+    <Parameter type="IMemberDeclaration" name="memberDecl"/>
+    <Message value="Instance member requires a parameter to represent the object"/>
+    <Range>memberDecl.Identifier.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>AddInstanceMemberSelfIdFix</QuickFix>
+    <QuickFix>ToStaticMemberFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="MemberIsNotAccessible">
+    <Parameter type="IReferenceExpr" name="refExpr"/>
+    <Message value="Protected members cannot be accessed from closures"/>
+    <Range>refExpr.Identifier.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>IntroduceVarFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="MemberIsStatic">
+    <Parameter type="IReferenceExpr" name="refExpr"/>
+    <Message value="'{0}' is static">
+      <Argument>refExpr.ShortName</Argument>
+    </Message>
+    <Range>refExpr.Identifier.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>ReplaceWithTypeRefExprFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="CantTakeAddressOfExpression">
+    <Parameter type="IAddressOfExpr" name="expr"/>
+    <Message value="Can't take address of expression"/>
+    <Range>expr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>IntroduceVarFix</QuickFix>
   </Error>
 
 </Errors>

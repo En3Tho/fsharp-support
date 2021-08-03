@@ -24,9 +24,9 @@ type ReplaceWithAbbreviatedTypeFix(error: TypeAbbreviationsCannotHaveAugmentatio
         isValid typeDecl &&
 
         // todo: fix parameter list range
-        isNull typeDecl.TypeParameterList &&
+        typeDecl.TypeParameterDeclarations.IsEmpty &&
 
-        let fcsEntity = typeDecl.GetFSharpSymbol().As<FSharpEntity>()
+        let fcsEntity = typeDecl.GetFcsSymbol().As<FSharpEntity>()
         isNotNull fcsEntity
 
     override this.ExecutePsiTransaction _ =
@@ -36,11 +36,11 @@ type ReplaceWithAbbreviatedTypeFix(error: TypeAbbreviationsCannotHaveAugmentatio
         | null -> ()
         | referenceName -> ModificationUtil.DeleteChildRange(referenceName, typeDecl.Identifier)
 
-        match typeDecl.TypeParameterList with
+        match typeDecl.TypeParameterDeclarationList with
         | null -> ()
         | typeParameterList -> ModificationUtil.DeleteChild(typeParameterList)
 
-        let fcsEntity = typeDecl.GetFSharpSymbol().NotNull() :?> FSharpEntity
+        let fcsEntity = typeDecl.GetFcsSymbol().NotNull() :?> FSharpEntity
         let abbreviatedEntity = getAbbreviatedEntity fcsEntity
 
         let typeElement = abbreviatedEntity.GetTypeElement(typeDecl.GetPsiModule())

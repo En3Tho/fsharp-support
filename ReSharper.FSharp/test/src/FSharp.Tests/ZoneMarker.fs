@@ -1,5 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
+open JetBrains.Application
 open JetBrains.Application.BuildScript.Application.Zones
 open JetBrains.Application.Environment
 open JetBrains.ReSharper.Plugins.FSharp
@@ -9,19 +10,17 @@ open JetBrains.TestFramework.Application.Zones
 open NUnit.Framework
 
 [<ZoneDefinition>]
-type IFSharpTestsZone = 
+type IFSharpTestsZone =
     inherit ITestsEnvZone
 
 [<ZoneActivator>]
-type PsiFeatureTestZoneActivator() = 
-    interface IActivate<PsiFeatureTestZone> with
-        member x.ActivatorEnabled() = true
+type PsiFeatureTestZoneActivator() =
+    interface IActivate<PsiFeatureTestZone>
 
 [<ZoneActivator>]
-type FSharpZoneActivator() = 
-    interface IActivate<ILanguageFSharpZone> with
-        member x.ActivatorEnabled() = true
+type FSharpZoneActivator() =
+    interface IActivate<ILanguageFSharpZone>
 
 [<SetUpFixture>]
-type PsiFeaturesTestEnvironmentAssembly() = 
+type PsiFeaturesTestEnvironmentAssembly() =
     inherit ExtensionTestEnvironmentAssembly<IFSharpTestsZone>()

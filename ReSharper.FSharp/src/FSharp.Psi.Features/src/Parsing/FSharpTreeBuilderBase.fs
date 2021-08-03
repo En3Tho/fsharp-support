@@ -4,6 +4,8 @@ open System.Collections.Generic
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Text
 open FSharp.Compiler.Xml
+open JetBrains.Application.Environment
+open JetBrains.Application.Environment.Helpers
 open JetBrains.Diagnostics
 open JetBrains.DocumentModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Parsing
@@ -15,9 +17,10 @@ open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Parsing
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.TreeBuilder
+open JetBrains.ReSharper.Resources.Shell
 
 [<AbstractClass>]
-type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset, lineShift) =
+type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSystemPath, projectedOffset, lineShift) =
     inherit TreeBuilderBase(lifetime, lexer)
 
     // FCS ranges are 1-based.
@@ -30,8 +33,8 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
     let getLineOffset line =
         lineOffsets.[line + lineShift]
 
-    new (sourceFile, lexer, lifetime) =
-        FSharpTreeBuilderBase(sourceFile, lexer, lifetime, 0, 0)
+    new (sourceFile, lexer, lifetime, path) =
+        FSharpTreeBuilderBase(sourceFile, lexer, lifetime, path, 0, 0)
 
     abstract member CreateFSharpFile: unit -> IFSharpFile
 
@@ -47,7 +50,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
     override x.SkipWhitespaces() = ()
 
     member x.AdvanceLexer() = x.Builder.AdvanceLexer() |> ignore
-    
+
     member x.AdvanceToStart(range: range) =
         x.AdvanceToOffset(x.GetStartOffset(range))
 
@@ -64,11 +67,11 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
     member x.Mark(pos: pos) =
         x.AdvanceTo(pos)
         x.Mark()
-    
+
     member x.Mark(offset: int) =
         x.AdvanceToOffset(offset)
         x.Mark()
-    
+
     member x.Mark() =
         /// The base member is protected and cannot be used in closures.
         base.Mark()
@@ -210,7 +213,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
 
     member x.GetTreeNode() =
         x.GetTree() :> ITreeNode
-    
+
     member x.FinishFile(mark, fileType) =
         while not x.Eof do
             x.AdvanceLexer()
@@ -276,7 +279,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
                  mark
 
              | _ ->
-                 let minDeclOrIdRange = 
+                 let minDeclOrIdRange =
                      match id with
                      | Some(IdentRange idRange) ->
                          rangeStartMin idRange range
@@ -303,7 +306,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         x.ProcessUnionCaseType(unionCaseType, ElementType.EXCEPTION_FIELD_DECLARATION)
         mark
 
-    member x.StartType(attrs: SynAttributes, xmlDoc, typeParams, constraints, lid: LongIdent, range, typeTokenType) =
+    member x.StartType(attrs: SynAttributes, xmlDoc, typeParams: SynTyparDecls option, constraints, lid: LongIdent, range, typeTokenType) =
         let startRange =
             match attrs with
             | attrList :: _ -> attrList.Range
@@ -314,34 +317,41 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
 
         if not lid.IsEmpty then
             let id = lid.Head
-            let idOffset = x.GetStartOffset id
 
-            let typeParamsOffset =
-                match typeParams with
-                | SynTyparDecl(_, SynTypar(id, _, _)) :: _ -> x.GetStartOffset id
-                | [] -> idOffset
+            match typeParams with
+            | Some(typeParams) -> x.ProcessTypeParameters(typeParams, true)
+            | _ -> ()
 
-            let paramsInBraces = idOffset < typeParamsOffset
-            x.ProcessTypeParametersOfType typeParams constraints range paramsInBraces
+            x.ProcessConstraints(constraints)
 
             // Needs to advance past id range due to implicit ctor range in class includes id.
             x.AdvanceToEnd(id.idRange)
         mark
 
-    member x.ProcessTypeParametersOfType typeParams constraints range paramsInBraces =
-        match typeParams with
-        | SynTyparDecl(_, SynTypar(IdentRange idRange, _, _)) :: _ ->
-            let mark = x.MarkTokenOrRange(FSharpTokenType.LESS, idRange)
-            for p in typeParams do
-                x.ProcessTypeParameter(p, ElementType.TYPE_PARAMETER_OF_TYPE_DECLARATION)
-            for typeConstraint in constraints do
-                x.ProcessTypeConstraint(typeConstraint)
-            if paramsInBraces then
-                x.AdvanceToTokenOrPos(FSharpTokenType.GREATER, range.End)
-                if x.Builder.GetTokenType() == FSharpTokenType.GREATER then
-                    x.AdvanceLexer()
-            x.Done(mark, ElementType.TYPE_PARAMETER_OF_TYPE_LIST)
-        | [] -> ()
+    member x.ProcessTypeParameters(typeParams: SynTyparDecls, isForType) =
+        let range = typeParams.Range
+        let mark = x.Mark(range)
+
+        let typeParameterElementType =
+            if isForType then
+                ElementType.TYPE_PARAMETER_OF_TYPE_DECLARATION
+            else
+                ElementType.TYPE_PARAMETER_OF_METHOD_DECLARATION
+
+        for p in typeParams.TyparDecls do
+            x.ProcessTypeParameter(p, typeParameterElementType)
+        x.ProcessConstraints(typeParams.Constraints)
+
+        let typeParameterListElementType =
+            match typeParams with
+            | SynTyparDecls.PostfixList _ -> ElementType.POSTFIX_TYPE_PARAMETER_DECLARATION_LIST
+            | _ -> ElementType.PREFIX_TYPE_PARAMETER_DECLARATION_LIST
+
+        x.Done(range, mark, typeParameterListElementType)
+
+    member x.ProcessConstraints(constraints) =
+        for typeConstraint in constraints do
+            x.ProcessTypeConstraint(typeConstraint)
 
     member x.ProcessTypeParameter(SynTyparDecl(_, SynTypar(IdentRange range, _, _)), elementType) =
         x.MarkAndDone(range, elementType)
@@ -366,7 +376,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         | SynTypeDefnKind.Struct
         | SynTypeDefnKind.Interface -> true
         | _ -> false
-    
+
     member x.GetObjectModelTypeReprElementType(reprKind: SynTypeDefnKind) =
         match reprKind with
         | SynTypeDefnKind.Class -> ElementType.CLASS_REPRESENTATION
@@ -499,7 +509,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
             x.Done(range, paramMark, ElementType.PARAMETERS_PATTERN_DECLARATION)
 
         | _ ->
-        
+
         let parenPatMark = x.Mark()
 
         match pats with
@@ -520,6 +530,18 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         x.Done(range, parenPatMark, ElementType.PAREN_PAT)
         x.Done(range, paramMark, ElementType.PARAMETERS_PATTERN_DECLARATION)
 
+    member x.ProcessReturnTypeInfo(valInfo: SynValInfo, synType: SynType) =
+        let (SynValInfo(_, SynArgInfo(returnAttrs, _, _))) = valInfo
+
+        let returnInfoStart =
+            match returnAttrs with
+            | { Range = attrsRange } :: _ -> attrsRange
+            | _ -> synType.Range
+
+        let returnInfoStart = x.MarkTokenOrRange(FSharpTokenType.COLON, returnInfoStart)
+        x.ProcessSignatureType(valInfo, synType)
+        x.Done(returnInfoStart, ElementType.RETURN_TYPE_INFO)
+
     member x.ProcessImplicitCtorParam(pat: SynSimplePat) =
         match pat with
         | SynSimplePat.Id(ident = IdentRange range) ->
@@ -536,10 +558,6 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
             x.ProcessAttributeLists(attrs)
             x.ProcessImplicitCtorParam(pat)
             x.Done(range, mark, ElementType.ATTRIB_PAT)
-
-    member x.ProcessTypeMemberTypeParams(SynValTyparDecls(typeParams, _, _)) =
-        for param in typeParams do
-            x.ProcessTypeParameter(param, ElementType.TYPE_PARAMETER_OF_METHOD_DECLARATION)
 
     member x.ProcessActivePatternId(IdentRange range, activePatternElementType, caseElementType, wildElementType) =
         let idMark =
@@ -632,6 +650,16 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         match synType with
         | SynType.LongIdent(lid) ->
             x.ProcessNamedTypeReference(lid.Lid)
+
+        | SynType.App(SynType.Var(_, varRange), ltRange, typeArgs, _, gtRange, isPostfix, range) ->
+            let mark = x.Mark(range)
+            if isPostfix then
+                x.ProcessTypeArgs(typeArgs, ltRange, gtRange, ElementType.POSTFIX_APP_TYPE_ARGUMENT_LIST)
+                x.MarkAndDone(varRange, ElementType.TYPE_PARAMETER_ID)
+            else
+                x.MarkAndDone(varRange, ElementType.TYPE_PARAMETER_ID)
+                x.ProcessTypeArgs(typeArgs, ltRange, gtRange, ElementType.PREFIX_APP_TYPE_ARGUMENT_LIST)
+            x.Done(range, mark, ElementType.TYPE_REFERENCE_NAME)
 
         | SynType.App(typeName, ltRange, typeArgs, _, gtRange, isPostfix, range) ->
             let lid =
@@ -788,6 +816,9 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
             x.Done(range, mark, ElementType.PAREN_TYPE_USAGE)
 
     member x.ProcessTypeConstraint(typeConstraint: SynTypeConstraint) =
+        let range = typeConstraint.Range
+        let mark = x.Mark(range)
+
         match typeConstraint with
         | SynTypeConstraint.WhereTyparIsValueType(typeParameter, _)
         | SynTypeConstraint.WhereTyparIsReferenceType(typeParameter, _)
@@ -816,15 +847,17 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
             for synType in synTypes do
                 x.ProcessType(synType)
 
+        x.Done(range, mark, ElementType.TYPE_CONSTRAINT)
+
     member x.ProcessTypeParameter(SynTypar(IdentRange range, _, _)) =
         let mark = x.Mark(range)
         x.MarkAndDone(range, ElementType.TYPE_PARAMETER_ID)
         x.Done(range, mark, ElementType.TYPE_REFERENCE_NAME)
 
-    member x.FixExpresion(expr: SynExpr) =
+    member x.FixExpression(expr: SynExpr) =
         // A fake SynExpr.Typed node is added for binding with return type specification like in the following
         // member x.Prop: int = 1
-        // where 1 is replaced with `1: int`. 
+        // where 1 is replaced with `1: int`.
         // These fake nodes have original type specification ranges that are out of the actual expression ranges.
         match expr with
         | SynExpr.Typed(inner, synType, range) when not (Range.rangeContainsRange range synType.Range) -> inner
@@ -836,11 +869,18 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, projectedOffset
         | _ -> expr
 
     member x.MarkChameleonExpression(expr: SynExpr) =
-        let ExprRange range as expr = x.FixExpresion(expr)
+        let ExprRange range as expr = x.FixExpression(expr)
+
+        let isInternalMode () =
+            let productConfigurations = Shell.Instance.GetComponent<RunsProducts.ProductConfigurations>()
+            productConfigurations.IsInternalMode()
+
+        let dumpFileContent () =
+            if isInternalMode () then $"\nContent: {document.GetText()}" else ""
 
         let startOffset = x.GetStartOffset(range)
         let mark = x.Mark(startOffset)
-        Assertion.Assert(x.CurrentOffset = startOffset, "x.CurrentOffset = startOffset")
+        Assertion.Assert(x.CurrentOffset = startOffset, $"Can't convert FCS tree expression in {path} at {range}.{dumpFileContent ()}")
 
         // Replace all tokens with single chameleon token.
         let tokenMark = x.Mark(range)

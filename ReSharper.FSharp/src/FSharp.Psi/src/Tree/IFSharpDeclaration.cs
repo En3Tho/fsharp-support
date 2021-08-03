@@ -22,11 +22,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
   {
     /// May take long time due to waiting for FCS. Symbol is cached in declaration.
     [CanBeNull]
-    FSharpSymbol GetFSharpSymbol();
+    FSharpSymbol GetFcsSymbol();
 
     [CanBeNull]
-    FSharpSymbolUse GetFSharpSymbolUse();
-    
+    FSharpSymbolUse GetFcsSymbolUse();
+
     /// Name used in F# source code.
     [NotNull] string SourceName { get; }
 
@@ -36,11 +36,5 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
     void SetName(string name, ChangeNameKind changeNameKind);
 
     TreeTextRange GetNameIdentifierRange();
-  }
-
-  public interface IFSharpTypeParametersOwnerDeclaration : IFSharpDeclaration
-  {
-    // todo: check interface implementation
-    TreeNodeCollection<ITypeParameterOfTypeDeclaration> TypeParameters { get; }
   }
 }

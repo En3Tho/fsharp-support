@@ -19,20 +19,22 @@ type IdentifierHighlightingTest() =
     [<Test>] member x.``Operators 03 - Unary``() = x.DoNamedTest()
     [<Test>] member x.``Operators 04 - op_Multiply decl``() = x.DoNamedTest()
 
+    [<Test>] member x.``Slice 01``() = x.DoNamedTest()
+
     [<Test>] member x.``Active pattern decl``() = x.DoNamedTest()
 
     [<TestReferences("System")>]
     [<Test>] member x.``Delegates 01``() = x.DoNamedTest()
-    
+
     [<TestReferences("System")>]
     [<Test>] member x.``Delegates 02``() = x.DoNamedTest()
 
     [<TestReferences("System")>]
     [<Test>] member x.``Delegates 03``() = x.DoNamedTest()
-    
+
     [<Test>] member x.``Struct constructor``() = x.DoNamedTest()
 
-    [<Test>] member x.``op_RangeStep``() = x.DoNamedTest()
+    [<Test>] member x.op_RangeStep() = x.DoNamedTest()
 
     [<Test>] member x.``Byrefs 01``() = x.DoNamedTest()
 
@@ -41,14 +43,17 @@ type IdentifierHighlightingTest() =
     [<Test>] member x.``Extension members 01``() = x.DoNamedTest()
 
     [<TestReferences("System", "System.Core")>]
-    [<Test>] member x.``Extension members 02``() = x.DoNamedTest()    
+    [<Test>] member x.``Extension members 02``() = x.DoNamedTest()
 
     [<TestReferences("System")>]
     [<Test>] member x.``Functions 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Functions 02``() = x.DoNamedTest()
 
-    [<Test>] member x.``Computation expressions``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - CompExpr 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - CompExpr - For 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Expr - Seq - for 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Units of measure``() = x.DoNamedTest()
 

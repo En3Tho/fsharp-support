@@ -10,7 +10,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi
     IOpenStatement CreateOpenStatement(string ns);
 
     IWildPat CreateWildPat();
-    IWildSelfId CreateWildSelfId();
+    IMemberSelfId CreateSelfId(string name);
 
     IParenExpr CreateParenExpr();
     IConstExpr CreateConstExpr(string text);
@@ -29,6 +29,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi
     IBinaryAppExpr CreateIgnoreApp(IFSharpExpression expr, bool newLine);
     IRecordFieldBinding CreateRecordFieldBinding(string fieldName, bool addSemicolon);
 
+    IFSharpPattern  CreatePattern(string text, bool topLevel);
     IParenPat CreateParenPat();
     ITypedPat CreateTypedPat(IFSharpPattern pattern, ITypeUsage typeUsage);
 
@@ -48,10 +49,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi
 
     IAttributeList CreateEmptyAttributeList();
     IAttribute CreateAttribute(string attrName);
-    
-    FSharpList<IParametersPatternDeclaration> CreateMemberParamDeclarations(FSharpList<FSharpList<Tuple<string, FSharpType>>> curriedParameterNames, bool isSpaceAfterComma, bool addTypes, FSharpDisplayContext displayContext);
-    IMemberDeclaration CreateMemberBindingExpr(string bindingName, FSharpList<string> typeParameters, FSharpList<IParametersPatternDeclaration> args); 
 
-    ITypeParameterOfTypeList CreateTypeParameterOfTypeList(FSharpList<string> names);
+    FSharpList<IParametersPatternDeclaration> CreateMemberParamDeclarations(FSharpList<FSharpList<Tuple<string, FSharpType>>> curriedParameterNames, bool isSpaceAfterComma, bool addTypes, FSharpDisplayContext displayContext);
+    IMemberDeclaration CreateMemberBindingExpr(string bindingName, FSharpList<string> typeParameters, FSharpList<IParametersPatternDeclaration> args);
+
+    ITypeParameterDeclarationList CreateTypeParameterOfTypeList(FSharpList<string> names);
   }
 }

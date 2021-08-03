@@ -49,7 +49,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
       if (entity.IsClass)
         return FSharpHighlightingAttributeIdsModule.Class;
-      
+
       if (entity.IsValueType || entity.HasMeasureParameter())
         return FSharpHighlightingAttributeIdsModule.Struct;
 

@@ -13,28 +13,24 @@ open JetBrains.TestFramework.Application.Zones
 open NUnit.Framework
 
 [<assembly: Apartment(ApartmentState.STA)>]
-    do()
+do()
 
 [<ZoneDefinition>]
 type IFSharpTestsZone =
     inherit ITestsEnvZone
 
 [<ZoneActivator>]
-type PsiFeatureTestZoneActivator() = 
-    interface IActivate<PsiFeatureTestZone> with
-        member x.ActivatorEnabled() = true
-
+type PsiFeatureTestZoneActivator() =
+    interface IActivate<PsiFeatureTestZone>
 
 [<ZoneActivator>]
 type FSharpZoneActivator() =
-    interface IActivate<ILanguageFSharpZone> with
-        member x.ActivatorEnabled() = true
-
+    interface IActivate<ILanguageFSharpZone>
 
 [<ShellComponent>]
 type FSharpFileServiceStub() =
     interface IHideImplementation<FSharpFileService>
 
 [<SetUpFixture>]
-type PsiFeaturesTestEnvironmentAssembly() = 
+type PsiFeaturesTestEnvironmentAssembly() =
     inherit ExtensionTestEnvironmentAssembly<IFSharpTestsZone>()

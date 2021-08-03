@@ -29,7 +29,7 @@ type FSharpDeclaredElementBinder() =
         let typeParametersOwner = typeElement.As<ITypeParametersOwner>()
         if isNull typeParametersOwner then () else
 
-        (typeParametersOwner.TypeParameters, typeDecl.TypeParameters) ||> Seq.iter2 (fun typeParam typeParamDecl ->
+        (typeParametersOwner.TypeParameters, typeDecl.TypeParameterDeclarations) ||> Seq.iter2 (fun typeParam typeParamDecl ->
             let cachedDecl = typeParamDecl.As<ICachedDeclaration2>()
             if isNotNull cachedDecl then
                 cachedDecl.CacheDeclaredElement <- typeParam)
@@ -44,7 +44,7 @@ type FSharpDeclaredElementBinder() =
             typeElement.EnumerateMembers(memberDecl.DeclaredName, true)
             |> Seq.tryHead
             |> Option.iter (fun typeMember -> cachedDecl.CachedDeclaredElement <- typeMember)
-    
+
     let bindTypeElement (scope: ISymbolScope) (typeDecl: IFSharpTypeElementDeclaration) =
         let cachedDecl = typeDecl.As<ICachedDeclaration2>()
         if isNull cachedDecl then () else
@@ -61,7 +61,7 @@ type FSharpDeclaredElementBinder() =
         use cookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
         let symbolCache = psiModule.GetPsiServices().Symbols
         let symbolScope = symbolCache.GetSymbolScope(psiModule, false, true)
-        
+
         for nsDecl in file.Descendants<INamespaceDeclaration>() do
           bindNamespace symbolScope nsDecl
 

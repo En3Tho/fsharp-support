@@ -7,13 +7,17 @@ open JetBrains.DocumentModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.Files.SandboxFiles
+open JetBrains.ReSharper.Psi.Naming
 open JetBrains.ReSharper.Psi.Tree
+open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 
 let toQualifiedList (fsFile: IFSharpFile) (declaredElement: IClrDeclaredElement) =
@@ -59,7 +63,13 @@ let rec getModuleToOpen (typeElement: ITypeElement): IClrDeclaredElement =
 
 let findModuleToInsert (fsFile: IFSharpFile) (offset: DocumentOffset) (settings: IContextBoundSettingsStore) =
     if not (settings.GetValue(fun key -> key.TopLevelOpenCompletion)) then
-        fsFile.GetNode<IModuleLikeDeclaration>(offset)
+        match fsFile.GetNode<IModuleLikeDeclaration>(offset) with
+        | :? IDeclaredModuleLikeDeclaration as moduleDecl when
+                let keyword = moduleDecl.ModuleOrNamespaceKeyword
+                isNotNull keyword && keyword.GetTreeStartOffset().Offset < offset.Offset ->
+            moduleDecl :> IModuleLikeDeclaration
+        | moduleDecl ->
+            moduleDecl.GetContainingNode<IModuleLikeDeclaration>()
     else
         match fsFile.GetNode<ITopLevelModuleLikeDeclaration>(offset) with
         | null -> fsFile.GetNode<IAnonModuleDeclaration>(offset) :> _
@@ -81,13 +91,10 @@ let tryGetOpen (moduleDecl: IModuleLikeDeclaration) namespaceName =
     |> Seq.tryFind (fun x -> x.ReferenceName.QualifiedName = namespaceName)
 
 let removeOpen (openStatement: IOpenStatement) =
-    let first = getFirstMatchingNodeBefore isInlineSpaceOrComment openStatement
-    let last =
-        openStatement
-        |> skipSemicolonsAndWhiteSpacesAfter
-        |> getThisOrNextNewLine
+    use writeLock = WriteLockCookie.Create(true)
+    use disableFormatter = new DisableCodeFormatter()
 
-    deleteChildRange first last
+    removeModuleMember openStatement
 
 let isSystemNs ns =
     ns = "System" || startsWith "System." ns
@@ -159,6 +166,13 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
         |> Seq.tail
         |> Seq.tryHead
         |> Option.iter insertBeforeModuleMember
+
+    | :? IDeclaredModuleDeclaration as moduleDecl when
+            let keyword = moduleDecl.ModuleOrNamespaceKeyword
+            isNotNull keyword && keyword.GetTreeStartOffset().Offset > offset.Offset ->
+        // Don't insert open after the reference.
+        ()
+
     | _ ->
 
     match Seq.tryHead moduleDecl.MembersEnumerable with
@@ -180,6 +194,33 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
         | _ -> failwithf "Unexpected module: %O" moduleDecl
 
     insertAfterAnchor anchor indent
+
+let addOpens (reference: FSharpSymbolReference) (typeElement: ITypeElement) =
+    let referenceOwner = reference.GetElement()
+    use writeCookie = WriteLockCookie.Create(referenceOwner.IsPhysical())
+
+    let moduleToOpen = getModuleToOpen typeElement
+    let fsFile = referenceOwner.FSharpFile
+    let namingService = NamingManager.GetNamingLanguageService(fsFile.Language)
+
+    let nameToOpen =
+        toQualifiedList fsFile moduleToOpen
+        |> List.map (fun el ->
+            let sourceName = el.GetSourceName()
+            namingService.MangleNameIfNecessary(sourceName))
+        |> String.concat "."
+
+    if nameToOpen.IsNullOrEmpty() then reference else
+
+    let settings = fsFile.GetSettingsStoreWithEditorConfig()
+    addOpen (referenceOwner.GetDocumentStartOffset()) fsFile settings nameToOpen
+    reference
+
+let getContainingModules (treeNode: ITreeNode) =
+    treeNode.ContainingNodes<IModuleLikeDeclaration>().ToEnumerable()
+    |> Seq.map (fun decl -> decl.DeclaredElement)
+    |> Seq.filter isNotNull
+    |> HashSet
 
 let isInOpen (referenceName: IReferenceName) =
     match skipIntermediateParentsOfSameType referenceName with

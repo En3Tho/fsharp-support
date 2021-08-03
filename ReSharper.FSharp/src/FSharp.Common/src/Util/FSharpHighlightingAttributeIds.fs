@@ -7,9 +7,9 @@ open JetBrains.TextControl.DocumentMarkup
 [<RequireQualifiedAccess>]
 module FSharpHighlightingAttributeIds =
     let [<Literal>] GroupId = "F#"
-    let [<Literal>] LayerSyntaxPlusOne = 2001 // HighlighterLayer.ADDITIONAL_SYNTAX + 1 
-    let [<Literal>] VsPriorityPlusOne = 41 // VSPriority.IDENTIFIERS + 1 
-    
+    let [<Literal>] LayerSyntaxPlusOne = 3001 // HighlighterLayer.ADDITIONAL_SYNTAX + 1
+    let [<Literal>] VsPriorityPlusOne = 41 // VSPriority.IDENTIFIERS + 1
+
     let [<Literal>] Keyword = "ReSharper F# Keyword"
     let [<Literal>] String = "ReSharper F# String"
     let [<Literal>] Number = "ReSharper F# Number"
@@ -62,6 +62,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] InlineFunction = "ReSharper F# Inline Function Identifier"
     let [<Literal>] MutableFunction = "ReSharper F# Mutable Function Identifier"
 
+
     let [<Literal>] StaticValue = "ReSharper F# Static Value Identifier" // todo: add setting
 
     let [<Literal>] Parameter = "ReSharper F# Parameter Identifier" // todo: add setting
@@ -81,7 +82,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Method = "ReSharper F# Method Identifier"
     let [<Literal>] ExtensionMethod = "ReSharper F# Extension Method Identifier"
     let [<Literal>] ExtensionProperty = "ReSharper F# Extension Property Identifier"
-    
+
     let [<Literal>] ComputationExpression = "ReSharper F# Computation Expression Identifier"
     let [<Literal>] UnitOfMeasure = "ReSharper F# Unit Of Measure Identifier"
 
@@ -143,7 +144,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.EscapeCharacter1,
       FallbackAttributeId = DefaultLanguageAttributeIds.STRING_ESCAPE_CHARACTER_1,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      Layer = FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
+      Layer = enum FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
       VSPriority = FSharpHighlightingAttributeIds.VsPriorityPlusOne,
       EffectType = EffectType.TEXT, ForegroundColor = "#FF007F", DarkForegroundColor = "#E07A00");
 
@@ -151,7 +152,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.EscapeCharacter2,
       FallbackAttributeId = DefaultLanguageAttributeIds.STRING_ESCAPE_CHARACTER_2,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      Layer = FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
+      Layer = enum FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
       VSPriority = FSharpHighlightingAttributeIds.VsPriorityPlusOne,
       EffectType = EffectType.TEXT, ForegroundColor = "#FF66B2", DarkForegroundColor = "#FF8D1C");
 
@@ -323,7 +324,7 @@ type FSharpSettingsNamesProvider() =
       RiderPresentableName = "Types//Unit of measure",
       Layer = HighlighterLayer.SYNTAX,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
-  
+
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Union,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Enum,
@@ -474,7 +475,7 @@ type FSharpSettingsNamesProvider() =
       FallbackAttributeId = DefaultLanguageAttributeIds.MUTABLE_LOCAL_VARIABLE,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Mutable value",
-      Layer = FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
+      Layer = enum FSharpHighlightingAttributeIds.LayerSyntaxPlusOne,
       VSPriority = FSharpHighlightingAttributeIds.VsPriorityPlusOne,
       EffectType = EffectType.TEXT,
       FontStyle = FontStyle.Bold);
@@ -541,7 +542,7 @@ type FSharpSettingsNamesProvider() =
       RiderPresentableName = "Values//Computation expression",
       Layer = HighlighterLayer.SYNTAX,
       EffectType = EffectType.TEXT, ForegroundColor = "#0000E0", DarkForegroundColor = "#569CD6");
-  
+
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Method,
       FallbackAttributeId = DefaultLanguageAttributeIds.METHOD,
@@ -577,7 +578,7 @@ type FSharpSettingsNamesProvider() =
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Blue", DarkForegroundColor = "Cyan");
-  
+
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.ExtensionMethod,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Method,
@@ -586,7 +587,7 @@ type FSharpSettingsNamesProvider() =
       Layer = HighlighterLayer.SYNTAX,
       VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Maroon", DarkForegroundColor = "Cyan");
-  
+
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.ExtensionProperty,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Property,

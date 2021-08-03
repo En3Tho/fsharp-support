@@ -13,12 +13,10 @@ open JetBrains.ReSharper.Resources.Shell
 
 [<PostfixTemplate("not", "Apply not function", "not (expr)")>]
 type NotPostfixTemplate() =
-    interface IPostfixTemplate with
-        member x.Language = FSharpLanguage.Instance :> _
-        member x.CreateBehavior(info) = NotPostfixTemplateBehavior(info) :> _
+    inherit FSharpPostfixTemplateBase()
 
-        member x.TryCreateInfo(context) =
-            NotPostfixTemplateInfo(context.AllExpressions.[0]) :> _
+    override x.CreateBehavior(info) = NotPostfixTemplateBehavior(info) :> _
+    override x.TryCreateInfo(context) = NotPostfixTemplateInfo(context.AllExpressions.[0]) :> _
 
 
 and NotPostfixTemplateInfo(expressionContext: PostfixExpressionContext) =
@@ -29,17 +27,14 @@ and NotPostfixTemplateBehavior(info) =
     inherit FSharpPostfixTemplateBehaviorBase(info)
 
     override x.ExpandPostfix(context) =
-        let psiModule = context.PostfixContext.PsiModule
-        let psiServices = psiModule.GetPsiServices()
-
+        let psiServices = context.PostfixContext.PsiModule.GetPsiServices()
         psiServices.Transactions.Execute(x.ExpandCommandName, fun _ ->
             let node = context.Expression :?> IFSharpTreeNode
-            let elementFactory = node.CreateElementFactory()
             use writeCookie = WriteLockCookie.Create(node.IsPhysical())
             use disableFormatter = new DisableCodeFormatter()
             let refExpr = x.GetExpression(context)
 
-            let appExpr = elementFactory.CreateAppExpr("not", refExpr)
+            let appExpr = node.CreateElementFactory().CreateAppExpr("not", refExpr)
             let appExpr = ModificationUtil.ReplaceChild(refExpr, appExpr)
 
             addParensIfNeeded appExpr.ArgumentExpression |> ignore

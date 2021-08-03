@@ -112,14 +112,15 @@ type FSharpOverridableMembersProvider() =
         let typeElement = typeDeclaration.DeclaredElement
         if not (canHaveOverrides typeElement) then () else
 
-        let fcsEntity = typeDeclaration.GetFSharpSymbol().As<FSharpEntity>()
+        let fcsEntity = typeDeclaration.GetFcsSymbol().As<FSharpEntity>()
         if isNull fcsEntity then () else
 
-        let displayContext = typeDeclaration.GetFSharpSymbolUse().DisplayContext
+        let displayContext = typeDeclaration.GetFcsSymbolUse().DisplayContext
 
         let rec getBaseTypes (fcsEntity: FSharpEntity) =
             let rec loop acc (fcsType: FSharpType) =
-                let acc = FcsEntityInstance.create fcsType :: acc
+                let fcsEntityInstance = FcsEntityInstance.create fcsType
+                let acc = if isNotNull fcsEntityInstance then fcsEntityInstance :: acc else acc
 
                 match fcsType.BaseType with
                 | Some baseType when baseType.HasTypeDefinition -> loop acc baseType
@@ -170,7 +171,7 @@ type FSharpOverridableMembersProvider() =
                     Some (memberInstance.Member, mfvInstance))
                 |> Seq.toList)
 
-        let needsTypesAnnotations = 
+        let needsTypesAnnotations =
             overridableMemberInstances
             |> List.distinctBy (fst >> getTestDescriptor)
             |> List.map snd

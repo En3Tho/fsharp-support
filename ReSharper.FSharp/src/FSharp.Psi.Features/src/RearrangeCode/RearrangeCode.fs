@@ -4,7 +4,10 @@ open System
 open System.Runtime.InteropServices
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Feature.Services.RearrangeCode
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Analyzers
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
@@ -12,6 +15,7 @@ open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.Resources.Shell
+open JetBrains.Util
 
 type FSharpRearrangeableSimpleSwap<'TNode, 'TParent when
         'TNode: not struct and 'TNode :> ITreeNode and
@@ -38,7 +42,7 @@ type FSharpRearrangeableElementSwap<'T when 'T: not struct and 'T :> ITreeNode>(
 
     override this.Swap(child, target) =
         if enableFormatter then
-            use enableFormatterCookie = FSharpExperimentalFeatures.EnableFormatterCookie.Create()
+            use enableFormatterCookie = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.Formatter)
             this.BeforeSwap(child, target)
             base.Swap(child, target)
         else
@@ -64,13 +68,62 @@ let rearrangeable (value: #IRearrangeable) =
 type RearrangeableTuplePattern(fsPattern: IFSharpPattern, tuplePat: ITuplePat) =
     inherit FSharpRearrangeableElementSwap<IFSharpPattern>(fsPattern, "tuple pattern", Direction.LeftRight)
 
+    let updateParens (pattern: IFSharpPattern) =
+        match pattern with
+        | :? IAsPat as asPat ->
+            RedundantParenPatAnalyzer.addParensIfNeeded asPat
+
+        | :? IParenPat as parenPat ->
+            match parenPat.Pattern.IgnoreInnerParens() with
+            | :? IAsPat as asPat ->
+                let contextPattern = parenPat.IgnoreParentParens()
+                if RedundantParenPatAnalyzer.needsParens contextPattern asPat then pattern else
+
+                use writeLockCookie = WriteLockCookie.Create(pattern.IsPhysical())
+                ModificationUtil.ReplaceChild(contextPattern, asPat) :> _
+            | _ -> pattern
+
+        | _ -> pattern
+
     override this.GetSiblings() =
         tuplePat.PatternsEnumerable :> _
+
+    override this.Swap(child, target) =
+        let newChild = base.Swap(child, target) |> updateParens
+
+        let siblings = this.GetSiblings()
+        CollectionUtil.GetPrevious(siblings, newChild) |> updateParens |> ignore
+        CollectionUtil.GetNext(siblings, newChild) |> updateParens |> ignore
+        newChild
 
 [<RearrangeableElementType>]
 type RearrangeableTuplePatternProvider() =
     inherit FSharpRearrangeableSingleElementBase<IFSharpPattern, ITuplePat>(TuplePatNavigator.GetByPattern,
         RearrangeableTuplePattern >> rearrangeable)
+
+type RearrangeableOrPattern(fsPattern: IFSharpPattern, orPat: IOrPat) =
+    inherit FSharpRearrangeableElementSwap<IFSharpPattern>(fsPattern, "or pattern", Direction.LeftRight)
+
+    override this.GetSiblings() =
+        [| orPat.Pattern1; orPat.Pattern2 |] :> _
+
+[<RearrangeableElementType>]
+type RearrangeableOrPatternProvider() =
+    inherit FSharpRearrangeableSingleElementBase<IFSharpPattern, IOrPat>(OrPatNavigator.GetByPattern,
+        RearrangeableOrPattern >> rearrangeable)
+
+
+
+type RearrangeableAndPattern(fsPattern: IFSharpPattern, andsPat: IAndsPat) =
+    inherit FSharpRearrangeableElementSwap<IFSharpPattern>(fsPattern, "and pattern", Direction.LeftRight)
+
+    override this.GetSiblings() =
+        andsPat.PatternsEnumerable :> _
+
+[<RearrangeableElementType>]
+type RearrangeableAndPatternProvider() =
+    inherit FSharpRearrangeableSingleElementBase<IFSharpPattern, IAndsPat>(AndsPatNavigator.GetByPattern,
+        RearrangeableAndPattern >> rearrangeable)
 
 
 type RearrangeableTupleExpr(fsExpr: IFSharpExpression, tuplePat: ITupleExpr) =
@@ -86,10 +139,23 @@ type RearrangeableTupleExprProvider() =
 
 
 [<RearrangeableElementType>]
+type RearrangeableLambdaParamPatternProvider() =
+    inherit FSharpRearrangeableSimpleSwap<IFSharpPattern, ILambdaExpr>(
+        "lambda parameter", Direction.LeftRight, LambdaExprNavigator.GetByPattern,
+        fun lambdaExpr -> lambdaExpr.PatternsEnumerable)
+
+
+[<RearrangeableElementType>]
 type RearrangeableRecordFieldDeclarationProvider() =
     inherit FSharpRearrangeableSimpleSwap<IRecordFieldDeclaration, IRecordFieldDeclarationList>(
         "record field declaration", Direction.All, RecordFieldDeclarationListNavigator.GetByFieldDeclaration,
         fun l -> l.FieldDeclarationsEnumerable)
+
+[<RearrangeableElementType>]
+type RearrangeableFunctionParameterProvider() =
+    inherit FSharpRearrangeableSimpleSwap<IParametersPatternDeclaration, IBinding>(
+        "function parameter", Direction.LeftRight, BindingNavigator.GetByParametersDeclaration,
+        fun binding -> binding.ParametersDeclarationsEnumerable)
 
 
 type RearrangeableEnumCaseLikeDeclaration(decl: IEnumCaseLikeDeclaration) =
@@ -104,15 +170,30 @@ type RearrangeableEnumCaseLikeDeclaration(decl: IEnumCaseLikeDeclaration) =
                 Whitespace()
             ] |> ignore
 
+            let typeRepr = EnumLikeTypeRepresentationNavigator.GetByEnumLikeCase(caseDeclaration)
+            if isNull typeRepr then () else
+
+            let cases = typeRepr.Cases
+            if cases.Count <= 1 || cases.[0] != caseDeclaration then () else 
+
+            let firstCaseIndent = cases.[0].Indent
+            let secondCaseIndent = cases.[1].Indent
+
+            if firstCaseIndent > secondCaseIndent then
+                let indentDiff = firstCaseIndent - secondCaseIndent
+
+                let reduceIndent (node: ITreeNode) =
+                    if isInlineSpace node && node.GetTextLength() > indentDiff then
+                        let newSpace = Whitespace(node.GetTextLength() - indentDiff)
+                        replace node newSpace
+                        true
+                    else
+                        false
+
+                (reduceIndent caseDeclaration.PrevSibling || reduceIndent typeRepr.PrevSibling) |> ignore
+
     override this.GetSiblings() =
-        match decl with
-        | :? IUnionCaseDeclaration as caseDeclaration ->
-            UnionRepresentationNavigator.GetByUnionCase(caseDeclaration).NotNull().UnionCases |> Seq.cast
-
-        | :? IEnumCaseDeclaration as caseDeclaration ->
-            EnumRepresentationNavigator.GetByEnumCase(caseDeclaration).NotNull().EnumCases |> Seq.cast
-
-        | _ -> failwithf $"Unexpected declaration: {decl}"
+        EnumLikeTypeRepresentationNavigator.GetByEnumLikeCase(decl).NotNull().Cases :> _
 
     override this.BeforeSwap(child, target) =
         addBarIfNeeded child
@@ -174,7 +255,7 @@ type RearrangeableMatchClause(matchClause: IMatchClause, matchExpr: IMatchLikeEx
                     NewLine(lineEnding)
                     Whitespace(clauseIndent)
             ] |> ignore
-    
+
     override this.BeforeSwap(child, target) =
         addIndent child
         addIndent target
@@ -203,6 +284,15 @@ type RearrangeableMatchClause(matchClause: IMatchClause, matchExpr: IMatchLikeEx
 
         match isLastClause matchClause, matchClause.Expression, missingIndent matchClause, direction with
         | true, NotNull expr, _, Direction.Down ->
+            let seqExpr = SequentialExprNavigator.GetByExpression(matchExpr)
+            let seqExprs = if isNotNull seqExpr then seqExpr.Expressions else TreeNodeCollection.Empty
+            if not seqExprs.IsEmpty && matchExpr != seqExprs.LastOrDefault() then false else
+
+            let matchExprStmt = ExpressionStatementNavigator.GetByExpression(matchExpr)
+            let moduleDecl = ModuleDeclarationNavigator.GetByMember(matchExprStmt)
+            let moduleMembers = if isNotNull moduleDecl then moduleDecl.Members else TreeNodeCollection.Empty
+            if not moduleMembers.IsEmpty && matchExprStmt != moduleMembers.LastOrDefault() then false else
+
             let arrow = matchClause.RArrow
             isNotNull arrow && arrow.StartLine.Plus1() >= expr.StartLine
         | true, NotNull _, true, Direction.Up -> true

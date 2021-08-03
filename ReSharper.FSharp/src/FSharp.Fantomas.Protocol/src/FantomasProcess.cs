@@ -19,7 +19,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol
     protected override string Name => "Fantomas";
 
     private static readonly FileSystemPath FantomasDirectory =
-      typeof(FantomasProcess).Assembly.GetPath().Directory.Parent.Combine("fantomas");
+      typeof(FantomasProcess).Assembly.GetPath().Directory.Parent / "fantomas";
 
     protected override RdFantomasModel CreateModel(Lifetime lifetime, IProtocol protocol) =>
       new RdFantomasModel(lifetime, protocol);
@@ -30,9 +30,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol
       new FantomasConnection(lifetime, model, protocol, outputWriter, processId,
         processUnexpectedExited);
 
-    protected override ProcessStartInfo GetProcessStartInfo(int port)
+    protected override ProcessStartInfo GetProcessStartInfo(Lifetime lifetime, int port)
     {
-      var launchPath = FantomasDirectory.Combine(FantomasProtocolConstants.PROCESS_FILENAME);
+      var launchPath = FantomasDirectory / FantomasProtocolConstants.PROCESS_FILENAME;
       Assertion.Assert(launchPath.ExistsFile, $"can't find '{launchPath}'");
 
       return new ProcessStartInfo

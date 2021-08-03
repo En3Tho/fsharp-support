@@ -1,19 +1,20 @@
+using System;
 using Fantomas;
-using FSharp.Compiler;
 using FSharp.Compiler.SourceCodeServices;
 using JetBrains.ReSharper.Plugins.FSharp.Fantomas.Server;
 using Microsoft.FSharp.Collections;
 using Microsoft.FSharp.Control;
-using Range = FSharp.Compiler.Range.range;
+using Range = FSharp.Compiler.Text.Range;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host
 {
   internal class FantomasCodeFormatter
   {
     private readonly FSharpChecker myChecker =
-      FSharpChecker.Create(null, null, null, null, null, null, null, null);
+      FSharpChecker.Create(null, null, null, null, null, null, null, null, null);
 
-    private readonly FormatConfig.FormatConfig myDefaultFormatConfig = FormatConfig.FormatConfig.Default;
+    private static readonly FormatConfig.FormatConfig DefaultFormatConfig = FormatConfig.FormatConfig.Default;
+    private static readonly FSharpDiagnosticOptions DefaultDiagnosticOptions = FSharpDiagnosticOptions.Default;
 
     public string FormatSelection(RdFormatSelectionArgs args) =>
       FSharpAsync.StartAsTask(
@@ -32,24 +33,31 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host
       CodeFormatter.MakeRange(range.FileName, range.StartLine, range.StartCol, range.EndLine, range.EndCol);
 
     private static FSharpParsingOptions Convert(RdFcsParsingOptions options) =>
-      new FSharpParsingOptions(new[] {options.LastSourceFile},
-        ListModule.OfArray(options.ConditionalCompilationDefines), ErrorLogger.FSharpErrorSeverityOptions.Default,
+      new FSharpParsingOptions(new[] { options.LastSourceFile },
+        ListModule.OfArray(options.ConditionalCompilationDefines), DefaultDiagnosticOptions,
         false, options.LightSyntax, false, options.IsExe);
 
-    private FormatConfig.FormatConfig Convert(RdFantomasFormatConfig config) =>
+    private static FormatConfig.FormatConfig Convert(RdFantomasFormatConfig config) =>
       new FormatConfig.FormatConfig(config.IndentSize, config.MaxLineLength, config.SemicolonAtEndOfLine,
         config.SpaceBeforeParameter, config.SpaceBeforeLowercaseInvocation, config.SpaceBeforeUppercaseInvocation,
         config.SpaceBeforeClassConstructor, config.SpaceBeforeMember, config.SpaceBeforeColon, config.SpaceAfterComma,
         config.SpaceBeforeSemicolon, config.SpaceAfterSemicolon, config.IndentOnTryWith, config.SpaceAroundDelimiter,
         config.MaxIfThenElseShortWidth, config.MaxInfixOperatorExpression, config.MaxRecordWidth,
-        myDefaultFormatConfig.MaxRecordNumberOfItems, myDefaultFormatConfig.RecordMultilineFormatter,
-        config.MaxArrayOrListWidth, myDefaultFormatConfig.MaxArrayOrListNumberOfItems,
-        myDefaultFormatConfig.ArrayOrListMultilineFormatter, config.MaxValueBindingWidth,
-        config.MaxFunctionBindingWidth, myDefaultFormatConfig.MaxDotGetExpressionWidth,
+        config.MaxRecordNumberOfItems, Convert(config.RecordMultilineFormatter), config.MaxArrayOrListWidth,
+        config.MaxArrayOrListNumberOfItems, Convert(config.ArrayOrListMultilineFormatter),
+        config.MaxValueBindingWidth, config.MaxFunctionBindingWidth, config.MaxDotGetExpressionWidth,
         config.MultilineBlockBracketsOnSameColumn, config.NewlineBetweenTypeDefinitionAndMembers,
         config.KeepIfThenInSameLine, config.MaxElmishWidth, config.SingleArgumentWebMode,
         config.AlignFunctionSignatureToIndentation, config.AlternativeLongMemberDefinitions,
-        myDefaultFormatConfig.MultiLineLambdaClosingNewline, myDefaultFormatConfig.DisableElmishSyntax,
-        myDefaultFormatConfig.EndOfLine, myDefaultFormatConfig.StrictMode);
+        config.MultiLineLambdaClosingNewline, config.DisableElmishSyntax, DefaultFormatConfig.EndOfLine,
+        config.KeepIndentInBranch, config.BlankLinesAroundNestedMultilineExpressions,
+        config.BarBeforeDiscriminatedUnionDeclaration, config.StrictMode);
+
+    private static FormatConfig.MultilineFormatterType Convert(string setting) => setting switch
+    {
+      "character_width" => FormatConfig.MultilineFormatterType.CharacterWidth,
+      "number_of_items" => FormatConfig.MultilineFormatterType.NumberOfItems,
+      _ => throw new ArgumentOutOfRangeException(nameof(setting), setting, null)
+    };
   }
 }

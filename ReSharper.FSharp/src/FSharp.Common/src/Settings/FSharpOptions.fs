@@ -26,6 +26,7 @@ type FSharpSettings() = class end
 module FSharpOptions =
     let [<Literal>] backgroundTypeCheck = "Enable background analysis (requires restart)"
     let [<Literal>] skipImplementationAnalysis = "Skip implementation files analysis when possible (requires restart)"
+    let [<Literal>] nonFSharpProjectInMemoryAnalysis = "Analyze C#/VB projects without build (requires restart)"
     let [<Literal>] outOfScopeCompletion = "Enable out of scope items completion"
     let [<Literal>] topLevelOpenCompletion = "Add 'open' declarations to top level module or namespace"
     let [<Literal>] enableFcsReactorMonitor = "Enable FCS monitor"
@@ -33,20 +34,17 @@ module FSharpOptions =
 
 [<SettingsKey(typeof<FSharpSettings>, "FSharpOptions")>]
 type FSharpOptions =
-    { [<SettingsEntry(false, backgroundTypeCheck); DefaultValue>]
-      mutable BackgroundTypeCheck: bool
-
-      [<SettingsEntry(false, skipImplementationAnalysis); DefaultValue>]
+    { [<SettingsEntry(false, skipImplementationAnalysis); DefaultValue>]
       mutable SkipImplementationAnalysis: bool
+
+      [<SettingsEntry(false, nonFSharpProjectInMemoryAnalysis); DefaultValue>]
+      mutable NonFSharpProjectInMemoryAnalysis: bool
 
       [<SettingsEntry(true, outOfScopeCompletion); DefaultValue>]
       mutable EnableOutOfScopeCompletion: bool
 
       [<SettingsEntry(true, topLevelOpenCompletion); DefaultValue>]
-      mutable TopLevelOpenCompletion: bool
-      
-      [<SettingsEntry(false, enableFcsReactorMonitor); DefaultValue>]
-      mutable EnableReactorMonitor: bool }
+      mutable TopLevelOpenCompletion: bool }
 
 
 module FSharpScriptOptions =
@@ -85,10 +83,10 @@ type FSharpExperimentalFeatures =
 
       [<SettingsEntry(false, FSharpExperimentalFeatures.formatter)>]
       mutable Formatter: bool
-      
+
       [<SettingsEntry(false, FSharpExperimentalFeatures.fsiInteractiveEditor); DefaultValue>]
       mutable FsiInteractiveEditor: bool
-      
+
       [<SettingsEntry(true, FSharpExperimentalFeatures.outOfProcessTypeProviders)>]
       mutable OutOfProcessTypeProviders: bool }
 
@@ -125,6 +123,13 @@ type FSharpExperimentalFeaturesProvider(lifetime, solution, settings, settingsSc
     member val RedundantParensAnalysis = base.GetValueProperty<bool>("RedundantParensAnalysis")
     member val Formatter = base.GetValueProperty<bool>("Formatter")
     member val OutOfProcessTypeProviders = base.GetValueProperty<bool>("OutOfProcessTypeProviders")
+
+
+[<SolutionInstanceComponent>]
+type FSharpOptionsProvider(lifetime, solution, settings, settingsSchema) =
+    inherit FSharpSettingsProviderBase<FSharpOptions>(lifetime, solution, settings, settingsSchema)
+
+    member val NonFSharpProjectInMemoryAnalysis = base.GetValueProperty<bool>("NonFSharpProjectInMemoryAnalysis")
 
 
 module FSharpTypeHintOptions =
@@ -169,8 +174,6 @@ type FSharpOptionsPage(lifetime: Lifetime, optionsPageContext, settings,
 
         this.AddHeader("FSharp.Compiler.Service options")
         this.AddBoolOption((fun key -> key.SkipImplementationAnalysis), RichText(skipImplementationAnalysis), null) |> ignore
-        this.AddBoolOption((fun key -> key.EnableReactorMonitor), RichText(enableFcsReactorMonitor), null) |> ignore
-        this.AddBoolOption((fun key -> key.BackgroundTypeCheck), RichText(backgroundTypeCheck), null) |> ignore
         this.AddBoolOption((fun key -> key.OutOfProcessTypeProviders), RichText(FSharpExperimentalFeatures.outOfProcessTypeProviders), null) |> ignore
 
         if configurations.IsInternalMode() then
@@ -178,6 +181,7 @@ type FSharpOptionsPage(lifetime: Lifetime, optionsPageContext, settings,
             this.AddBoolOption((fun key -> key.PostfixTemplates), RichText(FSharpExperimentalFeatures.postfixTemplates), null) |> ignore
             this.AddBoolOption((fun key -> key.RedundantParensAnalysis), RichText(FSharpExperimentalFeatures.redundantParenAnalysis), null) |> ignore
             this.AddBoolOption((fun key -> key.Formatter), RichText(FSharpExperimentalFeatures.formatter), null) |> ignore
+            this.AddBool(nonFSharpProjectInMemoryAnalysis, fun key -> key.NonFSharpProjectInMemoryAnalysis)
 
 
 [<ShellComponent>]
@@ -192,5 +196,14 @@ type FSharpTypeHintOptionsStore(lifetime: Lifetime, settingsStore: ISettingsStor
                 |> Seq.exists (fun changedEntry -> changedEntry.Parent = settingsKey)
 
             if typeHintOptionChanged then
-                highlightingSettingsManager.SettingsChanged.Fire(Nullable<_>(false))
-        )
+                highlightingSettingsManager.SettingsChanged.Fire(Nullable(false)))
+
+
+module SettingsUtil =
+    let getEntry<'TKey> (settingsStore: ISettingsStore) name =
+        settingsStore.Schema.GetKey<'TKey>().TryFindEntryByMemberName(name) :?> SettingsScalarEntry
+
+    let getValue<'TKey, 'TValue> (settingsStore: ISettingsStore) name =
+        let entry = getEntry<'TKey> settingsStore name
+        let settingsStoreLive = settingsStore.BindToContextTransient(ContextRange.ApplicationWide)
+        settingsStoreLive.GetValue(entry, null) :?> 'TValue

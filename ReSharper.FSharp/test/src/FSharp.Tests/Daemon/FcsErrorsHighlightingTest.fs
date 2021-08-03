@@ -15,6 +15,7 @@ type FcsErrorsHighlightingTest() =
     [<Test>] member x.``No errors 01``() = x.DoNamedTest()
     [<Test>] member x.``Multiline range``() = x.DoNamedTest()
 
+    [<Test>] member x.``Cant take address of expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Non-recursive bindings 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Syntax errors 01``() = x.DoNamedTest()
@@ -47,6 +48,7 @@ type FcsErrorsHighlightingTest() =
     [<Test>] member x.``Undefined indexer 01``() = x.DoNamedTest()
     [<Test>] member x.``Undefined indexer 02 - Undefined id``() = x.DoNamedTest()
     [<Test>] member x.``Undefined indexer 03 - Item Id``() = x.DoNamedTest()
+    [<Test>] member x.``Undefined indexer 04 - GetSlice``() = x.DoNamedTest()
 
     [<Test>] member x.``Unexpected args 01 - single arg``() = x.DoNamedTest()
     [<Test>] member x.``Unexpected args 02 - many args``() = x.DoNamedTest()
@@ -59,7 +61,9 @@ type FcsErrorsHighlightingTest() =
 
     [<Test>] member x.``Upcast unnecessary 01``() = x.DoNamedTest()
 
-    [<Test>] member x.``Value in namespace``() = x.DoNamedTest()
+    [<Test>] member x.``Binding in namespace 01``() = x.DoNamedTest()
+    [<Test; FSharpSignatureTest>] member x.``Binding in namespace 02 - val``() = x.DoNamedTest()
+    [<Test>] member x.``Expression in namespace``() = x.DoNamedTest()
 
     [<Test>] member x.``No implementation given 01 - Interface``() = x.DoNamedTest()
 
@@ -74,3 +78,5 @@ type FcsErrorsHighlightingTest() =
 
     [<Test>] member x.``Runtime coercion source sealed 01``() = x.DoNamedTest()
     [<Test>] member x.``Runtime coercion source sealed 02``() = x.DoNamedTest()
+
+    [<Test>] member x.``Type extension - Unresolved 01``() = x.DoNamedTest()

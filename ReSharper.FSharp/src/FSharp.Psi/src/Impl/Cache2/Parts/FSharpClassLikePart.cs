@@ -15,7 +15,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     private bool? myHasPublicDefaultCtor;
 
     protected FSharpClassLikePart([NotNull] T declaration, MemberDecoration memberDecoration,
-      TreeNodeCollection<ITypeParameterOfTypeDeclaration> typeParameters, [NotNull] ICacheBuilder cacheBuilder)
+      TreeNodeCollection<ITypeParameterDeclaration> typeParameters, [NotNull] ICacheBuilder cacheBuilder)
       : base(declaration, memberDecoration, typeParameters, cacheBuilder)
     {
     }
@@ -42,7 +42,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     }
 
     public abstract IEnumerable<IDeclaredType> GetSuperTypes();
-    public virtual IEnumerable<ITypeElement> GetSuperTypeElements() => GetSuperTypes().AsIList().ToTypeElements(); 
+    public virtual IEnumerable<ITypeElement> GetSuperTypeElements() => GetSuperTypes().AsIList().ToTypeElements();
 
     public virtual MemberPresenceFlag GetMemberPresenceFlag() =>
       MemberPresenceFlag.SIGN_OP | MemberPresenceFlag.EXPLICIT_OP |

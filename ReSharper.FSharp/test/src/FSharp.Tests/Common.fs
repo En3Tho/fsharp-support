@@ -103,18 +103,18 @@ type FSharpLanguageLevelAttribute(languageLevel: FSharpLanguageLevel) =
 
 
 [<SolutionComponent>]
-type TestFSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider) =
-    inherit FSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider)
+type TestFSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, assemblyReaderShim) =
+    inherit FcsResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, assemblyReaderShim)
 
     override x.Invalidate _ =
         x.PsiModulesCaches.Clear()
 
-    interface IHideImplementation<FSharpResolvedSymbolsCache>
+    interface IHideImplementation<FcsResolvedSymbolsCache>
 
 
 [<SolutionComponent>]
-type TestFcsProjectBuilder(checkerService: FcsCheckerService, logger: ILogger) =
-    inherit FcsProjectBuilder(checkerService, Mock<_>().Object, logger)
+type TestFcsProjectBuilder(checkerService: FcsCheckerService, modulePathProvider: ModulePathProvider, logger: ILogger) =
+    inherit FcsProjectBuilder(checkerService, Mock<_>().Object, logger, modulePathProvider)
 
     override x.GetProjectItemsPaths(project, targetFrameworkId) =
         project.GetAllProjectFiles()
@@ -132,15 +132,15 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
         checkerService.FcsProjectProvider <- this
         lifetime.OnTermination(fun _ -> checkerService.FcsProjectProvider <- Unchecked.defaultof<_>) |> ignore
 
-    let getFcsProject (sourceFile: IPsiSourceFile) =
-        fcsProjectBuilder.BuildFcsProject(sourceFile.PsiModule, sourceFile.GetProject())
+    let getFcsProject (psiModule: IPsiModule) =
+        fcsProjectBuilder.BuildFcsProject(psiModule, psiModule.ContainingProjectModule.As<IProject>())
 
     let getProjectOptions (sourceFile: IPsiSourceFile) =
-        let fcsProject = getFcsProject sourceFile
+        let fcsProject = getFcsProject sourceFile.PsiModule
         Some fcsProject.ProjectOptions
 
     interface IHideImplementation<FcsProjectProvider>
-    
+
     interface IFcsProjectProvider with
         member x.HasPairFile _ = false
 
@@ -166,18 +166,24 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
                     cfg.OutputType = ProjectOutputType.CONSOLE_EXE
                 | _ -> false
 
-            let project = sourceFile.GetProject().NotNull()
-            let paths = fcsProjectBuilder.GetProjectItemsPaths(project, targetFrameworkId) |> Array.map (fst >> string)
+            let paths =
+                if isScript then
+                    [| sourceFile.GetLocation().FullPath |]
+                else
+                    let project = sourceFile.GetProject().NotNull()
+                    fcsProjectBuilder.GetProjectItemsPaths(project, targetFrameworkId) |> Array.map (fst >> string)
+            let defines = if isScript then ImplicitDefines.scriptDefines else ImplicitDefines.sourceDefines
 
             { FSharpParsingOptions.Default with
                 SourceFiles = paths
+                ConditionalCompilationDefines = defines
                 IsExe = isExe
                 IsInteractive = isScript }
 
         member x.GetFileIndex(sourceFile) =
             if sourceFile.LanguageType.Is<FSharpScriptProjectFileType>() then 0 else
 
-            let fcsProject = getFcsProject sourceFile
+            let fcsProject = getFcsProject sourceFile.PsiModule
             match fcsProject.FileIndices.TryGetValue(sourceFile.GetLocation()) with
             | true, index -> index
             | _ -> -1
@@ -188,3 +194,5 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
         member x.InvalidateReferencesToProject _ = false
         member x.HasFcsProjects = false
         member this.GetProjectOptions(_: IPsiModule): FSharpProjectOptions option = failwith "todo"
+
+        member this.GetFcsProject(psiModule) = Some (getFcsProject psiModule)

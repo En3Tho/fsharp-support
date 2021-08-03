@@ -21,7 +21,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public FcsCheckerService CheckerService => FcsCheckerService;
 
     // ReSharper disable once NotNullMemberIsNotInitialized
-    public IFSharpResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
+    public IFcsResolvedSymbolsCache ResolvedSymbolsCache { get; set; }
 
     private readonly CachedPsiValue<FSharpOption<FSharpParseFileResults>> myParseResults =
       new FileCachedPsiValue<FSharpOption<FSharpParseFileResults>>();
@@ -32,7 +32,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       set => myParseResults.SetValue(this, value);
     }
 
-    public FSharpOption<ParsedInput> ParseTree => ParseResults?.Value.ParseTree;
+    public FSharpOption<ParsedInput> ParseTree =>
+      ParseResults?.Value.ParseTree is { } parseTree
+        ? FSharpOption<ParsedInput>.Some(parseTree)
+        : FSharpOption<ParsedInput>.None;
 
     PsiLanguageType IFSharpFileCheckInfoOwner.LanguageType { get; set; }/* = FSharpLanguage.Instance;*/
 
@@ -44,10 +47,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public FSharpSymbol GetSymbol(int offset) =>
       ResolvedSymbolsCache.GetSymbol(SourceFile, offset);
 
-    public IReadOnlyList<FSharpResolvedSymbolUse> GetAllResolvedSymbols(FSharpCheckFileResults checkResults = null) =>
+    public IReadOnlyList<FcsResolvedSymbolUse> GetAllResolvedSymbols(FSharpCheckFileResults checkResults = null) =>
       ResolvedSymbolsCache.GetAllResolvedSymbols(SourceFile);
 
-    public IReadOnlyList<FSharpResolvedSymbolUse> GetAllDeclaredSymbols(FSharpCheckFileResults checkResults = null) =>
+    public IReadOnlyList<FcsResolvedSymbolUse> GetAllDeclaredSymbols(FSharpCheckFileResults checkResults = null) =>
       ResolvedSymbolsCache.GetAllDeclaredSymbols(SourceFile);
 
     public FSharpSymbolUse GetSymbolUse(int offset) =>
