@@ -64,16 +64,17 @@ intellij {
     // localPath = "C:\\Users\\ivan.pashchenko\\AppData\\Local\\JetBrains\\Toolbox\\apps\\Rider\\ch-0\\dev"
     // localPath 'build/riderRD-173-SNAPSHOT'
 
-    val dir = file("build/rider")
-    if (dir.exists()) {
-        logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
-        localPath = dir.absolutePath
-    } else {
-        logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
-        version = "$baseVersion-SNAPSHOT"
-    }
+    // val dir = file("build/rider")
+    // if (dir.exists()) {
+    //     logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
+    //     localPath = dir.absolutePath
+    // } else {
+    //     logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
+    //     version = "$baseVersion-SNAPSHOT"
+    // }
 
-    //version = "2021.1.1"
+    //version = "2021.2-SNAPSHOT"
+    version = "2021.2"
 
     instrumentCode = false
     downloadSources = false

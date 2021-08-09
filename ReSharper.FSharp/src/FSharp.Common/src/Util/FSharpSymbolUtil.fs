@@ -2,7 +2,6 @@
 module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
 
 open System
-open FSharp.Compiler.SourceCodeServices
 open FSharp.Compiler.Symbols
 open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.Diagnostics
