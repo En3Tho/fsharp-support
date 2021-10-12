@@ -109,3 +109,111 @@ type InterpolatedStringCandidateAnalyzer() =
 
         InterpolatedStringCandidateWarning(formatStringExpr, prefixAppExpr, outerPrefixAppExpr, formatSpecsAndExprs)
         |> consumer.AddHighlighting
+
+[<ElementProblemAnalyzer([| typeof<IBinaryAppExpr> |],
+                         HighlightingTypes = [| typeof<InterpolatedStringCandidateWarning> |])>]
+type InterpolatedStringCandidateAnalyzer2() =
+    inherit ElementProblemAnalyzer<IBinaryAppExpr>()
+
+    let getFormatSpecifierLocationsAndArity (checkResults: FSharpParseAndCheckResults) (data: ElementProblemAnalyzerData) =
+        match data.GetData(InterpolatedStringCandidateAnalyzer.formatSpecifiersKey) with
+        | null ->
+            let specifiers = checkResults.CheckResults.GetFormatSpecifierLocationsAndArity()
+            data.PutData(InterpolatedStringCandidateAnalyzer.formatSpecifiersKey, specifiers)
+            specifiers
+        | data -> data
+
+    let isDisallowedStringLiteral (literalExpr: ILiteralExpr) =
+        let tokenType = getTokenType literalExpr.Literal
+        tokenType == FSharpTokenType.STRING ||
+        tokenType == FSharpTokenType.BYTEARRAY ||
+        tokenType == FSharpTokenType.VERBATIM_STRING ||
+        tokenType == FSharpTokenType.TRIPLE_QUOTED_STRING ||
+        tokenType == FSharpTokenType.REGULAR_INTERPOLATED_STRING
+
+    override x.Run(literalExpr, data, consumer) =
+        if not data.IsFSharp50Supported then () else
+
+        if isNull literalExpr then () else
+        // check that binary expression's return type is string
+        let resultType = literalExpr.Type()
+        if not (resultType.Equals(TypeOf.String)) then ()
+
+        // check that binary expression doesn't contain unsupported characters
+        // look for this pattern
+
+        // ILiteralExpression WhiteSpace IReferenceExpression (+) WhiteSpace IReferenceExpression (x) WhiteSpace IReferenceExpression (+) WhiteSpace ILiteralExpression
+
+        // create necessary data either here or in next stage
+        // process change
+
+        let tokenType = getTokenType literalExpr // IReferenceExpression // FSharpTokenType.PLUS, text: + //
+        if tokenType != FSharpTokenType.STRING &&
+           tokenType != FSharpTokenType.TRIPLE_QUOTED_STRING && // IBinaryAppExpr
+           tokenType != FSharpTokenType.VERBATIM_STRING then () else
+
+        match data.ParseAndCheckResults with
+        | None -> ()
+        | Some checkResults ->
+
+        // Find all format specifiers in our argument expression
+        let matchingFormatSpecsAndArity =
+            let document = literalExpr.GetSourceFile().Document
+            let argRange = literalExpr.GetHighlightingRange()
+
+            getFormatSpecifierLocationsAndArity checkResults data
+            |> Seq.map (fun (r, arity) ->
+                let textRange = getTextRange document r
+                DocumentRange(document, textRange), arity)
+            |> Seq.filter (fun (range, _) -> argRange.Contains(&range))
+            |> List.ofSeq
+
+        if matchingFormatSpecsAndArity.IsEmpty then () else
+
+        // Interpolated strings only support 1-arity format specifiers
+        if matchingFormatSpecsAndArity |> List.exists (fun (_, arity) -> arity <> 1) then () else
+
+        // Find the outermost IPrefixAppExpr and all applied exprs (excluding the format string itself)
+        let outerPrefixAppExpr, appliedExprs =
+            let getArgExpr (expr: IFSharpExpression) =
+                match expr.IgnoreInnerParens() with
+                | :? ITupleExpr as tupleExpr when
+                        tupleExpr != expr && not tupleExpr.IsStruct ->
+                    tupleExpr.Parent :?> IFSharpExpression
+                | expr -> expr
+
+            let rec loop (acc: ILiteralExpr list) (expr: IBinaryAppExpr) =
+                expr.IgnoreParentParens(), acc
+                //loop (getArgExpr expr :: acc) expr
+//                match PrefixAppExprNavigator.GetByFunctionExpression (expr.IgnoreParentParens()) with
+//                | null -> expr.IgnoreParentParens(), acc
+//                | parent -> loop (getArgExpr parent.ArgumentExpression :: acc) parent
+            loop [] literalExpr
+
+        if appliedExprs.Length <> matchingFormatSpecsAndArity.Length then () else
+
+        // Check that the applied expressions do not contain disallowed string literals
+        let anyDisallowedExprs =
+            let isDisallowed =
+                if tokenType == FSharpTokenType.TRIPLE_QUOTED_STRING then
+                    fun (literalExpr: ILiteralExpr) ->
+                        getTokenType literalExpr.Literal = FSharpTokenType.TRIPLE_QUOTED_STRING
+                else
+                    isDisallowedStringLiteral
+
+            appliedExprs
+            |> List.exists (fun expr ->
+                expr.ThisAndDescendants<ILiteralExpr>().ToEnumerable() |> Seq.exists isDisallowed)
+
+        if anyDisallowedExprs then () else
+
+        let formatSpecsAndExprs =
+            appliedExprs
+            |> Seq.rev
+            |> Seq.zip matchingFormatSpecsAndArity
+            |> Seq.map (fun ((r, _), expr) -> r, expr)
+            |> List.ofSeq
+
+        ignore formatSpecsAndExprs
+//        InterpolatedStringCandidateWarning(formatStringExpr, literalExpr, outerPrefixAppExpr, formatSpecsAndExprs)
+//        |> consumer.AddHighlighting
