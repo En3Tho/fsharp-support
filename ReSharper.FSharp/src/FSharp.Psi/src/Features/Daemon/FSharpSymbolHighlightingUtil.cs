@@ -156,9 +156,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (mfv.IsTopLevelParameter)
         return FSharpHighlightingAttributeIdsModule.Parameter;
 
-      return mfv.IsNestedScopeParameter
-        ? FSharpHighlightingAttributeIdsModule.NestedScopeParameter
-        : FSharpHighlightingAttributeIdsModule.Value;
+      if (mfv.IsNestedScopeParameter)
+        return FSharpHighlightingAttributeIdsModule.NestedScopeParameter;
+
+      if (mfv.IsInstanceLetOrCtorBinding)
+        return FSharpHighlightingAttributeIdsModule.Field;
+
+      return FSharpHighlightingAttributeIdsModule.Value;
     }
 
     [NotNull]

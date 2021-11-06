@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Reference Include="FSharp.Compiler.Service, Version=40.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <Reference Include="FSharp.Compiler.Service, Version=2021.2.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
             <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
         </Reference>
     </ItemGroup>
