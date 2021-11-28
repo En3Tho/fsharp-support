@@ -2,6 +2,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
 
 open System.Collections.Generic
 open FSharp.Compiler.Syntax
+open FSharp.Compiler.Syntax.PrettyNaming
 open FSharp.Compiler.Text
 open FSharp.Compiler.Xml
 open JetBrains.Application.Environment
@@ -20,7 +21,7 @@ open JetBrains.ReSharper.Psi.TreeBuilder
 open JetBrains.ReSharper.Resources.Shell
 
 [<AbstractClass>]
-type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSystemPath, projectedOffset, lineShift) =
+type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFileSystemPath, projectedOffset, lineShift) =
     inherit TreeBuilderBase(lifetime, lexer)
 
     // FCS ranges are 1-based.
@@ -151,8 +152,11 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
         for _ in lid do
             marks.Push(x.Mark())
 
-        for IdentRange id in lid do
-            x.Done(id, marks.Pop(), ElementType.EXPRESSION_REFERENCE_NAME)
+        for id in lid do
+            let isLastId = marks.Count = 1
+            if isLastId && IsActivePatternName id.idText then 
+                x.ProcessActivePatternId(id, ElementType.ACTIVE_PATTERN_NAMED_CASE_REFERENCE_NAME)
+            x.Done(id.idRange, marks.Pop(), ElementType.EXPRESSION_REFERENCE_NAME)
 
     member x.ProcessReferenceNameSkipLast(lid: Ident list) =
         match lid with
@@ -404,7 +408,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             let representationMark =
                 match cases with
                 | [] -> x.Mark(range)
-                | SynEnumCase(_, _, _, _, XmlDoc xmlDoc, _) :: _ ->
+                | SynEnumCase(xmlDoc = XmlDoc xmlDoc) :: _ ->
                     x.MarkXmlDocOwner(xmlDoc, null, range)
 
             for case in cases do
@@ -486,7 +490,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
 
         x.Done(attr.Range, mark, ElementType.ATTRIBUTE)
 
-    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, _, XmlDoc xmlDoc, range)) =
+    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, _, _, XmlDoc xmlDoc, range)) =
         let mark = x.MarkXmlDocOwner(xmlDoc, FSharpTokenType.BAR, range)
         x.ProcessAttributeLists(attrs)
         x.Done(range, mark, ElementType.ENUM_CASE_DECLARATION)
@@ -559,12 +563,8 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             x.ProcessImplicitCtorParam(pat)
             x.Done(range, mark, ElementType.ATTRIB_PAT)
 
-    member x.ProcessActivePatternId(IdentRange range, activePatternElementType, caseElementType, wildElementType) =
-        let idMark =
-            if isNotNull activePatternElementType then
-                x.Mark(range)
-            else
-                -1
+    member x.ProcessActivePatternId(IdentRange range, caseElementType) =
+        let idMark = x.Mark(range)
 
         let endOffset = x.GetEndOffset(range)
 
@@ -572,7 +572,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             let caseElementType =
                 let tokenType = x.Builder.GetTokenType()
                 if tokenType == FSharpTokenType.IDENTIFIER then caseElementType else
-                if tokenType == FSharpTokenType.UNDERSCORE then wildElementType else
+                if tokenType == FSharpTokenType.UNDERSCORE then ElementType.WILD_ACTIVE_PATTERN_WILD_CASE else
                 null
 
             if isNotNull caseElementType then
@@ -580,8 +580,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
 
             x.AdvanceLexer()
 
-        if isNotNull activePatternElementType then
-            x.Done(idMark, activePatternElementType)
+        x.Done(idMark, ElementType.ACTIVE_PATTERN_ID)
 
     member x.ProcessActivePatternDecl(id, isLocal) =
         let caseElementType =
@@ -590,8 +589,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             else
                 ElementType.TOP_ACTIVE_PATTERN_CASE_DECLARATION
 
-        x.ProcessActivePatternId(id, ElementType.ACTIVE_PATTERN_ID, caseElementType,
-            ElementType.ACTIVE_PATTERN_WILD_CASE)
+        x.ProcessActivePatternId(id, caseElementType)
 
     member x.ProcessTypeArgs(typeArgs, ltRange: range option, gtRange: range option, elementType) =
         match ltRange, typeArgs with
@@ -714,7 +712,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
 
         let processParameterGroup paramGroup synType =
             match paramGroup, synType with
-            | _, SynType.Tuple(_, types, range) ->
+            | _, SynType.Tuple(false, types, range) ->
                 let mark = x.Mark(range)
                 List.map snd types |> List.iter2 processParameterSig paramGroup
                 x.Done(mark, ElementType.TUPLE_TYPE_USAGE)
@@ -766,18 +764,14 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
                 x.Done(range, mark, ElementType.ANON_RECORD_FIELD)
             x.Done(range, mark, ElementType.ANON_RECORD_TYPE_USAGE)
 
-        | SynType.StaticConstantNamed(synType1, synType2, _)
+        | SynType.StaticConstantNamed(synType1, synType2, _) ->
+            x.MarkTypes(synType1, synType2, range, ElementType.NAMED_STATIC_CONSTANT_TYPE_USAGE)
+
         | SynType.MeasureDivide(synType1, synType2, _) ->
-            let mark = x.Mark(range)
-            x.ProcessType(synType1)
-            x.ProcessType(synType2)
-            x.Done(range, mark, ElementType.UNSUPPORTED_TYPE_USAGE)
+            x.MarkTypes(synType1, synType2, range, ElementType.UNSUPPORTED_TYPE_USAGE)
 
         | SynType.Fun(synType1, synType2, _) ->
-            let mark = x.Mark(range)
-            x.ProcessType(synType1)
-            x.ProcessType(synType2)
-            x.Done(range, mark, ElementType.FUNCTION_TYPE_USAGE)
+            x.MarkTypes(synType1, synType2, range, ElementType.FUNCTION_TYPE_USAGE)
 
         | SynType.WithGlobalConstraints(synType, constraints, _) ->
             let mark = x.Mark(range)
@@ -802,10 +796,13 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             x.ProcessTypeAsTypeReferenceName(synType)
             x.Done(range, mark, ElementType.NAMED_TYPE_USAGE)
 
-        // todo: mark expressions
-        | SynType.StaticConstantExpr _
-        | SynType.StaticConstant _ ->
-            x.MarkAndDone(range, ElementType.UNSUPPORTED_TYPE_USAGE)
+        | SynType.StaticConstantExpr(expr, _) ->
+            let mark = x.Mark(range)
+            x.MarkChameleonExpression(expr)
+            x.Done(range, mark, ElementType.EXPR_STATIC_CONSTANT_TYPE_USAGE)
+
+        | SynType.StaticConstant(synConst, _) ->
+            x.MarkAndDone(range, ElementType.EXPR_STATIC_CONSTANT_TYPE_USAGE, x.GetConstElementType(synConst))
 
         | SynType.Anon _ ->
             x.MarkAndDone(range, ElementType.ANON_TYPE_USAGE)
@@ -814,6 +811,12 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
             let mark = x.Mark(range)
             x.ProcessType(innerType)
             x.Done(range, mark, ElementType.PAREN_TYPE_USAGE)
+
+    member x.MarkTypes(synType1, synType2, range: range, elementType) =
+        let mark = x.Mark(range)
+        x.ProcessType(synType1)
+        x.ProcessType(synType2)
+        x.Done(range, mark, elementType)
 
     member x.ProcessTypeConstraint(typeConstraint: SynTypeConstraint) =
         let range = typeConstraint.Range
@@ -868,6 +871,11 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: FileSyste
         | SynExpr.Do(expr, _) -> expr
         | _ -> expr
 
+    member x.GetConstElementType(synConst) =
+        match synConst with
+        | SynConst.Unit -> ElementType.UNIT_EXPR
+        | _ -> ElementType.LITERAL_EXPR
+    
     member x.MarkChameleonExpression(expr: SynExpr) =
         let ExprRange range as expr = x.FixExpression(expr)
 

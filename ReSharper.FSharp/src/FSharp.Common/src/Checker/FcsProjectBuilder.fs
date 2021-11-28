@@ -6,6 +6,7 @@ open FSharp.Compiler.CodeAnalysis
 open JetBrains.Application
 open JetBrains.Diagnostics
 open JetBrains.ProjectModel
+open JetBrains.ProjectModel.MSBuild
 open JetBrains.ProjectModel.ProjectsHost
 open JetBrains.ProjectModel.ProjectsHost.MsBuild.Strategies
 open JetBrains.ProjectModel.Properties.Managed
@@ -13,11 +14,12 @@ open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host.ProjectItems.ItemsContainer
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi.Modules
+open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 open JetBrains.Util.Dotnet.TargetFrameworkIds
 
 type ReferencedModule =
-    { ReferencedPath: FileSystemPath
+    { ReferencedPath: VirtualFileSystemPath
       ReferencingModules: HashSet<IPsiModule> }
 
 module ReferencedModule =
@@ -96,7 +98,7 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
         | _ -> "library"
 
     abstract GetProjectItemsPaths:
-        project: IProject * targetFrameworkId: TargetFrameworkId -> (FileSystemPath * BuildAction)[]
+        project: IProject * targetFrameworkId: TargetFrameworkId -> (VirtualFileSystemPath * BuildAction)[]
 
     default x.GetProjectItemsPaths(project, targetFrameworkId) =
         let projectMark = project.GetProjectMark().NotNull()
@@ -157,21 +159,31 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
             if cfg.TreatWarningsAsErrors then
                 otherOptions.Add("--warnaserror")
 
+            if Shell.Instance.IsTestShell then
+                let languageLevel = FSharpLanguageLevel.ofPsiModuleNoCache psiModule
+                let langVersionArg =
+                    languageLevel
+                    |> FSharpLanguageLevel.toLanguageVersion
+                    |> FSharpLanguageVersion.toCompilerArg
+
+                otherOptions.Add(langVersionArg)
+
             let doc = cfg.DocumentationFile
             if not (doc.IsNullOrWhitespace()) then otherOptions.Add("--doc:" + doc)
 
             let props = cfg.PropertiesCollection
 
-            let getOption f p =
+            let getOption f (p: string, compilerArg) =
+                let compilerArg = defaultArg compilerArg (p.ToLower())
                 match props.TryGetValue(p) with
-                | true, v when not (v.IsNullOrWhitespace()) -> Some ("--" + p.ToLower() + ":" + f v)
+                | true, v when not (v.IsNullOrWhitespace()) -> Some ("--" + compilerArg + ":" + f v)
                 | _ -> None
 
-            [ FSharpProperties.TargetProfile; FSharpProperties.LangVersion ]
+            [ FSharpProperties.TargetProfile, None; FSharpProperties.LangVersion, None ]
             |> List.choose (getOption id)
             |> otherOptions.AddRange
 
-            [ FSharpProperties.NoWarn; FSharpProperties.WarnAsError ]
+            [ FSharpProperties.NoWarn, None; MSBuildProjectUtil.WarningsAsErrorsProperty, Some("warnaserror") ]
             |> List.choose (getOption (fun v -> (splitAndTrim itemsDelimiters v).Join(",")))
             |> otherOptions.AddRange
 
@@ -183,14 +195,14 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
 
         let filePaths, implsWithSig, resources = x.GetProjectFilesAndResources(project, targetFrameworkId)
 
-        otherOptions.AddRange(resources |> Seq.map (fun (r: FileSystemPath) -> "--resource:" + r.FullPath))
-        let fileIndices = Dictionary<FileSystemPath, int>()
+        otherOptions.AddRange(resources |> Seq.map (fun (r: VirtualFileSystemPath) -> "--resource:" + r.FullPath))
+        let fileIndices = Dictionary<VirtualFileSystemPath, int>()
         Array.iteri (fun i p -> fileIndices.[p] <- i) filePaths
 
         let projectOptions =
             { ProjectFileName = $"{project.ProjectFileLocation}.{targetFrameworkId}.fsproj"
               ProjectId = None
-              SourceFiles = Array.map (fun (p: FileSystemPath ) -> p.FullPath) filePaths
+              SourceFiles = Array.map (fun (p: VirtualFileSystemPath ) -> p.FullPath) filePaths
               OtherOptions = otherOptions.ToArray()
               ReferencedProjects = Array.empty
               IsIncompleteTypeCheckEnvironment = false

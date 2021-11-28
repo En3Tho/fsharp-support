@@ -34,7 +34,7 @@ module FSharpOptions =
 
 [<SettingsKey(typeof<FSharpSettings>, "FSharpOptions")>]
 type FSharpOptions =
-    { [<SettingsEntry(false, skipImplementationAnalysis); DefaultValue>]
+    { [<SettingsEntry(true, skipImplementationAnalysis); DefaultValue>]
       mutable SkipImplementationAnalysis: bool
 
       [<SettingsEntry(false, nonFSharpProjectInMemoryAnalysis); DefaultValue>]
@@ -170,7 +170,7 @@ type FSharpOptionsPage(lifetime: Lifetime, optionsPageContext, settings,
             use indent = this.Indent()
             [ this.AddBoolOption((fun key -> key.HideSameLine), RichText(FSharpTypeHintOptions.hideSameLinePipe), null) ]
             |> Seq.iter (fun checkbox ->
-                this.AddBinding(checkbox, BindingStyle.IsEnabledProperty, (fun key -> key.ShowPipeReturnTypes), id))
+                this.AddBinding(checkbox, BindingStyle.IsEnabledProperty, (fun key -> key.ShowPipeReturnTypes), fun t -> t :> obj))
 
         this.AddHeader("FSharp.Compiler.Service options")
         this.AddBoolOption((fun key -> key.SkipImplementationAnalysis), RichText(skipImplementationAnalysis), null) |> ignore
@@ -207,3 +207,10 @@ module SettingsUtil =
         let entry = getEntry<'TKey> settingsStore name
         let settingsStoreLive = settingsStore.BindToContextTransient(ContextRange.ApplicationWide)
         settingsStoreLive.GetValue(entry, null) :?> 'TValue
+
+    let getBoundEntry<'TKey> (settingsStore: IContextBoundSettingsStore) name =
+        settingsStore.Schema.GetKey<'TKey>().TryFindEntryByMemberName(name) :?> SettingsScalarEntry
+
+    let getBoundValue<'TKey, 'TValue> (settingsStore: IContextBoundSettingsStore) name =
+        let entry = getBoundEntry<'TKey> settingsStore name
+        settingsStore.GetValue(entry, null) :?> 'TValue

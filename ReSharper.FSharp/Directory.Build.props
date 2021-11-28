@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <FSharpCompilerServiceVersion>2021.2.9</FSharpCompilerServiceVersion>
-    <FSharpCoreVersion>5.0.2</FSharpCoreVersion>
+    <FSharpCompilerServiceVersion>2021.3.7</FSharpCompilerServiceVersion>
+    <FSharpCoreVersion>6.0.1</FSharpCoreVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <Company>JetBrains</Company>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)resharper-fsharp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>

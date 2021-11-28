@@ -10,7 +10,6 @@ using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Resolve;
 using JetBrains.ReSharper.Psi.Resolve;
-using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.ReSharper.Resources.Shell;
 using JetBrains.Util.DataStructures;
 using Microsoft.FSharp.Core;
@@ -43,12 +42,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       if (!myOwner.IsValid())
         return ResolveResultWithInfo.Ignore;
 
-      var symbol = GetFcsSymbol();
-      var element = symbol?.GetDeclaredElement(myOwner.GetPsiModule(), myOwner);
+      var element = GetDeclaredElement();
 
       return element != null
         ? new ResolveResultWithInfo(new SimpleResolveResult(element), ResolveErrorType.OK) // todo: add substitutions
         : ResolveResultWithInfo.Ignore;
+    }
+
+    protected virtual IDeclaredElement GetDeclaredElement()
+    {
+      var symbol = GetFcsSymbol();
+      return symbol?.GetDeclaredElement(myOwner.GetPsiModule(), myOwner);
     }
 
     public override string GetName() =>
@@ -66,8 +70,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     }
 
     public override TreeTextRange GetTreeTextRange() =>
-      myOwner.FSharpIdentifier?.IdentifierToken?.GetTreeTextRange() ??
-      TreeTextRange.InvalidRange;
+      myOwner.FSharpIdentifier?.NameRange ?? TreeTextRange.InvalidRange;
 
     public override IAccessContext GetAccessContext() =>
       new DefaultAccessContext(myOwner);
@@ -114,7 +117,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     }
 
     /// Does not reuse existing file resolve results, does complete lookup by name.
-    public FSharpOption<FSharpSymbolUse> ResolveWithFcs([NotNull] string opName, bool qualified = true)
+    public FSharpOption<FSharpSymbolUse> ResolveWithFcs([NotNull] string opName, bool resolveExpr, bool qualified)
     {
       var referenceOwner = GetElement();
       var checkerService = referenceOwner.CheckerService;
@@ -123,7 +126,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
         ? qualifiableReferenceOwner.Names
         : new[] {GetName()};
 
-      return checkerService.ResolveNameAtLocation(referenceOwner.FSharpIdentifier, names, opName);
+      return checkerService.ResolveNameAtLocation(referenceOwner.FSharpIdentifier, names, resolveExpr, opName);
     }
   }
 }

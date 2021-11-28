@@ -93,7 +93,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       if (!(SourceFile.GetPrimaryPsiFile() is IFSharpFile fsFile))
         return ResolvedSymbols.Empty;
 
-      var checkResults = CheckerService.ParseAndCheckFile(SourceFile, OpName)?.Value.CheckResults;
+      var checkResults = fsFile.GetParseAndCheckResults(false, OpName)?.Value.CheckResults;
       var symbolUses = checkResults?.GetAllUsesOfAllSymbolsInFile(null);
       if (symbolUses == null)
         return ResolvedSymbols.Empty;
@@ -309,10 +309,18 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
         }
       }
 
-      // trim foo.bar to bar
+      // We need symbol use start offset to be synchronized with FCS; trim qualifiers:
+      // `foo.bar` -> `bar`
+      // `foo.(+) -> +
+      // `foo.(|A|) -> (|A|)
+      // todo: align operators and active patterns handling in the parser
       for (var i = endOffset - 1; i > startOffset; i--)
-        if (buffer[i].Equals('.'))
+      {
+        var c = buffer[i];
+        if (c.Equals('.') || c.Equals('(') && i < endOffset - 1 && buffer[i + 1] != '|')
           return new TextRange(i + 1, endOffset);
+      }
+
       return new TextRange(startOffset, endOffset);
     }
 

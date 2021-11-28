@@ -4,13 +4,13 @@ open System
 open System.Collections.Generic
 open FSharp.Compiler.Symbols
 open FSharp.Compiler.Tokenization
-open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI
+open JetBrains.ReSharper.Psi.Naming
 open JetBrains.ReSharper.Psi.Naming.Elements
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.Naming.Extentions
@@ -19,33 +19,6 @@ open JetBrains.ReSharper.Psi.Naming.Interfaces
 open JetBrains.ReSharper.Psi.Naming.Settings
 open JetBrains.Util
 
-module Traverse =
-    type TraverseStep =
-        | TupleItem of item: int
-
-    let makeTuplePatPath pat =
-        let rec tryMakePatPath path (IgnoreParenPat fsPattern: IFSharpPattern) =
-            match fsPattern.Parent with
-            | :? ITuplePat as tuplePat ->
-                let item = tuplePat.Patterns.IndexOf(fsPattern)
-                Assertion.Assert(item <> -1, "item <> -1")
-                tryMakePatPath (TupleItem(item) :: path) tuplePat
-            | _ -> fsPattern, path
-
-        tryMakePatPath [] pat
-
-    let rec tryTraverseExprPath (path: TraverseStep list) (IgnoreInnerParenExpr expr: IFSharpExpression) =
-        match path with
-        | [] -> expr
-        | step :: rest ->
-
-        match expr, step with
-        | :? ITupleExpr as tupleExpr, TupleItem(n) ->
-            let tupleItems = tupleExpr.Expressions
-            if tupleItems.Count <= n then null else
-            tryTraverseExprPath rest tupleItems.[n]
-
-        | _ -> null
 
 module FSharpNamingService =
     let getUsedNamesUsages
@@ -155,7 +128,7 @@ module FSharpNamingService =
                     | :? IForExpr as forExpr ->
                         if isNull forExpr.DoExpression then () else
 
-                        let name = forExpr.Identifier.GetSourceName()
+                        let name = forExpr.Identifier.SourceName
                         if name <> SharedImplUtil.MISSING_DECLARATION_NAME then
                             scopes.Push({| Expr = forExpr.DoExpression; Names = [| name |] |})
 
@@ -203,22 +176,29 @@ module FSharpNamingService =
         let letDecl = LetBindingsDeclarationNavigator.GetByBinding(binding)
         getContainingType letDecl
 
+    let getPatternsNames (skipPattern: IFSharpPattern) (pats: IEnumerable<IFSharpPattern>) =
+        let pats =
+            if isNotNull skipPattern then
+                pats |> Seq.filter ((!=) skipPattern)
+            else
+                pats 
+
+        pats
+        |> Seq.collect (fun pat -> pat.NestedPatterns)
+        |> Seq.choose (fun pat ->
+            match pat with
+            | :? IReferencePat as refPat -> Some(refPat.SourceName)
+            | _ -> None)
+
     // todo: use in Rename
-    let getPatternUsedNames (contextPattern: IFSharpPattern) =
+    let getPatternContextUsedNames (contextPattern: IFSharpPattern) =
         let names = HashSet()
 
         let rec loop (pat: IFSharpPattern) =
             if isNull pat then () else
 
             let addNames (pats: IEnumerable<IFSharpPattern>) =
-                pats
-                |> Seq.filter ((!=) pat)
-                |> Seq.collect (fun pat -> pat.NestedPatterns)
-                |> Seq.choose (fun pat ->
-                    match pat with
-                    | :? INamedPat as namedPat -> Some(namedPat.SourceName)
-                    | _ -> None)
-                |> names.AddRange
+                getPatternsNames pat pats |> names.AddRange
             
             match pat.Parent with
             | :? ITuplePat as tuplePat -> addNames tuplePat.PatternsEnumerable
@@ -226,11 +206,12 @@ module FSharpNamingService =
             | :? IArrayOrListPat as asPat -> addNames asPat.PatternsEnumerable
             | :? IRecordPat as recordPat -> addNames (Seq.cast recordPat.FieldPatternsEnumerable)
             | :? IListConsPat as listConsPat -> addNames [listConsPat.HeadPattern; listConsPat.TailPattern]
+            | :? IAsPat as asPat -> addNames [asPat.LeftPattern; asPat.RightPattern]
             | :? IParametersOwnerPat as parametersOwnerPat -> addNames parametersOwnerPat.ParametersEnumerable
 
-            | :? INamedPat as namedPat ->
-                names.Add(namedPat.SourceName) |> ignore
-                loop namedPat
+            | :? IReferencePat as refPat ->
+                names.Add(refPat.SourceName) |> ignore
+                loop refPat
 
             | :? IFSharpPattern as fsPat -> loop fsPat
             | _ -> ()
@@ -242,10 +223,10 @@ module FSharpNamingService =
         let usedNames = getUsedNamesUsages contextExprs usages containingTypeElement checkFcsSymbols
         HashSet(usedNames.Keys) :> _
 
-    let createEmptyNamesCollection (fsTreeNode: IFSharpTreeNode) =
-        let sourceFile = fsTreeNode.GetSourceFile()
+    let createEmptyNamesCollection (context: ITreeNode) =
+        let sourceFile = context.GetSourceFile()
         let namingManager = sourceFile.GetSolution().GetPsiServices().Naming
-        namingManager.Suggestion.CreateEmptyCollection(PluralityKinds.Unknown, fsTreeNode.Language, true, sourceFile)
+        namingManager.Suggestion.CreateEmptyCollection(PluralityKinds.Unknown, context.Language, true, sourceFile)
 
     let getEntryOptions () =
         EntryOptions(PluralityKinds.Unknown, SubrootPolicy.Decompose, PredefinedPrefixPolicy.Remove)
@@ -262,8 +243,17 @@ module FSharpNamingService =
         namesCollection.Add(t, getEntryOptions ())
         namesCollection
 
-    let addNamesForExpression (expr: IFSharpExpression) (namesCollection: INamesCollection) =
-        namesCollection.Add(expr, getEntryOptions ())
+    let addNamesForExpression (overrideType: IType option) (expr: IFSharpExpression) (namesCollection: INamesCollection) =
+        let options = getEntryOptions ()
+        match overrideType with
+        | None -> namesCollection.Add(expr, options)
+        | Some overrideType ->
+            let namingService = NamingManager.GetNamingLanguageService(expr.Language).As<ClrNamingLanguageServiceBase>()
+            let provider = namesCollection.PolicyProvider
+
+            (namingService.SuggestRoots(expr, false, provider), namingService.SuggestRoots(overrideType, provider))
+            ||> Seq.append
+            |> Seq.iter (fun root -> namesCollection.Add(root, options))
         namesCollection
 
     let prepareNamesCollection
@@ -281,6 +271,9 @@ module FSharpNamingService =
         let usedNamesFilter = Func<_,_>(usedNames.Contains >> not)
         let suggestionOptions = SuggestionOptions(null, DefaultName = "foo", UsedNamesFilter = usedNamesFilter)
         namesCollection.Prepare(namingRule, ScopeKind.Common, suggestionOptions).AllNames()
+
+    let mangleNameIfNecessary name =
+        FSharpKeywords.AddBackticksToIdentifierIfNeeded name
 
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpNamingService(language: FSharpLanguage) =
@@ -346,7 +339,7 @@ type FSharpNamingService(language: FSharpLanguage) =
         |> dict
 
     override x.MangleNameIfNecessary(name, _) =
-        FSharpKeywords.QuoteIdentifierIfNeeded name
+        FSharpNamingService.mangleNameIfNecessary name
 
     override x.SuggestRoots(typ: IType, policyProvider: INamingPolicyProvider) =
         let roots = base.SuggestRoots(typ, policyProvider)
@@ -464,14 +457,14 @@ type FSharpNamingService(language: FSharpLanguage) =
         | _ -> EmptyList.Instance :> _
 
     member x.AddExtraNames(namesCollection: INamesCollection, fsPattern: IFSharpPattern) =
-        let pat, path = Traverse.makeTuplePatPath fsPattern
+        let pat, path = FSharpPatternUtil.ParentTraversal.makeTuplePatPath fsPattern
 
         let entryOptions =
             EntryOptions(subrootPolicy = SubrootPolicy.Decompose, emphasis = Emphasis.Good,
                          prefixPolicy = PredefinedPrefixPolicy.Remove)
 
         let addNamesForExpr expr =
-            match Traverse.tryTraverseExprPath path expr with
+            match FSharpPatternUtil.ParentTraversal.tryTraverseExprPath path expr with
             | null -> ()
             | expr -> namesCollection.Add(expr, entryOptions)
 
@@ -508,6 +501,7 @@ type FSharpNamingService(language: FSharpLanguage) =
         | _ -> ()
 
         let getParameterOwnerPat (pattern: IFSharpPattern) =
+            let pattern = FSharpPatternUtil.ignoreParentAsPatsFromRight pattern
             let parametersOwner = ParametersOwnerPatNavigator.GetByParameter(pattern.IgnoreParentParens())
             if isNotNull parametersOwner then parametersOwner else
 
@@ -515,6 +509,7 @@ type FSharpNamingService(language: FSharpLanguage) =
             ParametersOwnerPatNavigator.GetByParameter(tuplePat.IgnoreParentParens())
 
         let getUnionCaseFieldIndex (pattern: IFSharpPattern) (parametersOwnerPat: IParametersOwnerPat) =
+            let pattern = FSharpPatternUtil.ignoreParentAsPatsFromRight pattern
             let pattern = pattern.IgnoreParentParens()
 
             let singleParam = parametersOwnerPat.ParametersEnumerable.SingleItem
@@ -553,8 +548,9 @@ type FSharpNamingService(language: FSharpLanguage) =
         addUnionCaseFieldName ()
 
         match fsPattern with
-        | :? INamedPat as namedPat ->
-            let parametersOwner = ParametersOwnerPatNavigator.GetByParameter(namedPat.IgnoreParentParens())
+        | :? IReferencePat as refPat ->
+            let pat = FSharpPatternUtil.ignoreParentAsPatsFromRight refPat
+            let parametersOwner = ParametersOwnerPatNavigator.GetByParameter(pat.IgnoreParentParens())
             if isNull parametersOwner || parametersOwner.Parameters.Count <> 1 then () else
 
             let typeName = addSingleParamSuggestions.TryGetValue(parametersOwner.ReferenceName.ShortName)

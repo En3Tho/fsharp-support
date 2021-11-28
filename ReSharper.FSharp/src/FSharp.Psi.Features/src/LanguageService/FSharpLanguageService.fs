@@ -67,14 +67,12 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
         let sourceFile = fsFile.GetSourceFile()
         FSharpCacheDeclarationProcessor.GetObjectExpressions(fsFile, sourceFile) |> Seq.cast
 
-    override x.CalcOffset(declaration) =
-        match declaration with
-        | :? IAsPat as asPat -> asPat.Identifier.GetTreeStartOffset()
-        | _ -> base.CalcOffset(declaration)
-
     member x.GetDefaultAccessType(declaredElement: IDeclaredElement) =
         // todo: invocations, partial applications
         match declaredElement with
+        | :? IUnionCase ->
+            ReferenceAccessType.OTHER
+
         | :? IField
         | :? IProperty
         | :? IFSharpAnonRecordFieldProperty ->
@@ -115,6 +113,11 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
             if isNotNull (RecordFieldBindingNavigator.GetByReferenceName(referenceName)) then
                 ReferenceAccessType.WRITE else
 
+            if isNotNull (ReferencePatNavigator.GetByReferenceName(referenceName)) ||
+                   isNotNull (ParametersOwnerPatNavigator.GetByReferenceName(referenceName)) ||
+                   isNotNull (FieldPatNavigator.GetByReferenceName(referenceName)) then
+                ReferenceAccessType.OTHER else
+
             x.GetDefaultAccessType(declaredElement)
 
         | _ ->
@@ -125,6 +128,7 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
         | null -> null
         | generatedElement -> generatedElement.CreatePointer() :?> _
 
+    override x.AnalyzeFormatStrings = false
     override x.AnalyzePossibleInfiniteInheritance = false
 
     override x.GetTypeConversionRule(_, _) = ClrPredefinedTypeConversionRule.INSTANCE

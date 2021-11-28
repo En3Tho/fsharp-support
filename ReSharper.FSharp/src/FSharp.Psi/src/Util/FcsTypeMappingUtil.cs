@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FSharp.Compiler.CodeAnalysis;
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.Diagnostics;
@@ -13,6 +14,8 @@ using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
 using JetBrains.Util.Logging;
+
+using Range = FSharp.Compiler.Text.Range;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 {
@@ -53,7 +56,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 
       try
       {
-        return new ClrTypeName(entity.QualifiedBaseName);
+        // `Replace` workarounds fix for https://github.com/dotnet/fsharp/issues/9.
+        return new ClrTypeName(entity.QualifiedBaseName.Replace(@"\,", ",")); 
       }
       catch (Exception e)
       {
@@ -161,9 +165,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
         : TypeFactory.CreateUnknownType(psiModule);
     }
 
-    public static IType MapType([NotNull] this FSharpType fcsType, [NotNull] ITreeNode treeNode) =>
-      // todo: get external type parameters
-      MapType(fcsType, EmptyList<ITypeParameter>.Instance, treeNode.GetPsiModule());
+    // todo: get type parameters for local bindings
+    public static IType MapType([NotNull] this FSharpType fcsType, [NotNull] ITreeNode context)
+    {
+      var typeMemberDeclaration = context.GetContainingNode<ITypeMemberDeclaration>();
+      var typeParametersOwner = typeMemberDeclaration?.DeclaredElement as IFSharpTypeParametersOwner;
+      var typeParameters = typeParametersOwner?.AllTypeParameters ?? EmptyList<ITypeParameter>.Instance;
+      return MapType(fcsType, typeParameters, context.GetPsiModule());
+    }
 
     [NotNull]
     private static IType GetSingleTypeArgument([NotNull] FSharpType fcsType, IList<ITypeParameter> typeParams,
@@ -222,17 +231,40 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       return ParameterKind.VALUE;
     }
 
-    [CanBeNull]
-    public static FSharpType TryGetFcsType([NotNull] this IFSharpTreeNode fsTreeNode)
+    public static bool TryGetFcsRange(this ITreeNode treeNode, out Range range)
     {
-      var checkResults = fsTreeNode.FSharpFile.GetParseAndCheckResults(true, "TryGetFcsType")?.Value?.CheckResults;
+      range = default;
+
+      var sourceFile = treeNode.GetSourceFile();
+      if (sourceFile == null) return false;
+
+      range = treeNode.GetDocumentRange().ToFcsRange(sourceFile.GetLocation());
+      return true;
+    }
+
+    private static FSharpCheckFileResults GetCheckResults(this IFSharpTreeNode fsTreeNode, string opName) =>
+      fsTreeNode.FSharpFile.GetParseAndCheckResults(true, opName)?.Value?.CheckResults;
+
+    [CanBeNull]
+    public static FSharpType TryGetFcsType([NotNull] this IFSharpTreeNode treeNode)
+    {
+      var checkResults = treeNode.GetCheckResults(nameof(TryGetFcsType));
       if (checkResults == null) return null;
 
-      var sourceFile = fsTreeNode.GetSourceFile();
-      if (sourceFile == null) return null;
+      return treeNode.TryGetFcsRange(out var range)
+        ? checkResults.GetTypeOfExpression(range)?.Value
+        : null;
+    }
 
-      var range = fsTreeNode.GetDocumentRange().ToDocumentRange(sourceFile.GetLocation());
-      return checkResults.GetTypeOfExpression(range)?.Value;
+    [CanBeNull]
+    public static FSharpDisplayContext TryGetFcsDisplayContext([NotNull] this IFSharpTreeNode treeNode)
+    {
+      var checkResults = treeNode.GetCheckResults(nameof(TryGetFcsDisplayContext));
+      if (checkResults == null) return null;
+
+      return treeNode.TryGetFcsRange(out var range)
+        ? checkResults.GetExpressionDisplayContext(range)?.Value
+        : null;
     }
 
     [NotNull]

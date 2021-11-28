@@ -30,6 +30,11 @@ let isValCompiledAsMethod (mfv: FSharpMemberOrFunctionOrValue) =
 let isLiteral (mfv: FSharpMemberOrFunctionOrValue) =
     mfv.LiteralValue.IsSome
 
+let isEnumMember (field: FSharpField) =
+    match field.DeclaringEntity with
+    | Some entity -> entity.IsEnum
+    | _ -> false
+
 [<CompiledName("GetReturnType")>]
 let getReturnType (symbol: FSharpSymbol) =
     match symbol with

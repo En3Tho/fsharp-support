@@ -29,12 +29,8 @@ type FSharpExpressionEvaluationInfoProvider() =
             let qualifier = getTextToEvaluate indexerExpr.Qualifier
             if isNull qualifier then null else
 
-            let getArgText (arg: IIndexerArg) =
-                let argExpr = arg.As<IIndexerArg>()
-                if isNull argExpr then null else getTextToEvaluate argExpr.Expression
-
             let args = indexerExpr.Args
-            let argsText = args |> Seq.map getArgText
+            let argsText = args |> Seq.map getTextToEvaluate
             if argsText |> Seq.exists isNull then null else
 
             let argsText = String.concat "," argsText
@@ -46,7 +42,7 @@ type FSharpExpressionEvaluationInfoProvider() =
         getTextToEvaluate expr
 
     interface IExpressionEvaluationInfoProvider with
-        member x.FindExpression(file, range, _, _) =
+        member x.FindExpression(file, range, _, _, _, _) =
             let expr = file.GetNode<IFSharpExpression>(range)
             let exprName = getTextToEvaluate expr
             if isNotNull exprName then

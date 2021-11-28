@@ -13,12 +13,14 @@ open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.RdBackend.Common.Features.Services
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Rider.Model
+open JetBrains.TextControl.DocumentMarkup
 open JetBrains.Util
 
 module FSharpInferredTypeHighlighting =
@@ -53,9 +55,16 @@ type InferredTypeCodeVisionProvider() =
 
             let shell = Shell.Instance
             shell.GetComponent<Clipboard>().SetText(entry.Text)
+            let documentMarkupManager = shell.GetComponent<IDocumentMarkupManager>()
             shell.GetComponent<ITooltipManager>().Show(copiedText, PopupWindowContextSource(fun _ ->
-                let offset = highlighting.Range.StartOffset.Offset
-                RiderEditorOffsetPopupWindowContext(offset) :> _))
+                let documentMarkup = documentMarkupManager.TryGetMarkupModel(highlighting.Range.Document)
+                if isNull documentMarkup then null else
+                let highlighter =
+                    documentMarkup.GetFilteredHighlighters(id, fun h -> highlighting.Equals(h.UserData))
+                    |> Seq.tryHead
+                    |> Option.toObj
+
+                RiderEditorOffsetPopupWindowContext(highlighter) :> _))
 
         member x.OnExtraActionClick(_, _, _) = ()
 
@@ -127,12 +136,11 @@ and InferredTypeCodeVisionProviderProcess(fsFile, settings, daemonProcess, provi
 
     override x.VisitTopBinding(binding, consumer) =
         let headPattern = binding.HeadPattern.IgnoreInnerParens()
-        if not headPattern.IsDeclaration then () else
+        let pattern = FSharpPatternUtil.ignoreInnerAsPatsToRight headPattern
+        let refPat = pattern.IgnoreInnerParens().As<IReferencePat>()
+        if isNull refPat || not refPat.IsDeclaration then () else
 
-        let namedPat = headPattern.As<INamedPat>()
-        if isNull namedPat then () else
-
-        let symbolUse = (headPattern :?> IFSharpDeclaration).GetFcsSymbolUse()
+        let symbolUse = refPat.GetFcsSymbolUse()
         if isNull symbolUse then () else
 
         match symbolUse.Symbol with

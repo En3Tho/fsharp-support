@@ -1,7 +1,8 @@
 import com.jetbrains.rd.generator.gradle.RdGenExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.grammarkit.tasks.GenerateLexer
-import org.jetbrains.intellij.IntelliJPlugin
+import org.jetbrains.intellij.IntelliJPluginConstants
+import org.jetbrains.intellij.tasks.IntelliJInstrumentCodeTask
 import org.jetbrains.intellij.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.tasks.RunIdeTask
 import org.jetbrains.kotlin.daemon.common.toHexString
@@ -27,8 +28,8 @@ repositories {
 }
 
 plugins {
-    id("org.jetbrains.intellij") version "0.7.2" // https://github.com/JetBrains/gradle-intellij-plugin/releases
-    id("org.jetbrains.grammarkit") version "2018.1.7"
+    id("org.jetbrains.intellij") version "1.2.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
+    id("org.jetbrains.grammarkit") version "2021.1.3"
     id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
     kotlin("jvm") version "1.4.10"
 }
@@ -45,18 +46,18 @@ java {
 }
 
 
-val baseVersion = "2021.2"
+val baseVersion = "2021.3"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
 intellij {
-    type = "RD"
+    type.set("RD")
 
     // Download a version of Rider to compile and run with. Either set `version` to
     // 'LATEST-TRUNK-SNAPSHOT' or 'LATEST-EAP-SNAPSHOT' or a known version.
     // This will download from www.jetbrains.com/intellij-repository/snapshots or
     // www.jetbrains.com/intellij-repository/releases, respectively.
-    // Note that there's no guarantee that these are kept up to date
+    // Note that there's no guarantee that these are kept up-to-date
     // version = 'LATEST-TRUNK-SNAPSHOT'
     // If the build isn't available in intellij-repository, use an installed version via `localPath`
     // localPath = '/Users/matt/Library/Application Support/JetBrains/Toolbox/apps/Rider/ch-1/171.4089.265/Rider EAP.app/Contents'
@@ -64,26 +65,23 @@ intellij {
     // localPath = "C:\\Users\\ivan.pashchenko\\AppData\\Local\\JetBrains\\Toolbox\\apps\\Rider\\ch-0\\dev"
     // localPath 'build/riderRD-173-SNAPSHOT'
 
-    // val dir = file("build/rider")
-    // if (dir.exists()) {
-    //     logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
-    //     localPath = dir.absolutePath
-    // } else {
-    //     logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
-    //     version = "$baseVersion-SNAPSHOT"
-    // }
+    val dir = file("build/rider")
+    if (dir.exists()) {
+        logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
+        localPath.set(dir.absolutePath)
+    } else {
+        logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
+        version.set("$baseVersion-SNAPSHOT")
+    }
 
-    //version = "2021.2-SNAPSHOT"
-    version = "2021.2"
-
-    instrumentCode = false
-    downloadSources = false
+    instrumentCode.set(false)
+    downloadSources.set(false)
 
     // Uncomment when need to install plugin into a different IDE build.
     // updateSinceUntilBuild = false
 
     // Workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
-    setPlugins("rider-plugins-appender")
+    plugins.set(listOf("rider-plugins-appender"))
 }
 
 repositories.forEach {
@@ -147,7 +145,7 @@ val fantomasFiles = listOf(
         "FSharp.Fantomas.Host/$outputRelativePath/Fantomas.dll")
 
 val dotNetSdkPath by lazy {
-    val sdkPath = intellij.ideaDependency.classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
+    val sdkPath = intellij.getIdeaDependency(project).classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
     if (sdkPath.isDirectory.not()) error("$sdkPath does not exist or not a directory")
 
     println("SDK path: $sdkPath")
@@ -184,7 +182,7 @@ configure<RdGenExtension> {
     logger.info("Configuring rdgen params")
     classpath({
         logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${intellij.ideaDependency}")
-        val sdkPath = intellij.ideaDependency.classes
+        val sdkPath = intellij.getIdeaDependency(project).classes
         val rdLibDirectory = File(sdkPath, "lib/rd").canonicalFile
 
         "$rdLibDirectory/rider-model.jar"
@@ -240,13 +238,27 @@ configure<RdGenExtension> {
 }
 
 tasks {
+    withType<IntelliJInstrumentCodeTask> {
+        val bundledMavenArtifacts = file("build/maven-artifacts")
+        if (bundledMavenArtifacts.exists()) {
+            logger.lifecycle("Use ant compiler artifacts from local folder: $bundledMavenArtifacts")
+            compilerClassPathFromMaven.set(
+                bundledMavenArtifacts.walkTopDown()
+                    .filter { it.extension == "jar" && !it.name.endsWith("-sources.jar") }
+                    .toList() + File("${ideaDependency.get().classes}/lib/util.jar")
+            )
+        } else {
+            logger.lifecycle("Use ant compiler artifacts from maven")
+        }
+    }
+
     withType<PrepareSandboxTask> {
         var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
         files = files.map { "$resharperPluginPath/src/$it" }
         val fantomasFiles = fantomasFiles.map { "$resharperPluginPath/src/$it" }
         val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
-        if (name == IntelliJPlugin.PREPARE_TESTING_SANDBOX_TASK_NAME) {
+        if (name == IntelliJPluginConstants.PREPARE_TESTING_SANDBOX_TASK_NAME) {
             val testHostPath = "$resharperPluginPath/test/src/FSharp.Tests.Host/$outputRelativePath"
             val testHostName = "$testHostPath/JetBrains.ReSharper.Plugins.FSharp.Tests.Host"
             files = files + listOf("$testHostName.dll", "$testHostName.pdb")
@@ -254,7 +266,7 @@ tasks {
 
         fun moveToPlugin(files: List<String>, destFolder: String) {
             files.forEach {
-                from(it) { into("${intellij.pluginName}/$destFolder") }
+                from(it) { into("${intellij.pluginName.get()}/$destFolder") }
             }
         }
 
@@ -268,7 +280,7 @@ tasks {
                 files.forEach {
                     val file = file(it)
                     if (!file.exists()) throw RuntimeException("File $file does not exist")
-                    logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName}/$destFolder")
+                    logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName.get()}/$destFolder")
                 }
             }
             validateFiles(files, "dotnet")

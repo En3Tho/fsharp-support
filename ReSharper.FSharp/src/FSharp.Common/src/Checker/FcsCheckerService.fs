@@ -31,11 +31,11 @@ module FcsCheckerService =
 
 
 type FcsProject =
-    { OutputPath: FileSystemPath
-      FileIndices: Dictionary<FileSystemPath, int>
+    { OutputPath: VirtualFileSystemPath
+      FileIndices: Dictionary<VirtualFileSystemPath, int>
       ProjectOptions: FSharpProjectOptions
       ParsingOptions: FSharpParsingOptions
-      ImplementationFilesWithSignatures: ISet<FileSystemPath> }
+      ImplementationFilesWithSignatures: ISet<VirtualFileSystemPath> }
 
     member x.IsKnownFile(sourceFile: IPsiSourceFile) =
         x.FileIndices.ContainsKey(sourceFile.GetLocation())
@@ -95,6 +95,10 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
 
     member x.ParseAndCheckFile([<NotNull>] sourceFile: IPsiSourceFile, opName,
             [<Optional; DefaultParameterValue(false)>] allowStaleResults) =
+        match PinTypeCheckResultsCookie.PinnedResults with
+        | Some(parseResults, checkResults) -> Some({ ParseResults = parseResults; CheckResults = checkResults })
+        | _ ->
+
         ProhibitTypeCheckCookie.AssertTypeCheckIsAllowed()
 
         match x.FcsProjectProvider.GetProjectOptions(sourceFile) with
@@ -116,6 +120,12 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         | _ ->
             logger.Trace("ParseAndCheckFile: fail {0}, {1}", path, opName)
             None
+
+    member x.PinCheckResults(sourceFile, prohibitTypeCheck, opName) =
+        match x.ParseAndCheckFile(sourceFile, opName) with
+        | Some(parseAndCheckResults) ->
+            new PinTypeCheckResultsCookie(sourceFile, parseAndCheckResults.ParseResults, parseAndCheckResults.CheckResults, prohibitTypeCheck) :> IDisposable
+        | _ -> { new IDisposable with member this.Dispose() = () }
 
     member x.TryGetStaleCheckResults([<NotNull>] file: IPsiSourceFile, opName) =
         match x.FcsProjectProvider.GetProjectOptions(file) with
@@ -151,24 +161,27 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
             |> Seq.iter x.InvalidateFcsProject
 
     /// Use with care: returns wrong symbol inside its non-recursive declaration, see dotnet/fsharp#7694.
-    member x.ResolveNameAtLocation(sourceFile: IPsiSourceFile, names, coords, opName) =
+    member x.ResolveNameAtLocation(sourceFile: IPsiSourceFile, names, coords, resolveExpr: bool, opName) =
         // todo: different type parameters count
         x.ParseAndCheckFile(sourceFile, opName, true)
         |> Option.bind (fun results ->
             let checkResults = results.CheckResults
             let fcsPos = getPosFromCoords coords
-            let lineText = sourceFile.Document.GetLineText(coords.Line)
-            checkResults.GetSymbolUseAtLocation(fcsPos.Line, fcsPos.Column, lineText, names))
+            if resolveExpr then
+                checkResults.ResolveNamesAtLocation(fcsPos, names)
+            else
+                let lineText = sourceFile.Document.GetLineText(coords.Line)
+                checkResults.GetSymbolUseAtLocation(fcsPos.Line, fcsPos.Column, lineText, names))
 
     /// Use with care: returns wrong symbol inside its non-recursive declaration, see dotnet/fsharp#7694.
-    member x.ResolveNameAtLocation(sourceFile: IPsiSourceFile, name, coords, opName) =
-        x.ResolveNameAtLocation(sourceFile, [name], coords, opName)
+    member x.ResolveNameAtLocation(sourceFile: IPsiSourceFile, name: string, coords, resolveExpr, opName) =
+        x.ResolveNameAtLocation(sourceFile, [name], coords, resolveExpr, opName)
 
     /// Use with care: returns wrong symbol inside its non-recursive declaration, see dotnet/fsharp#7694.
-    member x.ResolveNameAtLocation(context: ITreeNode, names, opName) =
+    member x.ResolveNameAtLocation(context: ITreeNode, names, resolveExpr, opName) =
         let offset = context.GetNavigationRange().EndOffset - 1
         let coords = offset.ToDocumentCoords()
-        x.ResolveNameAtLocation(context.GetSourceFile(), List.ofSeq names, coords, opName)
+        x.ResolveNameAtLocation(context.GetSourceFile(), List.ofSeq names, coords, resolveExpr, opName)
 
 
 type FSharpParseAndCheckResults =
@@ -200,7 +213,7 @@ type IFcsProjectProvider =
 
 type IScriptFcsProjectProvider =
     abstract GetScriptOptions: IPsiSourceFile -> FSharpProjectOptions option
-    abstract GetScriptOptions: FileSystemPath * string -> FSharpProjectOptions option
+    abstract GetScriptOptions: VirtualFileSystemPath * string -> FSharpProjectOptions option
 
 
 type IFcsAssemblyReaderShim =

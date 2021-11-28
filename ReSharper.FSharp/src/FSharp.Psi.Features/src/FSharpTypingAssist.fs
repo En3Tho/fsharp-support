@@ -240,7 +240,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
         infixOpTokens.Contains(lexer.TokenType) ||
 
         lexer.TokenType == FSharpTokenType.SYMBOLIC_OP &&
-        IsInfixOperator (lexer.GetTokenText())
+        IsOperatorDisplayName (lexer.GetTokenText())
 
 
     static let charOffsetInRightBrackets: IDictionary<char, (TokenNodeType * int)[]> =
@@ -430,7 +430,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
     let insertNewLineAt textControl indent trimAfterCaret =
         use command = this.CommandProcessor.UsingCommand("New Line")
         let insertPos = trimTrailingSpaces textControl trimAfterCaret
-        let text = this.GetNewLineText(textControl) + System.String(' ', indent)
+        let text = this.GetNewLineText(textControl) + String(' ', indent)
         insertText textControl insertPos text "Indent on Enter"
 
     let insertIndentFromLine textControl line =
@@ -570,9 +570,21 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
         let caretLine = caretCoords.Line
 
         if caretLine.Next >= document.GetLineCount() then false else
-        if not (document.GetLineText(caretLine).IsWhitespace()) then false else
+        let lineStartOffset = document.GetLineStartOffset(caretLine)
 
-        match tryGetNestedIndentBelow cachingLexerService textControl caretLine (int caretCoords.Column) with
+        let mutable lexer = Unchecked.defaultof<_>
+        let mutable seenComment = false
+        if not (x.GetCachingLexer(textControl, &lexer) && lexer.FindTokenAt(lineStartOffset)) then false else
+
+        while lexer.TokenType == FSharpTokenType.WHITESPACE ||
+                isNotNull lexer.TokenType && lexer.TokenType.IsComment && lexer.TokenStart < caretOffset do
+            seenComment <- seenComment || lexer.TokenType.IsComment
+            lexer.Advance()
+
+        if lexer.TokenType != FSharpTokenType.NEW_LINE then false else
+
+        let currentIndent = if seenComment then 0 else int caretCoords.Column
+        match tryGetNestedIndentBelow cachingLexerService textControl caretLine seenComment currentIndent with
         | None -> false
         | Some (_, (Source indent | Comments indent)) ->
             insertNewLineAt textControl indent TrimTrailingSpaces.No
@@ -709,7 +721,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
                         Some range
 
                     // for i = ... to ... do {caret}
-                    | SynExpr.For (_, IdentRange range, _, _, ExprRange lastRange, _, _)
+                    | SynExpr.For (_, IdentRange range, _, _, _, ExprRange lastRange, _, _)
 
                     // for ... in ... do {caret}
                     | SynExpr.ForEach (_, _, _, PatRange range, ExprRange lastRange, _, _) when
@@ -756,7 +768,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
         let document = textControl.Document
         let visitor =
             { new SyntaxVisitorBase<_>() with
-                member x.VisitMatchClause(_, defaultTraverse, (SynMatchClause.SynMatchClause (pat, whenExpr, _, _, _) as mc)) =
+                member x.VisitMatchClause(_, defaultTraverse, (SynMatchClause.SynMatchClause (pat, whenExpr, _, _, _, _) as mc)) =
                     match pat, whenExpr with
                     | _, Some (ExprRange range)
                     | PatRange range, None when getEndOffset document range = prevTokenEnd -> Some mc
@@ -769,7 +781,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
         let documentCoords = document.GetCoordsByOffset(lexer.TokenStart)
         match SyntaxTraversal.Traverse(getPosFromCoords documentCoords, parseTree, visitor) with
         | None -> false
-        | Some (SynMatchClause.SynMatchClause (_, _, _, range, _)) ->
+        | Some (SynMatchClause.SynMatchClause (_, _, _, _, range, _)) ->
 
         use cookie = LexerStateCookie.Create(lexer)
 
@@ -823,8 +835,8 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
                 let line = getContinuedIndentLine textControl leftBracketStartOffset LeadingParenContinuesLine.Yes
                 getLineWhitespaceIndent textControl line
 
-        let baseIndentString = x.GetNewLineText(textControl) + System.String(' ', baseIndentLength)
-        let indentString = baseIndentString + System.String(' ',  getIndentSize textControl)
+        let baseIndentString = x.GetNewLineText(textControl) + String(' ', baseIndentLength)
+        let indentString = baseIndentString + String(' ',  getIndentSize textControl)
 
         if lastElementEndOffset = leftBracketEndOffset then
             let newText =
@@ -1206,6 +1218,8 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
         x.HandleSurroundTyping(context, lBrace, rBrace, lToken, rToken, JetFunc<_>.False)
 
     member x.HandleLeftBracket(context: ITypingContext) =
+        let hasSelection = context.TextControl.Selection.HasSelection()
+
         this.HandleLeftBracketTyped(context,
              (fun lexer -> leftBrackets.Contains(lexer.TokenType)),
              (fun _ -> FSharpBracketMatcher() :> _),
@@ -1215,7 +1229,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
 
         // todo: insert pair brace in `$"{ {caret} }"`
 
-        if context.Char = '{' then
+        if context.Char = '{' && not hasSelection then
             let mutable lexer = Unchecked.defaultof<_>
             let textControl = context.TextControl
             let typedPos = textControl.Caret.Offset() - 1
@@ -1519,7 +1533,7 @@ type FSharpTypingAssist(lifetime, solution, settingsStore, cachingLexerService, 
 
         if additionalSpaces > 0 then
             let replaceRange = TextRange(startOffset, endOffset)
-            document.ReplaceText(replaceRange, System.String(' ', additionalSpaces))
+            document.ReplaceText(replaceRange, String(' ', additionalSpaces))
 
         elif startOffset <> endOffset then
             document.DeleteText(TextRange(startOffset, endOffset))
@@ -1604,9 +1618,9 @@ let tryGetNestedIndentBelowLine cachingLexerService textControl line =
     match getLineIndent cachingLexerService textControl line with
     | None | Some (Comments _) -> None
     | Some (Source currentIndent) ->
-        tryGetNestedIndentBelow cachingLexerService textControl line currentIndent
+        tryGetNestedIndentBelow cachingLexerService textControl line false currentIndent
 
-let tryGetNestedIndentBelow cachingLexerService textControl line currentIndent =
+let tryGetNestedIndentBelow cachingLexerService textControl line preferComment currentIndent =
     let linesCount = textControl.Document.GetLineCount()
 
     let rec tryFindIndent (firstFoundCommentIndent: (Line * LineIndent) option) line =
@@ -1617,6 +1631,8 @@ let tryGetNestedIndentBelow cachingLexerService textControl line currentIndent =
             |> Option.map (fun indent -> line, indent)
 
         match indent, firstFoundCommentIndent with
+        | Some (_, Comments _), _ when preferComment -> indent
+
         | Some (_, Source n), _ ->
             if n > currentIndent then indent else firstFoundCommentIndent
 

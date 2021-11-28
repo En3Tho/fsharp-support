@@ -5,6 +5,7 @@ open JetBrains.ProjectModel
 open JetBrains.ReSharper.FeaturesTestFramework.Refactorings
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Tests
+open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
 [<FSharpTest>]
@@ -24,7 +25,10 @@ type FSharpRenameTest() =
         let testName = x.TestMethodName
         let csExtension = CSharpProjectFileType.CS_EXTENSION
         let fsExtension = FSharpProjectFileType.FsExtension
-        x.DoTestSolution([| testName + csExtension; testName + fsExtension |])
+        x.DoTestSolution(testName + csExtension, testName + fsExtension)
+
+    [<Test>] member x.``Escaped name 01 - Type``() = x.DoNamedTest()
+    [<Test>] member x.``Escaped name 02 - Binding``() = x.DoNamedTest()
 
     [<Test>] member x.``Inline - Declaration``() = x.DoNamedTest()
     [<Test>] member x.``Inline - Use``() = x.DoNamedTest()
@@ -119,6 +123,10 @@ type FSharpRenameTest() =
 
     [<Test>] member x.``Types - New expr 01``() = x.DoNamedTest()
 
+    [<TestPackages(SqlProviderPackage, Inherits = true)>]
+    [<TestSetting(typeof<JetBrains.ReSharper.Plugins.FSharp.Settings.FSharpExperimentalFeatures>, "OutOfProcessTypeProviders", "false")>]
+    [<Test>] member x.``Types - Arg - Expr 01``() = x.DoNamedTest()
+
     [<Test>] member x.``Interface 01 - Impl``() = x.DoNamedTest()
     [<Test>] member x.``Interface 02 - Internal type impl``() = x.DoNamedTest()
 
@@ -149,6 +157,10 @@ type FSharpRenameTest() =
     [<Test>] member x.``Active patterns - Type private 01 - Partial``() = x.DoNamedTest()
     [<Test>] member x.``Active patterns - Type private 02 - Single``() = x.DoNamedTest()
     [<Test>] member x.``Active patterns - Type private 03 - Total``() = x.DoNamedTest()
+
+    [<Test>] member x.``Active patterns - Qualified 01 - Decl``() = x.DoNamedTest()
+    [<Test>] member x.``Active patterns - Qualified 02 - Expr``() = x.DoNamedTest()
+    [<Test>] member x.``Active patterns - Qualified 03 - Pattern``() = x.DoNamedTest()
 
     [<Test>] member x.``Active patterns - Unavailable``() = x.DoNamedTest()
     [<Test>] member x.``Active patterns - Should start with upper case``() = x.DoNamedTest()

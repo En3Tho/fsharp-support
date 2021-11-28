@@ -371,6 +371,8 @@ let getNextNodeOfType nodeType (node: ITreeNode) =
 
 
 let rec skipIntermediateParentsOfSameType<'T when 'T :> ITreeNode> (node: 'T) =
+    if isNull node then node else
+
     match node.Parent with
     | :? 'T as pat -> skipIntermediateParentsOfSameType pat
     | _ -> node
@@ -448,13 +450,13 @@ let withNewLineAndIndentBefore (indent: int) (node: IFSharpTreeNode) =
 
 
 [<CanBeNull>]
-let rec tryFindRootPrefixAppWhereExpressionIsFunc ([<CanBeNull>] expr: IFSharpExpression) =
-    let prefixApp = PrefixAppExprNavigator.GetByFunctionExpression(expr.IgnoreParentParens())
-    if isNotNull prefixApp && isNotNull prefixApp.ArgumentExpression then
-        tryFindRootPrefixAppWhereExpressionIsFunc(prefixApp)
-    else expr
+let rec getOutermostPrefixAppExpr ([<CanBeNull>] expr: IFSharpExpression) =
+    let prefixAppExpr = PrefixAppExprNavigator.GetByFunctionExpression(expr.IgnoreParentParens())
+    if isNull prefixAppExpr || isNull prefixAppExpr.ArgumentExpression then expr else
 
-let rec getAllExpressionArgs (expr: IFSharpExpression) =
+    getOutermostPrefixAppExpr prefixAppExpr
+
+let rec getPrefixAppExprArgs (expr: IFSharpExpression) =
     let mutable currentExpr = expr
     seq {
         while isNotNull currentExpr do

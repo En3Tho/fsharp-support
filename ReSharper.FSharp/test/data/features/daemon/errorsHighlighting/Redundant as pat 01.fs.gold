@@ -1,0 +1,8 @@
+﻿module Module
+
+match () with
+| |_ as|(0) |u|(1) -> ()
+
+---------------------------------------------------------
+(0): ReSharper Dead Code: Redundant 'as' pattern
+(1): ReSharper Dead Code [FS1182]: The value 'u' is unused

@@ -171,10 +171,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static string GetSourceName([CanBeNull] this IIdentifier identifier) =>
       identifier?.Name ?? SharedImplUtil.MISSING_DECLARATION_NAME;
 
-    [NotNull]
-    public static string GetSourceName([CanBeNull] this ITreeNode treeNode) =>
-      GetSourceName(treeNode as IIdentifier);
-
     public static TreeTextRange GetNameRange([CanBeNull] this IFSharpIdentifierLikeNode identifier)
     {
       if (identifier == null)
@@ -270,17 +266,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     }
 
     [CanBeNull]
-    internal static IDeclaredElement GetActivePatternByIndex(this IFSharpDeclaration declaration, int index)
+    public static IDeclaredElement GetActivePatternCaseByIndex(this IFSharpDeclaration declaration, int index)
     {
-      if (!(declaration.NameIdentifier is ActivePatternId patternId))
-        return null;
+      if (declaration.NameIdentifier is ActivePatternId activePatternId)
+        return activePatternId.GetCase(index)?.DeclaredElement;
 
-      var cases = patternId.Cases;
-      if (index < 0 || index >= cases.Count)
-        return null;
-
-      var caseDeclaration = cases[index] as IActivePatternNamedCaseDeclaration;
-      return caseDeclaration?.DeclaredElement;
+      return null;
     }
 
     public static TreeNodeCollection<IAttribute> GetAttributes([NotNull] this IDeclaration declaration)
@@ -513,7 +504,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       if (GetTypeKind(declaration.Attributes, out var typeKind))
         return typeKind;
 
-      foreach (var member in declaration.TypeMembersEnumerable)
+      var typeMembers = declaration.TypeMembersEnumerable;
+      if (typeMembers.IsEmpty())
+        return PartKind.Class;
+
+      foreach (var member in typeMembers)
         if (!(member is IInterfaceInherit) && !(member is IAbstractMemberDeclaration))
           return PartKind.Class;
 
@@ -701,13 +696,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       if (typeElement is IFSharpModule fsModule)
         return fsModule.AccessKind;
 
+      if (typeElement is IEnum)
+        return ModuleMembersAccessKind.RequiresQualifiedAccess;
+
       return MayHaveRequireQualifiedAccessAttribute(typeElement) && typeElement.HasRequireQualifiedAccessAttribute()
         ? ModuleMembersAccessKind.RequiresQualifiedAccess
         : ModuleMembersAccessKind.Normal;
     }
 
-    private static bool MayHaveRequireQualifiedAccessAttribute(ITypeElement typeElement) =>
-      typeElement.IsModule() || typeElement.IsUnion();
+    public static bool MayHaveRequireQualifiedAccessAttribute([NotNull] this ITypeElement typeElement) =>
+      typeElement.IsModule() || typeElement.IsUnion() || typeElement.IsRecord();
 
     public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) =>
       typeElement.GetAccessType() == ModuleMembersAccessKind.RequiresQualifiedAccess;

@@ -48,7 +48,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
               myDocument.Buffer.GetText(resolvedSymbolUse.Range) == "new")
             continue;
 
-          if (mfv.IsActivePattern)
+          if (mfv.IsActivePattern && !FSharpFile.IsFSharpSigFile())
             continue;
         }
 

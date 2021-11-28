@@ -226,7 +226,8 @@ externDeclaration:
 // todo: extract declaring pattern interface
 
 interface fSharpPattern:
-  namedPat |
+  referencePat |
+  asPat |
   typedLikePat |
   attribPat |
   orPat |
@@ -246,17 +247,9 @@ interface fSharpPattern:
   charRangePat |
   fromErrorPat;
 
-interface namedPat:
-  referencePat |
-  asPat;
-
 interface referencePat:
   localReferencePat |
   topReferencePat;
-
-interface asPat:
-  localAsPat |
-  topAsPat;
 
 interface typedLikePat:
   typedPat |
@@ -278,15 +271,10 @@ parametersOwnerPat options { stubBase="FSharpPatternBase"; } extras {
   expressionReferenceName<REFERENCE_NAME, ReferenceName>
   fSharpPattern<PARAMETER, Parameters>*;
 
-localAsPat options { stubBase="LocalPatternDeclarationBase"; }:
-  fSharpPattern<PATTERN, Pattern>
-  AS
-  fSharpIdentifier<IDENTIFIER, Identifier>;
-
-topAsPat options { stubBase="TopPatternDeclarationBase"; }:
-  fSharpPattern<PATTERN, Pattern>
-  AS
-  fSharpIdentifier<IDENTIFIER, Identifier>;
+asPat options { stubBase="FSharpPatternBase"; }:
+  fSharpPattern<LEFT_PATTERN, LeftPattern>
+  AS<AS, AsKeyword>
+  fSharpPattern<RIGHT_PATTERN, RightPattern>;
 
 
 interface arrayOrListPat:
@@ -457,7 +445,6 @@ interface typedLikeExpr:
 
 interface qualifiedExpr:
   referenceExpr |
-  activePatternExpr |
   indexerExpr;
 
 interface ifExpr:
@@ -477,50 +464,25 @@ setExpr options { stubBase="UnitExpressionBase"; }:
   LARROW<LARROW, LArrow>
   fSharpExpression<RIGHT_EXPR, RightExpression>;
 
-activePatternExpr options { stubBase="FSharpExpressionBase"; }:
-  fSharpExpression<QUALIFIER_EXPR, Qualifier>
-  DOT<FSHARP_DELIMITER, Delimiter>
-  LPAREN
-  BAR
-  (
-    referenceExpr<CASE, CaseExpression>
-    BAR
-  )*
-  (
-    UNDERSCORE<UNDERSCORE, Underscore>
-    BAR
-  )?
-  RPAREN;
-
 interface indexerExpr:
   itemIndexerExpr |
   namedIndexerExpr;
 
-itemIndexerExpr options { stubBase="FSharpExpressionBase"; } extras {
-  get { methodName="Args" path=<itemIndexerExpr:ARG_LIST/indexerArgList:INDEXER_ARG> };
-}:
+itemIndexerExpr options { stubBase="FSharpExpressionBase"; }:
   fSharpExpression<QUALIFIER_EXPR, Qualifier>
   DOT<FSHARP_DELIMITER, Delimiter>
   indexerArgList<ARG_LIST, IndexerArgList>;
 
-namedIndexerExpr options { stubBase="FSharpExpressionBase"; } extras {
-  // todo: fix this, it's always empty now
-  get { methodName="Args" path=<namedIndexerExpr:INDEXER_ARG> };
-}:
+namedIndexerExpr options { stubBase="FSharpExpressionBase"; }:
   // todo: maybe: refExpr?
   fSharpExpression<QUALIFIER_EXPR, Qualifier>
   DOT<FSHARP_DELIMITER, Delimiter>
-  indexerArg<INDEXER_ARG, IndexerArg>;
+  fSharpExpression<INDXER_ARG, Arg>;
 
 indexerArgList:
   LBRACK
-  LIST indexerArg<INDEXER_ARG, IndexerArgs> SEP COMMA<FSHARP_COMMA, Commas>
+  fSharpExpression<INDXER_ARG, Arg>
   RBRACK;
-
-indexerArg extras {
-  get { methodName="Expressions" path=<indexerArg:EXPR> };
-}:
-  fSharpExpression<EXPR, Expression>;
 
 interface castExpr:
   upcastExpr |
@@ -616,7 +578,7 @@ listExpr options { stubBase="FSharpExpressionBase"; }:
   fSharpExpression<EXPR, Expression>
   RBRACK;
 
-recordExpr options { stubBase="FSharpExpressionBase"; } extras {
+recordExpr options { stubBase="ReferenceOwnerExprBase"; } extras {
   get { methodName="FieldBindings" path=<recordExpr:BINDING_LIST/recordFieldBindingList:BINDING> };
 }:
   LBRACE<LBRACE, LeftBrace>
@@ -644,7 +606,7 @@ recordFieldBinding:
   fSharpExpression<EXPR, Expression>
   SEMICOLON<FSHARP_SEMI, Semicolon>?;
 
-newExpr options { stubBase="FSharpExpressionBase"; }:
+newExpr options { stubBase="ReferenceOwnerExprBase"; }:
   NEW<NEW, NewKeyword>
   typeReferenceName<TYPE_REFERENCE, TypeName>
   fSharpExpression<EXPR, ArgumentExpression>;
@@ -1163,22 +1125,29 @@ moduleAbbreviationDeclaration options { stubBase="FSharpTypeElementDeclarationBa
   typeReferenceName<TYPE_REFERENCE, TypeName>
   typeBodyMemberDeclaration<TYPE_MEMBER, TypeMembers>*;
 
-interface activePatternCaseDeclaration:
-  activePatternNamedCaseDeclaration |
-  activePatternWildCase;
+interface activePatternIdCase:
+  activePatternCaseName |
+  wildActivePatternWildCase;
+
+interface activePatternCaseName:
+  activePatternNamedCaseReferenceName |
+  activePatternNamedCaseDeclaration;
 
 interface activePatternNamedCaseDeclaration:
   topActivePatternCaseDeclaration |
   localActivePatternCaseDeclaration;
 
+activePatternNamedCaseReferenceName options { stubBase="ReferenceOwnerBase"; }:
+  fSharpIdentifier<IDENTIFIER, Identifier>;
+
 topActivePatternCaseDeclaration options { stubBase="FSharpDeclarationBase"; }:
-   IDENTIFIER<IDENTIFIER, Identifier>;
+  fSharpIdentifier<IDENTIFIER, Identifier>;
 
 localActivePatternCaseDeclaration options { stubBase="LocalDeclarationBase"; }:
-  IDENTIFIER<IDENTIFIER, Identifier>;
+  fSharpIdentifier<IDENTIFIER, Identifier>;
 
-activePatternWildCase:
-  wildPat;
+wildActivePatternWildCase:
+  UNDERSCORE<UNDERSCORE, Underscore>;
 
 
 delegateRepresentation options { stubBase="TypeRepresentationBase"; }:
@@ -1484,10 +1453,10 @@ private identOrOpName{ROLE, Getter}:
 
 activePatternId:
   LPAREN<LPAREN, LParen>
-  BAR
+  BAR<BAR, Bars>
   (
-    activePatternCaseDeclaration<ACTIVE_PATTERN_CASE, Cases>
-    BAR
+    activePatternIdCase<ACTIVE_PATTERN_CASE, Cases>
+    BAR<BAR, Bars>
   )+
   RPAREN<RPAREN, RParen>;
 
@@ -1672,6 +1641,8 @@ interface typeUsage:
   anonTypeUsage |
   parenTypeUsage |
   parameterSignatureTypeUsage |
+  exprStaticConstantTypeUsage |
+  namedStaticConstantTypeUsage |
   unsupportedTypeUsage;
 
 
@@ -1729,6 +1700,17 @@ parameterSignatureTypeUsage:
     COLON
   )?
   typeUsage<TYPE, TypeUsage>;
+
+exprStaticConstantTypeUsage extras {
+  get { methodName="Expression" path=<exprStaticConstantTypeUsage:CHAMELEON_EXPR/chameleonExpression:EXPR> };
+}:
+  CONST?
+  chameleonExpression<CHAMELEON_EXPR, ChameleonExpression>;
+
+namedStaticConstantTypeUsage:
+  typeUsage
+  EQUALS
+  typeUsage;
 
 unsupportedTypeUsage:
   fakeSeparator;

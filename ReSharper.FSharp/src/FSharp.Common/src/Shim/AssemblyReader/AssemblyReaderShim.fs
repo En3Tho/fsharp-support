@@ -65,7 +65,7 @@ module AssemblyReaderShim =
 
         psiModules.GetPrimaryPsiModule(project, targetFrameworkId)
 
-    let isAssembly (path: FileSystemPath) =
+    let isAssembly (path: VirtualFileSystemPath) =
         let extension = path.ExtensionNoDot
         equalsIgnoreCase "dll" extension || equalsIgnoreCase "exe" extension
 
@@ -80,12 +80,14 @@ module AssemblyReaderShim =
         |> HashSet
 
 [<SolutionComponent>]
-type AssemblyReaderShim(lifetime: Lifetime, solution: ISolution, changeManager: ChangeManager, psiModules: IPsiModules,
-        cache: FcsModuleReaderCommonCache, assemblyInfoShim: AssemblyInfoShim, checkerService: FcsCheckerService) as this =
+type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiModules: IPsiModules,
+        cache: FcsModuleReaderCommonCache, assemblyInfoShim: AssemblyInfoShim, checkerService: FcsCheckerService,
+        fsOptionsProvider: FSharpOptionsProvider) as this =
     inherit AssemblyReaderShimBase(lifetime, changeManager)
 
     let isEnabled () =
-        FSharpExperimentalFeatures.IsFSharpExperimentalFeatureEnabled(solution, ExperimentalFeature.AssemblyReaderShim)
+        FSharpExperimentalFeatureCookie.IsEnabled(ExperimentalFeature.AssemblyReaderShim) ||
+        fsOptionsProvider.NonFSharpProjectInMemoryAnalysis.Value
 
     do
         checkerService.AssemblyReaderShim <- this
@@ -96,7 +98,7 @@ type AssemblyReaderShim(lifetime: Lifetime, solution: ISolution, changeManager: 
 
     let locker = JetFastSemiReenterableRWLock()
 
-    let assemblyReadersByPath = ConcurrentDictionary<FileSystemPath, ReferencedAssembly>()
+    let assemblyReadersByPath = ConcurrentDictionary<VirtualFileSystemPath, ReferencedAssembly>()
     let assemblyReadersByModule = ConcurrentDictionary<IPsiModule, ReferencedAssembly>()
 
     // todo: record empty set in nonLazyModuleDependencies somehow, remove this set

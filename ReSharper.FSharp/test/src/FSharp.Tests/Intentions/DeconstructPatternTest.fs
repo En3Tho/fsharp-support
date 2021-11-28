@@ -1,13 +1,23 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions.Deconstruction
+open System.Linq
+open JetBrains.ProjectModel
+open JetBrains.ReSharper.FeaturesTestFramework.Refactorings
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions
+open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Plugins.FSharp.Tests.Features
+open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
 type DeconstructPatternTest() =
-    inherit FSharpContextActionExecuteTestBase<DeconstructPatternAction>()
+    inherit FSharpContextActionExecuteTestBase<DeconstructPatternContextAction>()
 
     override this.ExtraPath = "deconstruct"
+
+    override this.DoTest(lifetime, testProject) =
+        let popupMenu = this.Solution.GetComponent<TestWorkflowPopupMenu>()
+        popupMenu.SetTestData(lifetime, fun _ occurrences _ _ _ -> occurrences.FirstOrDefault())
+        base.DoTest(lifetime, testProject)
 
     [<Test>] member x.``Tuple - Accessor 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Lambda 01``() = x.DoNamedTest()
@@ -23,6 +33,7 @@ type DeconstructPatternTest() =
     [<Test>] member x.``Tuple - Match 02 - Used names``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Member 01 - Used names``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Parameter owner 01``() = x.DoNamedTest()
+    [<Test; Explicit("Enable .NET 5 in tests")>] member x.``Tuple - Struct 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Wild - Decl 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Wild - Expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Parameter - Used names 01``() = x.DoNamedTest()
@@ -33,18 +44,33 @@ type DeconstructPatternTest() =
     [<Test>] member x.``Tuple - Parameter - Used names 06``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Parameter - Used names 07``() = x.DoNamedTest()
     [<Test; Explicit>] member x.``Tuple - Parameter - Used names 08``() = x.DoNamedTest()
+    [<Explicit("Fix mapping for local type parameters")>]
+    [<Test>] member x.``Tuple - Parameter - Used names 09 - Local``() = x.DoNamedTest()
+    [<Test>] member x.``Tuple - Parameter - Used names 10``() = x.DoNamedTest()
     [<Test>] member x.``Tuple - Used names 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Union case - Single - Import 01``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 02``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 03``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 04``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 05``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 06``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 07``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Import 08``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Let 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Let 02``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Rqa 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Rqa 02 - Import``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Rqa 03 - Rqa module``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single - Rqa 04 - Escaped``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Used 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Used 02 - Tuple``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single - Used 03``() = x.DoNamedTest()
     [<Test>] member x.``Union case - Single 01``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single 02 - Escaped``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "SpaceBeforeUppercaseInvocation", "true")>]
+    [<Test>] member x.``Union case - Single 03 - Space``() = x.DoNamedTest()
+    [<Test>] member x.``Union case - Single 04 - Arg``() = x.DoNamedTest()
 
     [<Test>] member x.``Union case fields - Generic 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case fields - Generic 02``() = x.DoNamedTest()
@@ -52,6 +78,8 @@ type DeconstructPatternTest() =
     [<Test>] member x.``Union case fields 01``() = x.DoNamedTest()
     [<Test>] member x.``Union case fields 02``() = x.DoNamedTest()
     [<Test>] member x.``Union case fields 03``() = x.DoNamedTest()
+    [<Test>] member x.``Union case fields 04 - Parens``() = x.DoNamedTest()
+    [<Test>] member x.``Union case fields 05 - Parens``() = x.DoNamedTest()
 
     [<Test; ActionNotAvailable>] member x.``Not available - Constructor param 01``() = x.DoNamedTest()
     [<Test; ActionNotAvailable>] member x.``Not available - Type 01``() = x.DoNamedTest()

@@ -22,7 +22,7 @@ module SpecifyTypes =
             if fullType.IsFunctionType then
                 let specifiedTypesCount = binding.ParametersDeclarations.Count
 
-                let types = FcsTypesUtil.getFunctionTypeArgs fullType
+                let types = FcsTypeUtil.getFunctionTypeArgs true fullType
                 if types.Length <= specifiedTypesCount then mfv.ReturnParameter.Type.Format(displayContext) else
 
                 let remainingTypes = types |> List.skip specifiedTypesCount
@@ -38,10 +38,13 @@ module SpecifyTypes =
         let typeUsage = factory.CreateTypeUsage(typeString)
 
         let parameters = binding.ParametersDeclarations
-        let pat = if parameters.IsEmpty then binding.HeadPattern else parameters.Last().Pattern
-        let returnTypeInfo = ModificationUtil.AddChildAfter(pat, factory.CreateReturnTypeInfo(typeUsage))
+        let anchor =
+            if parameters.IsEmpty then binding.HeadPattern :> ITreeNode
+            else parameters.Last() :> _
 
-        let settingsStore = pat.GetSettingsStoreWithEditorConfig()
+        let returnTypeInfo = ModificationUtil.AddChildAfter(anchor, factory.CreateReturnTypeInfo(typeUsage))
+
+        let settingsStore = anchor.GetSettingsStoreWithEditorConfig()
         if settingsStore.GetValue(fun (key: FSharpFormatSettingsKey) -> key.SpaceBeforeColon) then
             ModificationUtil.AddChildBefore(returnTypeInfo, Whitespace()) |> ignore
 
@@ -83,7 +86,7 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
     let specifyParameterTypes displayContext (binding: IBinding) (mfv: FSharpMemberOrFunctionOrValue) =
-        let types = FcsTypesUtil.getFunctionTypeArgs mfv.FullType
+        let types = FcsTypeUtil.getFunctionTypeArgs true mfv.FullType
         let parameters = binding.ParametersDeclarations
 
         for fcsType, parameter in (types, parameters) ||> Seq.zip do
@@ -93,7 +96,9 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
 
     let isAnnotated (binding: IBinding) =
         isNotNull binding.ReturnTypeInfo &&
-        binding.ParametersDeclarations |> Seq.forall (fun p -> p.Pattern.IgnoreInnerParens() :? ITypedPat)
+        binding.ParametersDeclarations |> Seq.forall (fun p ->
+            let pattern = p.Pattern.IgnoreInnerParens()
+            pattern :? ITypedPat || pattern :? IUnitPat)
 
     override x.Text = "Add type annotations"
 
@@ -104,7 +109,7 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
         let bindings = letBindings.Bindings
         if bindings.Count <> 1 then false else
 
-        isAtLetExprKeywordOrNamedPat dataProvider letBindings && not (isAnnotated bindings.[0])
+        isAtLetExprKeywordOrReferencePattern dataProvider letBindings && not (isAnnotated bindings.[0])
 
     override x.ExecutePsiTransaction _ =
         let letBindings = dataProvider.GetSelectedElement<ILetBindings>()

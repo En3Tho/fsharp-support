@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
+using JetBrains.Core;
 using JetBrains.Rd.Tasks;
 using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Cache;
 using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Exceptions;
 using JetBrains.Rider.FSharp.TypeProviders.Protocol.Client;
+using JetBrains.Threading;
 using JetBrains.Util.Concurrency;
 using Microsoft.FSharp.Core.CompilerServices;
 using Microsoft.FSharp.Quotations;
@@ -32,18 +35,25 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
       myProvidedNamespaces = new InterruptibleLazy<IProvidedNamespace[]>(
         myTypeProvidersContext.Connection
           .ExecuteWithCatch(() => RdTypeProviderProcessModel.GetProvidedNamespaces.Sync(EntityId, RpcTimeouts.Maximal))
-          .Select(t => new ProxyProvidedNamespace(t, myRdTypeProvider.EntityId, myTypeProvidersContext))
+          .Select(t => new ProxyProvidedNamespace(t, this, myTypeProvidersContext))
           .ToArray());
     }
 
     public void OnInvalidate()
     {
-      IsInvalidated = true;
+      DisposeProxy();
       Invalidate?.Invoke(this, EventArgs.Empty);
     }
 
-    public void IncrementVersion() => ++myVersion;
-    public bool IsInvalidated { get; private set; }
+    public bool IsGenerative
+    {
+      get => myIsGenerative;
+      set
+      {
+        ContainsGenerativeTypes?.Invoke(this, EventArgs.Empty);
+        myIsGenerative = value;
+      }
+    }
 
     public IProvidedNamespace[] GetNamespaces() => myProvidedNamespaces.Value;
 
@@ -86,19 +96,23 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
 
     public void Dispose()
     {
-      --myVersion;
-      if (myIsDisposed || !IsInvalidated && myVersion >= 0) return;
+    }
+
+    public void DisposeProxy()
+    {
+      if (myIsDisposed) return;
 
       myTypeProvidersContext.Dispose(EntityId);
-      myTypeProvidersContext.Connection.ExecuteWithCatch(() => RdTypeProviderProcessModel.Dispose.Sync(EntityId));
+
       myIsDisposed = true;
       Disposed?.Invoke(this, EventArgs.Empty);
     }
 
+    public event EventHandler ContainsGenerativeTypes;
     public event EventHandler Invalidate;
     public event EventHandler Disposed;
+    private bool myIsGenerative;
     private bool myIsDisposed;
-    private int myVersion;
     private readonly InterruptibleLazy<IProvidedNamespace[]> myProvidedNamespaces;
   }
 }

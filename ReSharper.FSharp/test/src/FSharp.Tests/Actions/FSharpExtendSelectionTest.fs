@@ -10,6 +10,11 @@ type FSharpExtendSelectionTest() =
 
     override x.RelativeTestDataPath = "features/service/extendSelection"
 
+    [<Test>] member x.``Brack - Array - Right 01``() = x.DoNamedTest()
+    [<Test>] member x.``Brack - Array - Right 02``() = x.DoNamedTest()
+    [<Test>] member x.``Brack - List - Right 01``() = x.DoNamedTest()
+    [<Test>] member x.``Brack - List - Right 02``() = x.DoNamedTest()
+
     [<Test>] member x.``Module qualifier 01 - Name``() = x.DoNamedTest()
     [<Test>] member x.``Module qualifier 02 - Qualifier``() = x.DoNamedTest()
     [<Test>] member x.``Module qualifier 03 - Multiple qualifiers``() = x.DoNamedTest()
@@ -42,6 +47,12 @@ type FSharpExtendSelectionTest() =
     [<Test>] member x.``Infix expr - Nested - Operator 01``() = x.DoNamedTest()
     [<Test>] member x.``Infix expr - Nested - Operator 02``() = x.DoNamedTest()
 
+    [<Test>] member x.``Separator - Comma 01 - Literal``() = x.DoNamedTest()
+    [<Test>] member x.``Separator - Comma 02 - Ident``() = x.DoNamedTest()
+    [<Test>] member x.``Separator - Comma 03 - Underscore``() = x.DoNamedTest()
+    [<Test>] member x.``Separator - Semi 01``() = x.DoNamedTest()
+    [<Test>] member x.``Separator - Semi 02``() = x.DoNamedTest()
+
     [<Test>] member x.``Unit expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Unit expr 02 - Parens``() = x.DoNamedTest()
     [<Test>] member x.``Unit expr 03 - Space inside``() = x.DoNamedTest()
@@ -60,3 +71,29 @@ type FSharpExtendSelectionTest() =
     [<Test>] member x.``Greater 03``() = x.DoNamedTest()
     [<Test>] member x.``Less 01``() = x.DoNamedTest()
     [<Test>] member x.``Plus 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Regular 01 - Multiple words 01``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Regular 02 - Multiple words 02``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Regular 03 - Single word 01``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Regular 04 - Single word 02``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Verbatim 01 - Multiple words``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Triple quoted 01 - Multiple words``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Triple quoted 02 - Multiline``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Interpolated - Regular 01 - Before start brace``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 02 - After end brace``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 03 - After start brace``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 04 - Before end brace``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 05 - Before word``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 06 - Before last word``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 07 - After last word``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Regular 08 - Without insertions``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Interpolated - Verbatim 01 - Before start brace``() = x.DoNamedTest()
+
+    [<Test>] member x.``Strings - Interpolated - Triple quoted 01 - Before start brace``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Triple quoted 02 - Multiline``() = x.DoNamedTest()
+    [<Test>] member x.``Strings - Interpolated - Triple quoted 03 - Complex insertion``() = x.DoNamedTest()
+

@@ -4,14 +4,13 @@ using JetBrains.Diagnostics;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Util;
 using JetBrains.ReSharper.Psi;
-using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 {
   internal partial class TopReferencePat
   {
-    public bool IsDeclaration => true;
+    public bool IsDeclaration => this.IsDeclaration();
 
     public override IEnumerable<IFSharpPattern> NestedPatterns => new[] {this};
 
@@ -31,26 +30,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
   {
     public override IFSharpIdentifierLikeNode NameIdentifier => ReferenceName?.Identifier;
 
-    public bool IsDeclaration
-    {
-      get
-      {
-        // todo: check other parents: e.g. parameters?
-        if (Parent is IBindingLikeDeclaration)
-          return true;
-
-        var referenceName = ReferenceName;
-        if (!(referenceName is { Qualifier: null }))
-          return false;
-
-        var name = referenceName.ShortName;
-        if (!name.IsEmpty() && name[0].IsLowerFast())
-          return true;
-
-        var idOffset = GetNameIdentifierRange().StartOffset.Offset;
-        return FSharpFile.GetSymbolUse(idOffset) == null;
-      }
-    }
+    public bool IsDeclaration => this.IsDeclaration();
 
     public override IEnumerable<IFSharpPattern> NestedPatterns => new[] {this};
 
@@ -77,47 +57,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       Parameters.SelectMany(param => param.NestedPatterns);
   }
 
-  internal partial class TopAsPat
+  internal partial class AsPat
   {
-    public override IFSharpIdentifierLikeNode NameIdentifier => Identifier;
-    protected override string DeclaredElementName => NameIdentifier.GetCompiledName(Attributes);
-    public bool IsDeclaration => true;
-    public override IEnumerable<IFSharpPattern> NestedPatterns => Pattern?.NestedPatterns.Prepend(this) ?? new[] {this};
-
-    public TreeNodeCollection<IAttribute> Attributes =>
-      this.GetBindingFromHeadPattern()?.Attributes ??
-      TreeNodeCollection<IAttribute>.Empty;
-
-    public bool IsMutable => Binding?.IsMutable ?? false;
-
-    public void SetIsMutable(bool value)
+    public override IEnumerable<IFSharpPattern> NestedPatterns
     {
-      var binding = Binding;
-      Assertion.Assert(binding != null, "GetBinding() != null");
-      binding.SetIsMutable(true);
+      get
+      {
+        var pattern1Decls = LeftPattern?.NestedPatterns ?? EmptyList<IFSharpPattern>.Instance;
+        var pattern2Decls = RightPattern?.NestedPatterns ?? EmptyList<IFSharpPattern>.Instance;
+        return pattern2Decls.Prepend(pattern1Decls);
+      }
     }
-
-    public override IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
-  }
-
-  internal partial class LocalAsPat
-  {
-    public override IFSharpIdentifierLikeNode NameIdentifier => Identifier;
-    public bool IsDeclaration => true;
-    public override IEnumerable<IFSharpPattern> NestedPatterns => Pattern?.NestedPatterns.Prepend(this) ?? new[] {this};
-
-    public bool IsMutable => Binding?.IsMutable ?? false;
-
-    public void SetIsMutable(bool value)
-    {
-      var binding = Binding;
-      Assertion.Assert(binding is LocalBinding, "GetBinding() is LocalBinding");
-      binding.SetIsMutable(true);
-    }
-
-    public bool CanBeMutable => Binding is LocalBinding;
-
-    private IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
   }
 
   internal partial class OrPat
@@ -199,6 +149,26 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
         var pattern2Decls = TailPattern?.NestedPatterns ?? EmptyList<IFSharpPattern>.Instance;
         return pattern2Decls.Prepend(pattern1Decls);
       }
+    }
+  }
+
+  internal static class ReferencePatternUtil
+  {
+    internal static bool IsDeclaration(this IReferencePat refPat)
+    {
+      if (refPat.Parent is IBindingLikeDeclaration)
+        return true;
+
+      var referenceName = refPat.ReferenceName;
+      if (!(referenceName is {Qualifier: null}))
+        return false;
+
+      var name = referenceName.ShortName;
+      if (!name.IsEmpty() && name[0].IsLowerFast())
+        return true;
+
+      var idOffset = refPat.GetNameIdentifierRange().StartOffset.Offset;
+      return refPat.FSharpFile.GetSymbolUse(idOffset) == null;
     }
   }
 }

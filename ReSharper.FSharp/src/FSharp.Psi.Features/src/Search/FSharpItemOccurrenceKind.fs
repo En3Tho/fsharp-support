@@ -1,23 +1,47 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Search
 
 open FSharp.Compiler.Symbols
+open JetBrains.Application
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services.Occurrences
+open JetBrains.ReSharper.Feature.Services.Resources
+open JetBrains.ReSharper.Plugins.FSharp.Psi
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.Util
 
 [<RequireQualifiedAccess>]
 module FSharpOccurrenceKinds =
-    let import = OccurrenceKind("Module or namespace import", OccurrenceKind.SemanticAxis)
-    let pattern = OccurrenceKind("Pattern", OccurrenceKind.SemanticAxis)
-    let copyAndUpdate = OccurrenceKind("Copy and update", OccurrenceKind.SemanticAxis)
-    let typeExtension = OccurrenceKind("Type extension", OccurrenceKind.SemanticAxis)
-    let typeAbbreviation = OccurrenceKind("Type abbreviation", OccurrenceKind.SemanticAxis)
-    let typeSpecification = OccurrenceKind("Type specification", OccurrenceKind.SemanticAxis)
+    let copyAndUpdate = OccurrenceKind.CreateSemantic("Copy and update")
+    let import = OccurrenceKind.CreateSemantic("Module or namespace import")
+    let partialApplication = OccurrenceKind.CreateSemantic("Partial application")
+    let pattern = OccurrenceKind.CreateSemantic("Pattern")
+    let typeAbbreviation = OccurrenceKind.CreateSemantic("Type abbreviation")
+    let typeExtension = OccurrenceKind.CreateSemantic("Type extension")
+    let typeSpecification = OccurrenceKind.CreateSemantic("Type specification")
+
+    let icons =
+        [| copyAndUpdate, ServicesNavigationThemedIcons.UsageInstanceCreation.Id
+           import, ServicesNavigationThemedIcons.UsageInUsings.Id
+           pattern, ServicesNavigationThemedIcons.UsagePatternChecking.Id
+           typeExtension, ServicesNavigationThemedIcons.UsageExtensionMethod.Id |]
+        |> dict
+
+
+[<ShellComponent>]
+type FsharpSpecificOccurrenceKindIconsProvider() =
+    interface IOccurrenceKindIconProvider with
+        member this.GetImageId(occurrenceKind) =
+            FSharpOccurrenceKinds.icons.TryGetValue(occurrenceKind)
+
+        member this.GetPriority _ =
+            0
+
 
 // todo: parens everywhere :)
 // todo: parens in `let i: (int) = 1`
@@ -34,7 +58,10 @@ type FSharpItemOccurenceKindProvider() =
             match referenceOccurrence.PrimaryReference with
             | :? TypeExtensionReference -> [| FSharpOccurrenceKinds.typeExtension |] :> _
 
-            | :? ReferenceExpressionTypeReference -> [| OccurrenceKind.NewInstanceCreation |] :> _
+            | :? ReferenceExpressionTypeReference as refExprReference ->
+                match refExprReference.Resolve().DeclaredElement with
+                | null -> EmptyList.Instance :> _
+                | _ -> [| OccurrenceKind.NewInstanceCreation |] :> _
 
             | :? RecordCtorReference as recordCtorReference ->
                 match recordCtorReference.RecordExpr.CopyInfoExpression with
@@ -97,7 +124,10 @@ type FSharpItemOccurenceKindProvider() =
                 EmptyList.Instance :> _
 
             | :? IExpressionReferenceName as referenceName ->
-                if isNotNull (ReferencePatNavigator.GetByReferenceName(referenceName)) ||
+                let referencePat = ReferencePatNavigator.GetByReferenceName(referenceName)
+                if isNotNull referencePat && referencePat.IsDeclaration then EmptyList.Instance :> _ else
+
+                if isNotNull referencePat ||
                    isNotNull (ParametersOwnerPatNavigator.GetByReferenceName(referenceName)) ||
                    isNotNull (FieldPatNavigator.GetByReferenceName(referenceName)) then
                     [| FSharpOccurrenceKinds.pattern |] :> _ else
@@ -129,15 +159,35 @@ type FSharpItemOccurenceKindProvider() =
 
                     EmptyList.Instance :> _
 
+                | :? FSharpMemberOrFunctionOrValue as mfv ->
+                    let appExpr = PrefixAppExprNavigator.GetByFunctionExpression(refExpr.IgnoreParentParens())
+                    if isNull appExpr then EmptyList.Instance :> _ else
+
+                    let argsCount = getPrefixAppExprArgs refExpr |> Seq.length
+                    let fcsType = getAbbreviatedType mfv.FullType
+                    let mfvTypeParamCount = FcsTypeUtil.getFunctionTypeArgs false fcsType |> Seq.length
+                    if mfvTypeParamCount = 0 then EmptyList.Instance :> _ else
+
+                    if argsCount < mfvTypeParamCount then
+                        [| FSharpOccurrenceKinds.partialApplication |] :> _ else
+
+                    [| OccurrenceKind.Invocation |] :> _
+
                 | _ -> EmptyList.Instance :> _
+
+//            | :? IAttribute when (element :? IConstructor) ->
+//                [| OccurrenceKind.NewInstanceCreation |] :> _
+
             | _ -> EmptyList.Instance :> _
 
         member x.GetAllPossibleOccurrenceKinds() =
             [| OccurrenceKind.Attribute
                OccurrenceKind.ExtendedType
+               OccurrenceKind.Invocation
                OccurrenceKind.NewInstanceCreation
                FSharpOccurrenceKinds.import
                FSharpOccurrenceKinds.pattern
+               FSharpOccurrenceKinds.partialApplication
                FSharpOccurrenceKinds.copyAndUpdate
                FSharpOccurrenceKinds.typeExtension
                FSharpOccurrenceKinds.typeAbbreviation

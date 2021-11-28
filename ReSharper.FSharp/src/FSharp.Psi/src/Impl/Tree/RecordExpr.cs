@@ -13,19 +13,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 {
   internal partial class RecordExpr
   {
-    public FSharpSymbolReference Reference { get; private set; }
-    public IFSharpIdentifier FSharpIdentifier => null;
+    public override IFSharpIdentifier FSharpIdentifier => null;
 
-    public IFSharpReferenceOwner SetName(string name) => this;
+    public override IFSharpReferenceOwner SetName(string name) => this;
 
-    protected override void PreInit()
-    {
-      base.PreInit();
-      Reference = new RecordCtorReference(this);
-    }
-
-    public override ReferenceCollection GetFirstClassReferences() =>
-      new ReferenceCollection(Reference);
+    protected override FSharpSymbolReference CreateReference() =>
+      new RecordCtorReference(this);
   }
 
   public class RecordCtorReference : FSharpSymbolReference
@@ -53,6 +46,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       }
     }
 
+    // todo: unify with FSharpPatternUtil impl
+    private static IFSharpPattern IgnoreInnerAsPatsToRight(IFSharpPattern pattern) => 
+      pattern is IAsPat asPat ? IgnoreInnerAsPatsToRight(asPat.RightPattern) : pattern;
+
     public override FSharpSymbol GetFcsSymbol()
     {
       var symbolUse = GetSymbolUse();
@@ -66,10 +63,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       var exprToGetBy = sequentialExpr ?? RecordExpr.IgnoreParentParens();
 
       var binding = BindingNavigator.GetByExpression(exprToGetBy);
-      if (!(binding is { HeadPattern: INamedPat namedPat }))
+      if (binding == null) return null;
+
+      var headPattern = IgnoreInnerAsPatsToRight(binding.HeadPattern);
+      if (!(headPattern is IReferencePat refPat))
         return null;
 
-      var mfv = namedPat.GetFcsSymbol() as FSharpMemberOrFunctionOrValue;
+      var mfv = refPat.GetFcsSymbol() as FSharpMemberOrFunctionOrValue;
       var returnParameterType = mfv?.ReturnParameter.Type;
       if (!(returnParameterType is { HasTypeDefinition: true }))
         return null;

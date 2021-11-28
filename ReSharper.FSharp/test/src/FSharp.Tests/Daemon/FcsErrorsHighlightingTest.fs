@@ -80,3 +80,7 @@ type FcsErrorsHighlightingTest() =
     [<Test>] member x.``Runtime coercion source sealed 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Type extension - Unresolved 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Union case expects tupled args 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Invalid XmlDoc position 01``() = x.DoNamedTest()

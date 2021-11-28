@@ -1,6 +1,7 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 
 open System
+open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.EditorServices
 open FSharp.Compiler.Syntax
 open JetBrains.Application.Settings
@@ -25,6 +26,14 @@ open JetBrains.Util
 
 type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbols) =
     let [<Literal>] opName = "FSharpLookupItemsProviderBase"
+
+    let isAttributeReference (context: FSharpCodeCompletionContext) =
+        let reference = context.ReparsedContext.Reference
+        if isNull reference then false else
+
+        match reference.GetTreeNode() with
+        | :? ITypeReferenceName as name -> isNotNull (AttributeNavigator.GetByReferenceName(name))
+        | _ -> false
 
     member x.GetDefaultRanges(context: ISpecificCodeCompletionContext) =
         context |> function | :? FSharpCodeCompletionContext as context -> context.Ranges | _ -> null
@@ -60,12 +69,8 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
         | _ ->
 
         let basicContext = context.BasicContext
-        match basicContext.File with
-        | :? IFSharpFile as fsFile when fsFile.ParseResults.IsSome ->
-            match fsFile.GetParseAndCheckResults(true, opName) with
-            | None -> false
-            | Some results ->
-
+        match context.BasicContext.File, context.GetCheckResults(opName) with
+        | :? IFSharpFile as fsFile, Some checkResults ->
             let settings = basicContext.ContextBoundSettingsStore
             let addImportItems = settings.GetValue(fun (key: FSharpOptions) -> key.EnableOutOfScopeCompletion)
 
@@ -74,39 +79,31 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
                 fsFile.Language.Is<FSharpScriptLanguage>() &&
                 fsFile.GetPsiModule() :? SandboxPsiModule
 
-            let isFsiModuleToSkip (item: DeclarationListItem) =
+            let isFsiModuleToSkip (item: RiderDeclarationListItems) =
                 not (Array.isEmpty item.NamespaceToOpen) &&
                 item.Name.StartsWith(PrettyNaming.FsiDynamicModulePrefix, StringComparison.Ordinal)
 
-            let checkResults = results.CheckResults
             let parseResults = fsFile.ParseResults
             let line = int fcsContext.Coords.Line + 1
 
+            let isAttributeReferenceContext = isAttributeReference context
             let getAllSymbols () = getAllSymbols checkResults
+
             try
-                let completionInfo =
-                    checkResults
-                        .GetDeclarationListInfo(parseResults, line, fcsContext.LineText, fcsContext.PartialName,
-                                                getAllSymbols, filterResolved)
+                let itemLists =
+                    checkResults.GetDeclarationListSymbols(parseResults, line, fcsContext.LineText,
+                        fcsContext.PartialName, isAttributeReferenceContext, getAllSymbols)
 
-                if completionInfo.Items.IsEmpty() then false else
+                for list in itemLists do
+                    if list.Name = ".. .." then () else
+                    let resolved = list.NamespaceToOpen.IsEmpty()
+                    if (not addImportItems) && not resolved || filterResolved && resolved then () else
+                    if skipFsiModules && isFsiModuleToSkip list then () else
 
-                fcsContext.DisplayContext <- completionInfo.DisplayContext
-
-                if completionInfo.IsError then
-                    let item = Seq.head completionInfo.Items
-                    let lookupItem = FSharpErrorLookupItem(item)
+                    let lookupItem = FcsLookupItem(list, context)
                     lookupItem.InitializeRanges(context.Ranges, basicContext)
                     collector.Add(lookupItem)
-                else
-                    for item in completionInfo.Items do
-                        if not addImportItems && not (item.NamespaceToOpen.IsEmpty()) then () else
-                        if skipFsiModules && isFsiModuleToSkip item then () else
-
-                        let lookupItem = FSharpLookupItem(item, context)
-                        lookupItem.InitializeRanges(context.Ranges, basicContext)
-                        collector.Add(lookupItem)
-                true
+                false
             with
             | OperationCanceled -> reraise()
             | e ->

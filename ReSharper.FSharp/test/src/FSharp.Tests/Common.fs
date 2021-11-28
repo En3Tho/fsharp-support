@@ -43,6 +43,7 @@ module FSharpTestAttribute =
 [<AutoOpen>]
 module PackageReferences =
     let [<Literal>] FSharpCorePackage = "FSharp.Core/4.7.2"
+    let [<Literal>] SqlProviderPackage = "SQLProvider/1.1.101"
 
 
 type FSharpTestAttribute(extension) =
@@ -64,7 +65,7 @@ type FSharpTestAttribute(extension) =
         member x.Extension = extension
 
     interface ITestProjectPropertiesProvider with
-        member x.GetProjectProperties(targetFrameworkIds, _) =
+        member x.GetProjectProperties(_, targetFrameworkIds, _) =
             FSharpProjectPropertiesFactory.CreateProjectProperties(targetFrameworkIds)
 
     interface ITestProjectOutputTypeProvider with
@@ -178,7 +179,8 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
                 SourceFiles = paths
                 ConditionalCompilationDefines = defines
                 IsExe = isExe
-                IsInteractive = isScript }
+                IsInteractive = isScript
+                LangVersionText = "preview" } // todo: fix language level attribute is not applied
 
         member x.GetFileIndex(sourceFile) =
             if sourceFile.LanguageType.Is<FSharpScriptProjectFileType>() then 0 else

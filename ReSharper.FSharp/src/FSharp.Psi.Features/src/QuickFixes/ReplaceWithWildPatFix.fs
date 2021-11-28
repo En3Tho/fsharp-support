@@ -6,6 +6,7 @@ open JetBrains.ReSharper.Feature.Services.Intentions.Scoped.Scopes
 open JetBrains.ReSharper.Feature.Services.QuickFixes.Scoped
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
@@ -46,7 +47,8 @@ module ReplaceWithWildPat =
     let isAvailable (pat: IFSharpPattern) =
         isValid pat &&
 
-        let binding = BindingNavigator.GetByHeadPattern(pat)
+        let pat = FSharpPatternUtil.ignoreParentAsPatsFromRight pat
+        let binding = BindingNavigator.GetByHeadPattern(pat.IgnoreParentParens())
         if isNotNull binding && binding.HasParameters then false else
 
         match pat with
@@ -58,7 +60,7 @@ module ReplaceWithWildPat =
         if isNull node then false else
 
         match node.Parent with
-        | :? IBinding | :? IMatchClause | :? ILambdaParametersList -> true
+        | :? IBinding | :? IMatchClause | :? ILambdaParametersList | :? IForEachExpr -> true
 
         | :? IParametersPatternDeclaration as parent ->
             let parent = parent.Parent
@@ -76,8 +78,8 @@ type ReplaceWithWildPatScopedFix(pat: IFSharpPattern, highlightingType) =
     override x.Text = "Replace with '_'"
     override x.TryGetContextTreeNode() = pat :> _
 
-    override x.GetScopedFixingStrategy(solution) =
-        SameQuickFixSameHighlightingTypeStrategy(highlightingType, x, solution) :> _
+    override this.GetScopedFixingStrategy(_, _) =
+        SameQuickFixSameHighlightingTypeStrategy(highlightingType, this) :> _
 
     override x.IsAvailable _ =
         ReplaceWithWildPat.isAvailable pat
@@ -135,6 +137,7 @@ type ReplaceWithWildPatFix(pat: IFSharpPattern, isFromUnusedValue) =
 
                 | :? ILambdaParametersList as parametersList -> parametersList :> _, "parameter list"
                 | :? IBinding -> pat :> _, "binding patterns"
+                | :? IForEachExpr -> pat :> _, "'for' pattern"
                 | _ -> invalidArg "patOwner.Parent" "unexpected type"
 
             FileCollectorInfo.WithLocalAndAdditionalScopes(scopeNode, LocalScope(scopeNode, scopeText, scopeText))

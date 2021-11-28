@@ -13,6 +13,7 @@ open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
+open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
 open JetBrains.ReSharper.Plugins.FSharp.Shim.FileSystem
 open JetBrains.ReSharper.Plugins.FSharp.Tests
@@ -22,12 +23,12 @@ open JetBrains.Util
 open NUnit.Framework
 
 [<SolutionComponent>]
-type TestAssemblyReaderShim(lifetime: Lifetime, solution: ISolution, changeManager: ChangeManager,
+type TestAssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager,
         psiModules: IPsiModules, cache: FcsModuleReaderCommonCache, assemblyInfoShim: AssemblyInfoShim,
-        checkerService: FcsCheckerService) =
-    inherit AssemblyReaderShim(lifetime, solution, changeManager, psiModules, cache, assemblyInfoShim, checkerService)
+        checkerService: FcsCheckerService, fsOptionsProvider: FSharpOptionsProvider) =
+    inherit AssemblyReaderShim(lifetime, changeManager, psiModules, cache, assemblyInfoShim, checkerService,fsOptionsProvider)
 
-    let mutable projectPath = FileSystemPath.Empty
+    let mutable projectPath = VirtualFileSystemPath.GetEmptyPathFor(InteractionContext.SolutionContext)
     let mutable projectPsiModule = null
     let mutable reader = Unchecked.defaultof<_>
 
@@ -36,14 +37,14 @@ type TestAssemblyReaderShim(lifetime: Lifetime, solution: ISolution, changeManag
 
     override this.DebugReadRealAssemblies = false
 
-    member this.CreateProjectCookie(path: FileSystemPath, psiModule: IPsiModule) =
+    member this.CreateProjectCookie(path: VirtualFileSystemPath, psiModule: IPsiModule) =
         projectPath <- path
         projectPsiModule <- psiModule
         reader <- new ProjectFcsModuleReader(projectPsiModule, cache)
 
         { new IDisposable with
             member x.Dispose() =
-                projectPath <- FileSystemPath.Empty
+                projectPath <- VirtualFileSystemPath.GetEmptyPathFor(InteractionContext.SolutionContext)
                 projectPsiModule <- null
                 reader <- Unchecked.defaultof<_> }
 
@@ -98,6 +99,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Type def - Delegate 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Type def - Enum 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type def - Enum 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Type def - Interface 01``() = x.DoNamedTest()
     [<Test>] member x.``Type def - Interface 02 - Super``() = x.DoNamedTest() // todo: members, type parameters

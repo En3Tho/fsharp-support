@@ -1,0 +1,5 @@
+﻿module Module
+
+async {
+    let {selstart}objectFunc{selend} = id
+}

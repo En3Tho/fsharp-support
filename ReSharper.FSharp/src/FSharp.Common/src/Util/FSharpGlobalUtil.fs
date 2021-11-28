@@ -17,6 +17,9 @@ module FSharpGlobalUtil =
     let inline isNull x = x == null
     let inline isNotNull x = not (isNull x)
 
+    let inline notNull<'T when 'T: not struct> (x: 'T) =
+        JetBrains.Diagnostics.Assertion.NotNull(x)
+
     let someUnit = Some ()
 
     let (|NotNull|_|) value =
@@ -29,7 +32,19 @@ module FSharpGlobalAbbreviations =
 
     type ILogger = JetBrains.Util.ILogger
     type FileSystemPath = JetBrains.Util.FileSystemPath
+    type VirtualFileSystemPath = JetBrains.Util.VirtualFileSystemPath
+    type InteractionContext = JetBrains.Util.InteractionContext    
     type FormatterHelper = JetBrains.ReSharper.Psi.Impl.CodeStyle.FormatterImplHelper
+
+[<Extension;AutoOpen>]
+module FSharpFileSystemPathExtensions =
+    type JetBrains.Util.FileSystemPath with
+        [<Extension>]
+        member this.ToVirtualFileSystemPath() = JetBrains.Util.FileSystemPathExtensions.ToVirtualFileSystemPath(this)
+        
+    type JetBrains.Util.VirtualFileSystemPath with
+        [<Extension>]
+        member this.ToNativeFileSystemPath() = JetBrains.Util.VirtualFileSystemPathExtensions.ToNativeFileSystemPath(this)
 
 
 [<AutoOpen>]
