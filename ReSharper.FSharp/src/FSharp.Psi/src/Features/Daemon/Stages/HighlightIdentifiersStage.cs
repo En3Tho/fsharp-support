@@ -61,17 +61,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
         var highlighting = new FSharpIdentifierHighlighting(highlightingId, documentRange);
         highlightings.Add(new HighlightingInfo(documentRange, highlighting));
 
-        SeldomInterruptChecker.CheckForInterrupt();
+        Interruption.Current.CheckAndThrow();
       }
     }
 
     public override void Execute(Action<DaemonStageResult> committer)
     {
       var declarations = FSharpFile.GetAllDeclaredSymbols();
-      InterruptableActivityCookie.CheckAndThrow();
+      Interruption.Current.CheckAndThrow();
 
       var usages = FSharpFile.GetAllResolvedSymbols();
-      InterruptableActivityCookie.CheckAndThrow();
+      Interruption.Current.CheckAndThrow();
 
       var highlightings = new List<HighlightingInfo>(declarations.Count + usages.Count);
       AddHighlightings(usages, highlightings);

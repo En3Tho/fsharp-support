@@ -10,6 +10,7 @@ open JetBrains.DataFlow
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Build
+open JetBrains.ProjectModel.ProjectsHost
 open JetBrains.ProjectModel.Tasks
 open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host.ProjectItems.ItemsContainer
@@ -87,11 +88,15 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         checkerService.InvalidateFcsProject(fcsProject.ProjectOptions)
         getReferencingModules psiModule |> Seq.iter invalidateFcsProject
 
+        for referencedPsiModule in fcsProject.ReferencedModules do
+            match tryGetValue referencedPsiModule referencedModules with
+            | None -> ()
+            | Some referencedModule ->
+                referencedModule.ReferencingModules.Remove(referencedPsiModule) |> ignore
+
         referencedModules.Remove(psiModule) |> ignore
         fcsProjects.Remove(psiModule) |> ignore
-
         projectsPsiModules.Remove(psiModule.ContainingProjectModule, psiModule) |> ignore
-
         dirtyModules.Remove(psiModule) |> ignore
 
         // todo: remove removed psiModules? (don't we remove them anyway?) (standalone projects only?)
@@ -110,7 +115,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     do
         // Start listening for the changes after project model is updated.
         scheduler.EnqueueTask(SolutionLoadTask("FSharpProjectOptionsProvider", SolutionLoadTaskKinds.StartPsi, fun _ ->
-            changeManager.Changed2.Advise(lifetime, this.ProcessChange)))
+            changeManager.Changed2.Advise(lifetime, this.ProcessChange)
+            fsItemsContainer.FSharpProjectLoaded.Advise(lifetime, this.ProcessFSharpProjectLoaded)))
 
         checkerService.FcsProjectProvider <- this
         lifetime.OnTermination(fun _ -> checkerService.FcsProjectProvider <- Unchecked.defaultof<_>) |> ignore
@@ -122,40 +128,57 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     let createReferencedModule psiModule =
         ReferencedModule.create modulePathProvider psiModule
 
-    let rec createFcsProject (project: IProject) (psiModule: IPsiModule): FcsProject =
+    let createFcsProject (project: IProject) (psiModule: IPsiModule): FcsProject =
         match tryGetValue psiModule fcsProjects with
         | Some fcsProject -> fcsProject
         | _ ->
 
-        let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, project)
+        let projectsToCreate = Stack()
+        projectsToCreate.Push(psiModule, project, None)
 
-        let referencedProjectPsiModules =
-            getReferencedModules psiModule
-            |> Seq.filter (fun psiModule ->
-                psiModule.IsValid() && isProjectModule psiModule && psiModule.ContainingProjectModule != project)
-            |> List
+        while projectsToCreate.Count > 0 do
+            let psiModule, project, processedReferences = projectsToCreate.Pop()
+            match processedReferences with
+            | None ->
+                let referencedProjectPsiModules =
+                    getReferencedModules psiModule
+                    |> Seq.filter (fun psiModule ->
+                        psiModule.IsValid() && isProjectModule psiModule &&
+                        psiModule.ContainingProjectModule != project)
+                    |> Seq.toList
 
-        let referencedFcsProjects =
-            referencedProjectPsiModules
-            |> Seq.filter isFSharpProjectModule
-            |> Seq.map (fun referencedPsiModule ->
-                let referencedProject = referencedPsiModule.ContainingProjectModule :?> _
-                let referencedFcsProject = createFcsProject referencedProject referencedPsiModule
-                let path = referencedFcsProject.OutputPath.FullPath
-                FSharpReferencedProject.CreateFSharp(path, referencedFcsProject.ProjectOptions))
-            |> Seq.toArray
+                projectsToCreate.Push(psiModule, project, Some(referencedProjectPsiModules))
 
-        let fcsProjectOptions = { fcsProject.ProjectOptions with ReferencedProjects = referencedFcsProjects }
-        let fcsProject = { fcsProject with ProjectOptions = fcsProjectOptions }
+                referencedProjectPsiModules |> Seq.iter (fun referencedPsiModule ->
+                    if not (isFSharpProjectModule referencedPsiModule) then () else
+                    if fcsProjects.ContainsKey(referencedPsiModule) then () else
 
-        fcsProjects.[psiModule] <- fcsProject
-        projectsPsiModules.Add(project, psiModule) |> ignore
+                    let referencedProject = referencedPsiModule.ContainingProjectModule :?> _
+                    projectsToCreate.Push(referencedPsiModule, referencedProject, None))
 
-        for referencedPsiModule in referencedProjectPsiModules do
-            let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, createReferencedModule)
-            referencedModule.ReferencingModules.Add(psiModule) |> ignore
+            | Some referencedProjectPsiModules ->
+                let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, project)
 
-        fcsProject
+                let referencedFcsProjects = 
+                    referencedProjectPsiModules
+                    |> Seq.filter isFSharpProjectModule
+                    |> Seq.map (fun psiModule ->
+                        let referencedFcsProject = fcsProjects[psiModule]
+                        let path = referencedFcsProject.OutputPath.FullPath
+                        FSharpReferencedProject.CreateFSharp(path, referencedFcsProject.ProjectOptions))
+                    |> Seq.toArray
+
+                let fcsProjectOptions = { fcsProject.ProjectOptions with ReferencedProjects = referencedFcsProjects }
+                let fcsProject = { fcsProject with ProjectOptions = fcsProjectOptions }
+
+                fcsProjects.[psiModule] <- fcsProject
+                projectsPsiModules.Add(project, psiModule) |> ignore
+
+                for referencedPsiModule in referencedProjectPsiModules do
+                    let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, createReferencedModule)
+                    referencedModule.ReferencingModules.Add(psiModule) |> ignore
+
+        fcsProjects[psiModule]
 
     let getOrCreateFcsProject (psiModule: IPsiModule): FcsProject option =
         match tryGetFcsProject psiModule with
@@ -188,6 +211,11 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             dirtyModules.Add(psiModule) |> ignore
 
     member x.FcsProjectInvalidated = fcsProjectInvalidated
+
+    member private this.ProcessFSharpProjectLoaded(projectMark: IProjectMark) =
+        use lock = locker.UsingWriteLock()
+        for project in solution.GetProjectsByMark(projectMark) do
+            invalidateProject project
 
     member x.ProcessChange(obj: ChangeEventArgs) =
         let change = obj.ChangeMap.GetChange<ProjectModelChange>(solution)

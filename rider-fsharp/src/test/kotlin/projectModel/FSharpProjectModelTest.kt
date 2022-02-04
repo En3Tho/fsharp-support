@@ -1,23 +1,22 @@
-import com.jetbrains.rider.plugins.fsharp.rdFSharpModel
+import com.jetbrains.rider.plugins.fsharp.test.fcsHost
 import com.jetbrains.rider.projectView.moveProviders.impl.ActionOrderType
-import com.jetbrains.rider.projectView.solution
 import com.jetbrains.rider.test.annotations.TestEnvironment
 import com.jetbrains.rider.test.base.ProjectModelBaseTest
+import com.jetbrains.rider.test.enums.CoreVersion
 import com.jetbrains.rider.test.enums.ToolsetVersion
 import com.jetbrains.rider.test.framework.TestProjectModelContext
 import com.jetbrains.rider.test.framework.waitBackend
+import com.jetbrains.rider.test.scriptingApi.changeFileContent
 import com.jetbrains.rider.test.scriptingApi.cutItem
 import com.jetbrains.rider.test.scriptingApi.pasteItem
 import com.jetbrains.rider.test.scriptingApi.renameItem
 import org.testng.annotations.Test
+import java.io.File
 
 @Test
 class FSharpProjectModelTest : ProjectModelBaseTest() {
     override fun getSolutionDirectoryName() = "EmptySolution"
-    override val restoreNuGetPackages: Boolean
-        get() = true
-
-    private val fcsHost get() = project.solution.rdFSharpModel.fsharpTestHost
+    override val restoreNuGetPackages = true
 
     private fun moveItem(from: Array<Array<String>>, to: Array<String>, orderType: ActionOrderType? = null) {
         // Wait for updating/refreshing items possibly queued by FSharpItemsContainerRefresher.
@@ -31,6 +30,7 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
         moveItem(arrayOf(from), to, orderType)
     }
 
+    @Suppress("SameParameterValue")
     private fun renameItem(path: Array<String>, newName: String) {
         // Wait for updating/refreshing items possibly queued by FSharpItemsContainerRefresher.
         waitBackend(project) {
@@ -38,13 +38,13 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
         }
     }
 
-    private fun TestProjectModelContext.dump2(caption: kotlin.String, checkSlnFile: kotlin.Boolean, compareProjFile: kotlin.Boolean, action: () -> kotlin.Unit) {
+    private fun TestProjectModelContext.dump2(caption: String, checkSlnFile: Boolean, compareProjFile: Boolean, action: () -> Unit) {
         dump(caption, checkSlnFile, compareProjFile, action)
-        treeOutput.append(fcsHost.dumpSingleProjectMapping.sync(Unit))
+        treeOutput.append(project.fcsHost.dumpSingleProjectMapping.sync(Unit))
     }
 
     @Test
-    @TestEnvironment(solution = "FSharpProjectTree", toolset = ToolsetVersion.TOOLSET_16_CORE)
+    @TestEnvironment(solution = "FSharpProjectTree", toolset = ToolsetVersion.TOOLSET_16_CORE, coreVersion = CoreVersion.DOT_NET_5)
     fun testFSharpProjectStructure() {
         doTestDumpProjectsView {
             dump2("Init", false, false) {
@@ -116,6 +116,24 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
                                 arrayOf("FSharpProjectTree", "ClassLibrary1", "Folder?2", "Sub?1", "File1.fs"),
                                 arrayOf("FSharpProjectTree", "ClassLibrary1", "Folder?2", "Sub?1", "Class1.fs")),
                         arrayOf("FSharpProjectTree", "ClassLibrary1", "Folder?2", "Sub?1"), ActionOrderType.Before)
+            }
+        }
+    }
+
+    @Test
+    @TestEnvironment(solution = "FsprojWithTwoFiles", toolset = ToolsetVersion.TOOLSET_16_CORE, coreVersion = CoreVersion.DOT_NET_5)
+    fun testManualFsprojChange() {
+        doTestDumpProjectsView {
+            dump2("Init", false, false) { }
+
+            dump2("Move File1 and File2 lines", false, true) {
+                val fsprojFile = File(activeSolutionDirectory, "ClassLibrary1/ClassLibrary1.fsproj")
+                changeFileContent(project, fsprojFile) { content ->
+                    content
+                        .replace("<Compile Include=\"File2.fs\" />", "<Compile Include=\"File2.fs.tmp\" />")
+                        .replace("<Compile Include=\"File1.fs\" />", "<Compile Include=\"File2.fs\" />")
+                        .replace("<Compile Include=\"File2.fs.tmp\" />", "<Compile Include=\"File1.fs\" />")
+                }
             }
         }
     }
