@@ -9,29 +9,28 @@ using JetBrains.Diagnostics;
 using JetBrains.Lifetimes;
 using JetBrains.Platform.RdFramework.ExternalProcess;
 using JetBrains.Rd;
-using JetBrains.Rider.FSharp.TypeProviders.Protocol.Client;
+using JetBrains.Rider.FSharp.TypeProvidersProtocol.Server;
 using JetBrains.Util;
 using NuGet.Versioning;
 
-namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
+namespace JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol
 {
   public class
-    TypeProvidersExternalProcess : ProtocolExternalProcess<RdFSharpTypeProvidersModel, TypeProvidersConnection>
+    TypeProvidersExternalProcess : ProtocolExternalProcess<RdFSharpTypeProvidersLoaderModel, TypeProvidersConnection>
   {
     private readonly JetProcessRuntimeRequest myRequest;
     private readonly NuGetVersion myNuGetVersion;
     private Lifetime myLifetime;
-
     protected override string Name => "Out-of-Process TypeProviders";
 
     private static readonly FileSystemPath TypeProvidersDirectory =
       typeof(TypeProvidersExternalProcess).Assembly.GetPath().Directory.Parent / "typeProviders";
 
-    protected override RdFSharpTypeProvidersModel CreateModel(Lifetime lifetime, IProtocol protocol) =>
-      new RdFSharpTypeProvidersModel(lifetime, protocol);
+    protected override RdFSharpTypeProvidersLoaderModel CreateModel(Lifetime lifetime, IProtocol protocol) =>
+      new RdFSharpTypeProvidersLoaderModel(lifetime, protocol);
 
     protected override TypeProvidersConnection CreateConnection(Lifetime lifetime,
-      RdFSharpTypeProvidersModel model, IProtocol protocol, StartupOutputWriter outputWriter, int processId,
+      RdFSharpTypeProvidersLoaderModel model, IProtocol protocol, StartupOutputWriter outputWriter, int processId,
       Signal<int> processUnexpectedExited)
     {
       myLifetime = lifetime;
@@ -39,16 +38,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
         processUnexpectedExited);
     }
 
-    protected override ProcessStartInfo GetProcessStartInfo(Lifetime lifetime, int port) =>
+    protected override ProcessStartInfo GetProcessStartInfo(int port) =>
       myRequest.RuntimeType == JetProcessRuntimeType.DotNetCore
         ? GetCoreProcessStartInfo(port, TypeProvidersDirectory)
         : GetFrameworkProcessStartInfo(port, TypeProvidersDirectory);
 
     private ProcessStartInfo GetCoreProcessStartInfo(int port, FileSystemPath basePath)
     {
-      var sdkMajorVersion = myNuGetVersion.Major.Clamp(3, 6);
-      var runtimeConfigPath = basePath / TypeProvidersProtocolConstants.CoreRuntimeConfigFilename(sdkMajorVersion);
-      var fileSystemPath = basePath / TypeProvidersProtocolConstants.TypeProvidersHostCoreFilename;
+      var sdkMajorVersion = myNuGetVersion.Major < 3 ? 3 : myNuGetVersion.Major;
+      var runtimeConfigPath = basePath.Combine(TypeProvidersProtocol.CoreRuntimeConfigFilename(sdkMajorVersion));
+      var fileSystemPath = basePath.Combine(TypeProvidersProtocol.TypeProvidersLoaderCoreFilename);
       var dotnetArgs = $"--runtimeconfig \"{runtimeConfigPath}\"";
 
       Assertion.Assert(fileSystemPath.ExistsFile, $"can't find '{fileSystemPath.FullPath}'");
@@ -57,7 +56,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
       var processStartInfo = new ProcessStartInfo
       {
         Arguments =
-          $"{dotnetArgs} \"{fileSystemPath.FullPath}\" {port} \"{TypeProvidersProtocolConstants.LogFolder.Combine($"{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss_ffff}.log")}\"",
+          $"{dotnetArgs} \"{fileSystemPath.FullPath}\" {port} \"{TypeProvidersProtocol.LogFolder.Combine($"{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss_ffff}.log")}\"",
         FileName = "exec"
       };
 
@@ -66,13 +65,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
 
     private static ProcessStartInfo GetFrameworkProcessStartInfo(int port, FileSystemPath basePath)
     {
-      var fileSystemPath = basePath / TypeProvidersProtocolConstants.TypeProvidersHostFrameworkFilename;
+      var fileSystemPath = basePath.Combine(TypeProvidersProtocol.TypeProvidersLoaderFrameworkFilename);
       Assertion.Assert(fileSystemPath.ExistsFile, $"can't find '{fileSystemPath.FullPath}'");
 
       var processStartInfo = new ProcessStartInfo
       {
         Arguments =
-          $"{port} \"{TypeProvidersProtocolConstants.LogFolder.Combine($"{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss_ffff}.log")}\"",
+          $"{port} \"{TypeProvidersProtocol.LogFolder.Combine($"{DateTime.UtcNow:yyyy_MM_dd_HH_mm_ss_ffff}.log")}\"",
         FileName = fileSystemPath.FullPath
       };
 
@@ -88,13 +87,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
           Environment.GetEnvironmentVariable("RIDER_PLUGIN_ADDITIONAL_PROBING_PATHS")
         },
         {
-          TypeProvidersProtocolConstants.TypeProvidersHostPid,
+          TypeProvidersProtocol.TypeProvidersLoaderPid,
           Process.GetCurrentProcess().Id.ToString()
         }
       };
     }
 
-    protected override bool Shutdown(RdFSharpTypeProvidersModel model)
+    protected override bool Shutdown(RdFSharpTypeProvidersLoaderModel model)
     {
       model.Proto.Scheduler.Queue(() => model.RdTypeProviderProcessModel.Kill.Start(myLifetime, Unit.Instance));
       return true;
@@ -102,7 +101,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
 
     public TypeProvidersExternalProcess(Lifetime lifetime, ILogger logger, IShellLocks locks,
       IProcessStartInfoPatcher processInfoPatcher, JetProcessRuntimeRequest request, NuGetVersion nuGetVersion)
-      : base(lifetime, logger, locks, processInfoPatcher, request, InteractionContext.SolutionContext)
+      : base(lifetime, logger, locks, processInfoPatcher, request)
     {
       myRequest = request;
       myNuGetVersion = nuGetVersion;

@@ -29,12 +29,12 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         logger: ILogger) =
     inherit FileSystemShimChangeProvider(Lifetime.Define(lifetime).Lifetime, changeManager)
 
-    let files = ConcurrentDictionary<VirtualFileSystemPath, FSharpSource>()
+    let files = ConcurrentDictionary<FileSystemPath, FSharpSource>()
 
     let getText (document: IDocument) =
         Encoding.UTF8.GetBytes(document.GetText())
 
-    let tryAddSource (path: VirtualFileSystemPath) =
+    let tryAddSource (path: FileSystemPath) =
         let mutable source = None
         ReadLockCookie.TryExecute(fun _ ->
             match files.TryGetValue(path) with
@@ -52,11 +52,11 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
 
         source
 
-    let isApplicable (path: VirtualFileSystemPath) =
+    let isApplicable (path: FileSystemPath) =
         // todo: support FCS fake paths like `startup`, prevent going to FS to check existence, etc.
         not path.IsEmpty && path.IsAbsolute && fileExtensions.GetFileType(path).Is<FSharpProjectFileType>()
 
-    member x.TryGetSource(path: VirtualFileSystemPath, [<Out>] source: byref<FSharpSource>) =
+    member x.TryGetSource(path: FileSystemPath, [<Out>] source: byref<FSharpSource>) =
         match files.TryGetValue(path) with
         | true, value -> source <- value; true
         | _ ->
@@ -65,15 +65,15 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         | Some v -> source <- v; true
         | _ -> false
 
-    override this.ReadFile(path, useMemoryMappedFile, shouldShadowCopy) =
-        if not (isApplicable path) then base.ReadFile(path, useMemoryMappedFile, shouldShadowCopy) else
+    override x.ReadFile(path) =
+        if not (isApplicable path) then base.ReadFile(path) else
 
-        match this.TryGetSource(path) with
-        | true, source -> new MemoryStream(source.Source) :> _
+        match x.TryGetSource(path) with
+        | true, source -> new MemoryStream(source.Source) :> Stream
         | _ ->
 
         logger.Trace("Miss: FileStreamReadShim miss: {0}", path)
-        base.ReadFile(path, useMemoryMappedFile, shouldShadowCopy)
+        base.ReadFile(path)
 
     override x.GetLastWriteTime(path) =
         if not (isApplicable path) then base.GetLastWriteTime(path) else
@@ -85,8 +85,8 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         logger.Trace("Miss: GetLastWriteTime: {0}", path)
         base.GetLastWriteTime(path)
 
-    override x.ExistsFile(path) =
-        if not (isApplicable path) then base.ExistsFile(path) else
+    override x.Exists(path) =
+        if not (isApplicable path) then base.Exists(path) else
         match files.TryGetValue(path) with
         | true, _ -> true
         | _ ->
@@ -96,7 +96,7 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         | _ ->
 
         logger.Trace("Miss: Exists: {0}", path)
-        base.ExistsFile(path)
+        base.Exists(path)
 
     member x.ProcessDocumentChange(change: DocumentChange) =
         let projectFile =
@@ -150,6 +150,6 @@ type FSharpSourceCache(lifetime: Lifetime, solution: ISolution, changeManager, d
         x.ProcessProjectModelChange(changeMap.GetChange<ProjectModelChange>(solution))
 
     member x.GetRdFSharpSource(fileName: string): RdFSharpSource =
-        let path = VirtualFileSystemPath.TryParse(fileName, InteractionContext.SolutionContext)
+        let path = FileSystemPath.TryParse(fileName)
         let mutable fsSource = Unchecked.defaultof<FSharpSource>
         if x.TryGetSource(path, &fsSource) then fsSource.ToRdFSharpSource() else null
