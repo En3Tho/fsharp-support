@@ -74,8 +74,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
       Interruption.Current.CheckAndThrow();
 
       var highlightings = new List<HighlightingInfo>(declarations.Count + usages.Count);
-      AddHighlightings(usages, highlightings);
       AddHighlightings(declarations, highlightings);
+      AddHighlightings(usages, highlightings);
       committer(new DaemonStageResult(highlightings.AsIReadOnlyList()));
     }
   }

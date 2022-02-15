@@ -1,11 +1,11 @@
 using System;
 using System.IO;
-using System.Reflection;
 using FSharp.Compiler.IO;
 using JetBrains.Application.changes;
 using JetBrains.Lifetimes;
 using JetBrains.Util;
 using JetBrains.Util.Logging;
+using Microsoft.FSharp.Core;
 using static FSharp.Compiler.IO.FileSystemAutoOpens;
 
 namespace JetBrains.ReSharper.Plugins.FSharp
@@ -15,10 +15,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp
     protected FileSystemShimChangeProvider(Lifetime lifetime, ChangeManager changeManager) : base(lifetime) =>
       changeManager.Changed2.Advise(lifetime, Execute);
 
-    public abstract void Execute(ChangeEventArgs changeEventArgs);
+    public virtual void Execute(ChangeEventArgs changeEventArgs)
+    {
+    }
   }
 
-  public class DelegatingFileSystemShim : IFileSystem
+  public class DelegatingFileSystemShim : DefaultFileSystem
   {
     private readonly ILogger myLogger = Logger.GetLogger<DelegatingFileSystemShim>();
     private readonly IFileSystem myFileSystem;
@@ -30,40 +32,45 @@ namespace JetBrains.ReSharper.Plugins.FSharp
       lifetime.OnTermination(() => FileSystem = myFileSystem);
     }
 
-    public virtual bool Exists(FileSystemPath path) =>
+    public virtual bool ExistsFile(VirtualFileSystemPath path) =>
       myFileSystem is DelegatingFileSystemShim shim
-        ? shim.Exists(path)
-        : myFileSystem.SafeExists(path.FullPath);
+        ? shim.ExistsFile(path)
+        : myFileSystem.FileExistsShim(path.FullPath);
 
-    public virtual DateTime GetLastWriteTime(FileSystemPath path) =>
+    public virtual DateTime GetLastWriteTime(VirtualFileSystemPath path) =>
       myFileSystem is DelegatingFileSystemShim shim
         ? shim.GetLastWriteTime(path)
         : myFileSystem.GetLastWriteTimeShim(path.FullPath);
 
-    public virtual bool IsStableFile(FileSystemPath path) =>
+    public virtual bool IsStableFile(VirtualFileSystemPath path) =>
       myFileSystem is DelegatingFileSystemShim shim
         ? shim.IsStableFile(path)
         : myFileSystem.IsStableFileHeuristic(path.FullPath);
 
-    public virtual Stream ReadFile(FileSystemPath path) =>
+    public virtual Stream ReadFile(VirtualFileSystemPath path, bool useMemoryMappedFile, bool shouldShadowCopy) =>
       myFileSystem is DelegatingFileSystemShim shim
-        ? shim.ReadFile(path)
-        : myFileSystem.FileStreamReadShim(path.FullPath);
+        ? shim.ReadFile(path, useMemoryMappedFile, shouldShadowCopy)
+        : myFileSystem.OpenFileForReadShim(path.FullPath, useMemoryMappedFile, shouldShadowCopy);
 
-    public virtual Stream FileStreamReadShim(string fileName)
+    public override Stream OpenFileForReadShim(string filePath, FSharpOption<bool> useMemoryMappedFile,
+      FSharpOption<bool> shouldShadowCopy)
     {
-      var path = FileSystemPath.TryParse(fileName);
-      var stream = path.IsEmpty
-        ? myFileSystem.FileStreamReadShim(fileName)
-        : ReadFile(path);
+      // todo: don't set values, fix in FCS
+      var memoryMappedFile = useMemoryMappedFile?.Value ?? false;
+      var shadowCopy = shouldShadowCopy?.Value ?? false;
 
-      myLogger.Trace("Read file: {0}", fileName);
+      var path = VirtualFileSystemPath.TryParse(filePath, InteractionContext.SolutionContext);
+      var stream = path.IsEmpty
+        ? myFileSystem.OpenFileForReadShim(filePath, useMemoryMappedFile, shouldShadowCopy)
+        : ReadFile(path, memoryMappedFile, shadowCopy);
+
+      myLogger.Trace("Read file: {0}", filePath);
       return stream;
     }
 
-    public virtual DateTime GetLastWriteTimeShim(string fileName)
+    public override DateTime GetLastWriteTimeShim(string fileName)
     {
-      var path = FileSystemPath.TryParse(fileName);
+      var path = VirtualFileSystemPath.TryParse(fileName, InteractionContext.SolutionContext);
       var lastWriteTime = path.IsEmpty
         ? myFileSystem.GetLastWriteTimeShim(fileName)
         : GetLastWriteTime(path);
@@ -72,29 +79,25 @@ namespace JetBrains.ReSharper.Plugins.FSharp
       return lastWriteTime;
     }
 
-    public virtual bool SafeExists(string fileName)
+    public override bool FileExistsShim(string fileName)
     {
-      var path = FileSystemPath.TryParse(fileName);
+      var path = VirtualFileSystemPath.TryParse(fileName, InteractionContext.SolutionContext);
       var exists = path.IsEmpty
-        ? myFileSystem.SafeExists(fileName)
-        : Exists(path);
+        ? myFileSystem.FileExistsShim(fileName)
+        : ExistsFile(path);
 
       myLogger.Trace("Exists: {0}: {1}", fileName, exists);
       return exists;
     }
 
-    public virtual byte[] ReadAllBytesShim(string fileName) => myFileSystem.ReadAllBytesShim(fileName);
-    public virtual Stream FileStreamCreateShim(string fileName) => myFileSystem.FileStreamCreateShim(fileName);
-    public virtual string GetFullPathShim(string fileName) => myFileSystem.GetFullPathShim(fileName);
-    public virtual bool IsPathRootedShim(string path) => myFileSystem.IsPathRootedShim(path);
-    public virtual bool IsInvalidPathShim(string filename) => myFileSystem.IsInvalidPathShim(filename);
-    public virtual string GetTempPathShim() => myFileSystem.GetTempPathShim();
-    public virtual void FileDelete(string fileName) => myFileSystem.FileDelete(fileName);
-    public virtual Assembly AssemblyLoadFrom(string fileName) => myFileSystem.AssemblyLoadFrom(fileName);
-    public virtual Assembly AssemblyLoad(AssemblyName assemblyName) => myFileSystem.AssemblyLoad(assemblyName);
-    public virtual bool IsStableFileHeuristic(string fileName) => myFileSystem.IsStableFileHeuristic(fileName);
-
-    public virtual Stream FileStreamWriteExistingShim(string fileName) =>
-      myFileSystem.FileStreamWriteExistingShim(fileName);
+    public override bool IsStableFileHeuristic(string fileName)
+    {
+      var path = VirtualFileSystemPath.TryParse(fileName, InteractionContext.SolutionContext);
+      var isStablePath = path.IsEmpty
+        ? myFileSystem.IsStableFileHeuristic(fileName)
+        : IsStableFile(path);
+      myLogger.Trace("Exists: {0}: {1}", fileName, isStablePath);
+      return base.IsStableFileHeuristic(fileName);
+    }
   }
 }
