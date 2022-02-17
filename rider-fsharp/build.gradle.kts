@@ -1,7 +1,8 @@
 import com.jetbrains.rd.generator.gradle.RdGenExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.grammarkit.tasks.GenerateLexer
-import org.jetbrains.intellij.IntelliJPlugin
+import org.jetbrains.intellij.IntelliJPluginConstants
+import org.jetbrains.intellij.tasks.IntelliJInstrumentCodeTask
 import org.jetbrains.intellij.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.tasks.RunIdeTask
 import org.jetbrains.kotlin.daemon.common.toHexString
@@ -10,14 +11,10 @@ import java.net.URI
 
 buildscript {
     repositories {
-        maven { setUrl("https://cache-redirector.jetbrains.com/www.myget.org/F/rd-snapshots/maven") }
-        maven { setUrl("https://cache-redirector.jetbrains.com/dl.bintray.com/kotlin/kotlin-eap") }
         maven { setUrl("https://cache-redirector.jetbrains.com/repo.maven.apache.org/maven2")}
-        maven { setUrl("https://jetbrains.bintray.com/intellij-plugin-service") }
     }
     dependencies {
-        // https://www.myget.org/feed/rd-snapshots/package/maven/com.jetbrains.rd/rd-gen
-        classpath("com.jetbrains.rd:rd-gen:0.211.195")
+        classpath("com.jetbrains.rd:rd-gen:2022.1.2")
     }
 }
 
@@ -27,10 +24,10 @@ repositories {
 }
 
 plugins {
-    id("org.jetbrains.intellij") version "0.6.5"
-    id("org.jetbrains.grammarkit") version "2018.1.7"
+    id("org.jetbrains.intellij") version "1.3.1" // https://github.com/JetBrains/gradle-intellij-plugin/releases
+    id("org.jetbrains.grammarkit") version "2021.1.3"
     id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
-    kotlin("jvm") version "1.4.10"
+    kotlin("jvm") version "1.6.10"
 }
 
 apply {
@@ -45,18 +42,18 @@ java {
 }
 
 
-val baseVersion = "2021.1"
+val baseVersion = "2022.1"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
 intellij {
-    type = "RD"
+    type.set("RD")
 
     // Download a version of Rider to compile and run with. Either set `version` to
     // 'LATEST-TRUNK-SNAPSHOT' or 'LATEST-EAP-SNAPSHOT' or a known version.
     // This will download from www.jetbrains.com/intellij-repository/snapshots or
     // www.jetbrains.com/intellij-repository/releases, respectively.
-    // Note that there's no guarantee that these are kept up to date
+    // Note that there's no guarantee that these are kept up-to-date
     // version = 'LATEST-TRUNK-SNAPSHOT'
     // If the build isn't available in intellij-repository, use an installed version via `localPath`
     // localPath = '/Users/matt/Library/Application Support/JetBrains/Toolbox/apps/Rider/ch-1/171.4089.265/Rider EAP.app/Contents'
@@ -67,17 +64,20 @@ intellij {
     val dir = file("build/rider")
     if (dir.exists()) {
         logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
-        localPath = dir.absolutePath
+        localPath.set(dir.absolutePath)
     } else {
         logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
-        version = "$baseVersion-SNAPSHOT"
+        version.set("$baseVersion-SNAPSHOT")
     }
 
-    instrumentCode = false
-    downloadSources = false
+    instrumentCode.set(false)
+    downloadSources.set(false)
+
+    // Uncomment when need to install plugin into a different IDE build.
+    // updateSinceUntilBuild = false
 
     // Workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
-    setPlugins("rider-plugins-appender")
+    plugins.set(listOf("rider-plugins-appender"))
 }
 
 repositories.forEach {
@@ -100,41 +100,49 @@ repositories.forEach {
 
 val repoRoot = projectDir.parentFile!!
 val resharperPluginPath = File(repoRoot, "ReSharper.FSharp")
+
 val buildConfiguration = ext.properties["BuildConfiguration"] ?: "Debug"
+val primaryTargetFramework = "net472"
+val outputRelativePath = "bin/$buildConfiguration/$primaryTargetFramework"
 
 val libFiles = listOf(
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Core.dll",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Core.xml",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.DependencyManager.Nuget.dll",
-        "FSharp.Common/bin/$buildConfiguration/net461/FSharp.Compiler.Interactive.Settings.dll",
-        "FSharp.Psi.Features/bin/$buildConfiguration/net461/Fantomas.dll")
+        "FSharp.Common/$outputRelativePath/FSharp.Core.dll",
+        "FSharp.Common/$outputRelativePath/FSharp.Core.xml",
+        "FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
+        "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
+        "FSharp.Common/$outputRelativePath/FSharp.Compiler.Interactive.Settings.dll")
 
 val pluginFiles = listOf(
-        "FSharp.ProjectModelBase/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
-        "FSharp.Common/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Common",
-        "FSharp.Psi/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Psi",
-        "FSharp.Psi.Features/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.Psi.Features",
-        "FSharp.TypeProvidersProtocol/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersProtocol")
+        "FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
+        "FSharp.Common/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Common",
+        "FSharp.Psi/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi",
+        "FSharp.Psi.Services/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Services",
+        "FSharp.Psi.Daemon/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon",
+        "FSharp.Psi.Intentions/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions",
+        "FSharp.Psi.Features/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Features",
+        "FSharp.Fantomas.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol",
+        "FSharp.TypeProviders.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol")
 
 val typeProvidersFiles = listOf(
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.exe",
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.pdb",
-        "TypeProvidersLoader/bin/$buildConfiguration/net461/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.exe.config",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.dll",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProvidersLoader.pdb",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader3.win.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader3.unix.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader5.win.runtimeconfig.json",
-        "TypeProvidersLoader/bin/$buildConfiguration/netcoreapp3.1/tploader5.unix.runtimeconfig.json")
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
+        "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.dll",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.pdb",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.unix.runtimeconfig.json")
 
-val dotNetSdkPath by lazy {
-    val sdkPath = intellij.ideaDependency.classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
-    if (sdkPath.isDirectory.not()) error("$sdkPath does not exist or not a directory")
+val fantomasFiles = listOf(
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.exe",
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.runtimeconfig.json",
+        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
+        "FSharp.Fantomas.Host/$outputRelativePath/FSharp.Compiler.Service.dll",
+        "FSharp.Fantomas.Host/$outputRelativePath/Fantomas.dll")
 
-    println("SDK path: $sdkPath")
-    return@lazy sdkPath
-}
 
 val nugetConfigPath = File(repoRoot, "NuGet.Config")
 val dotNetSdkPathPropsPath = File("build", "DotNetSdkPath.generated.props")
@@ -151,102 +159,140 @@ fun File.writeTextIfChanged(content: String) {
     }
 }
 
-configure<RdGenExtension> {
-    val csOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.ProjectModelBase/src/Protocol")
-    val ktOutput = File(repoRoot, "rider-fsharp/src/main/java/com/jetbrains/rider/plugins/fsharp/protocol")
-
-    val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProvidersProtocol/src/Server")
-    val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProvidersProtocol/src/Client")
-
-    verbose = true
-    hashFolder = "build/rdgen"
-    logger.info("Configuring rdgen params")
-    classpath({
-        logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${intellij.ideaDependency}")
-        val sdkPath = intellij.ideaDependency.classes
-        val rdLibDirectory = File(sdkPath, "lib/rd").canonicalFile
-
-        "$rdLibDirectory/rider-model.jar"
-    })
-    sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
-    packages = "model"
-
-    generator {
-        language = "kotlin"
-        transform = "asis"
-        root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
-        namespace = "com.jetbrains.rider.model"
-        directory = "$ktOutput"
-    }
-
-    generator {
-        language = "csharp"
-        transform = "reversed"
-        root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
-        namespace = "JetBrains.Rider.Model"
-        directory = "$csOutput"
-    }
-
-    generator {
-        language = "csharp"
-        transform = "asis"
-        root = "model.RdFSharpTypeProvidersLoaderModel"
-        namespace = "JetBrains.Rider.FSharp.TypeProvidersProtocol.Server"
-        directory = "$typeProviderServerOutput"
-    }
-    generator {
-        language = "csharp"
-        transform = "reversed"
-        root = "model.RdFSharpTypeProvidersLoaderModel"
-        namespace = "JetBrains.Rider.FSharp.TypeProvidersProtocol.Client"
-        directory = "$typeProviderClientOutput"
-    }
-}
-
 tasks {
+    val dotNetSdkPath by lazy {
+        val sdkPath = setupDependencies.get().idea.get().classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
+        if (sdkPath.isDirectory.not()) error("$sdkPath does not exist or not a directory")
+
+        println("SDK path: $sdkPath")
+        return@lazy sdkPath
+    }
+
+    configure<RdGenExtension> {
+        val csOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.ProjectModelBase/src/Protocol")
+        val ktOutput = File(repoRoot, "rider-fsharp/src/main/java/com/jetbrains/rider/plugins/fsharp/protocol")
+
+        val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Client")
+        val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Server")
+
+        val fantomasServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Server")
+        val fantomasClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Client")
+
+        verbose = true
+        hashFolder = "build/rdgen"
+        logger.info("Configuring rdgen params")
+        classpath({
+        logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${setupDependencies.get().idea.get()}")
+            val sdkPath = setupDependencies.get().idea.get().classes
+            val rdLibDirectory = File(sdkPath, "lib/rd").canonicalFile
+
+            "$rdLibDirectory/rider-model.jar"
+        })
+        sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
+        packages = "model"
+
+        generator {
+            language = "kotlin"
+            transform = "asis"
+            root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
+            namespace = "com.jetbrains.rider.model"
+            directory = "$ktOutput"
+        }
+
+        generator {
+            language = "csharp"
+            transform = "reversed"
+            root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
+            namespace = "JetBrains.Rider.Model"
+            directory = "$csOutput"
+        }
+
+        generator {
+            language = "csharp"
+            transform = "asis"
+            root = "model.RdFSharpTypeProvidersModel"
+            namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Client"
+            directory = "$typeProviderClientOutput"
+        }
+        generator {
+            language = "csharp"
+            transform = "reversed"
+            root = "model.RdFSharpTypeProvidersModel"
+            namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Server"
+            directory = "$typeProviderServerOutput"
+        }
+
+        generator {
+            language = "csharp"
+            transform = "asis"
+            root = "model.RdFantomasModel"
+            namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Client"
+            directory = "$fantomasClientOutput"
+        }
+        generator {
+            language = "csharp"
+            transform = "reversed"
+            root = "model.RdFantomasModel"
+            namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Server"
+            directory = "$fantomasServerOutput"
+        }
+    }
+
+    withType<IntelliJInstrumentCodeTask> {
+        val bundledMavenArtifacts = file("build/maven-artifacts")
+        if (bundledMavenArtifacts.exists()) {
+            logger.lifecycle("Use ant compiler artifacts from local folder: $bundledMavenArtifacts")
+            compilerClassPathFromMaven.set(
+                bundledMavenArtifacts.walkTopDown()
+                    .filter { it.extension == "jar" && !it.name.endsWith("-sources.jar") }
+                    .toList() + File("${ideaDependency.get().classes}/lib/util.jar")
+            )
+        } else {
+            logger.lifecycle("Use ant compiler artifacts from maven")
+        }
+    }
+
     withType<PrepareSandboxTask> {
         var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
         files = files.map { "$resharperPluginPath/src/$it" }
+        val fantomasFiles = fantomasFiles.map { "$resharperPluginPath/src/$it" }
         val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
-        if (name == IntelliJPlugin.PREPARE_TESTING_SANDBOX_TASK_NAME) {
-            val testHostPath = "$resharperPluginPath/test/src/FSharp.Tests.Host/bin/$buildConfiguration/net461"
+        if (name == IntelliJPluginConstants.PREPARE_TESTING_SANDBOX_TASK_NAME) {
+            val testHostPath = "$resharperPluginPath/test/src/FSharp.Tests.Host/$outputRelativePath"
             val testHostName = "$testHostPath/JetBrains.ReSharper.Plugins.FSharp.Tests.Host"
             files = files + listOf("$testHostName.dll", "$testHostName.pdb")
         }
 
-        files.forEach {
-            from(it) { into("${intellij.pluginName}/dotnet") }
+        fun moveToPlugin(files: List<String>, destFolder: String) {
+            files.forEach {
+                from(it) { into("${intellij.pluginName.get()}/$destFolder") }
+            }
         }
 
-        typeProvidersFiles.forEach {
-            from(it) { into("${intellij.pluginName}/typeProviders") }
-        }
-
-        into("${intellij.pluginName}/projectTemplates") {
-            from("projectTemplates")
-        }
+        moveToPlugin(files, "dotnet")
+        moveToPlugin(fantomasFiles, "fantomas")
+        moveToPlugin(typeProvidersFiles, "typeProviders")
+        moveToPlugin(listOf("projectTemplates"), "projectTemplates")
 
         doLast {
-            files.forEach {
-                val file = file(it)
-                if (!file.exists()) throw RuntimeException("File $file does not exist")
-                logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName}/dotnet")
+            fun validateFiles(files: List<String>, destFolder: String) {
+                files.forEach {
+                    val file = file(it)
+                    if (!file.exists()) throw RuntimeException("File $file does not exist")
+                    logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName.get()}/$destFolder")
+                }
             }
-
-            typeProvidersFiles.forEach {
-                val file = file(it)
-                if (!file.exists()) throw RuntimeException("File $file does not exist")
-                logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName}/typeProviders")
-            }
+            validateFiles(files, "dotnet")
+            validateFiles(fantomasFiles, "fantomas")
+            validateFiles(typeProvidersFiles, "typeProviders")
         }
     }
 
     // Initially introduced in:
     // https://github.com/JetBrains/ForTea/blob/master/Frontend/build.gradle.kts
     withType<RunIdeTask> {
-        // IDEs from SDK are launched with 512m by default, which is not enough for Rider.
-        // Rider uses this value when launched not from SDK.
+        // Match Rider's default heap size of 1.5Gb (default for runIde is 512Mb)
         maxHeapSize = "1500m"
     }
 
@@ -286,7 +332,7 @@ tasks {
     }
 
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.jvmTarget = "11"
         dependsOn(generateFSharpLexer, "rdgen")
     }
 
