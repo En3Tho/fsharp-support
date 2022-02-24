@@ -129,7 +129,7 @@ type EqualityOperatorUsageAnalyzer() =
                 if declaredElementsHaveSameTypes leftArg rightArg
                    && isCoreEqualityIntrinsic leftArg
                    && isCustomEqualityCandidate leftArg then
-                    consumer.AddHighlighting(EqualityOperatorBoxingWarning(binaryAppExpr))
+                    consumer.AddHighlighting(EqualityOperatorUsageWarning(binaryAppExpr))
                 else
                     ()
             | _ ->

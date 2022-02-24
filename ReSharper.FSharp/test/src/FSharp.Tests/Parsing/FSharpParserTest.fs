@@ -293,6 +293,10 @@ type FSharpParserTest() =
     [<Test>] member x.``Expr - App - Prefix op - Binary 02 - Spaces``() = x.DoNamedTest()
     [<Test>] member x.``Expr - App - Prefix op 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Expr - App - Indexer 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - App - Indexer 02``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - App - Indexer 03``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - App - Indexer 04``() = x.DoNamedTest()
     [<Test>] member x.``Expr - App - List 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - App - List 02``() = x.DoNamedTest()
 
@@ -432,6 +436,7 @@ type FSharpParserTest() =
 
     [<Test>] member x.``Types - Constraints - Null 01``() = x.DoNamedTest()
     [<Test>] member x.``Types - Constraints - Type 01``() = x.DoNamedTest()
+    [<Test>] member x.``Types - Constraints - Type 02 - No when``() = x.DoNamedTest()
     [<Test>] member x.``Types - Constraints - Reference 01``() = x.DoNamedTest()
     [<Test>] member x.``Types - Constraints - Struct 01``() = x.DoNamedTest()
     [<Test>] member x.``Types - Constraints - Comparison 01``() = x.DoNamedTest()

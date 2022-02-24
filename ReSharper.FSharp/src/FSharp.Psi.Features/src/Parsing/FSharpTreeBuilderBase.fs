@@ -32,7 +32,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
         Array.init (int lineCount) (fun line -> document.GetLineStartOffset(docLine line))
 
     let getLineOffset line =
-        lineOffsets.[line + lineShift]
+        lineOffsets[line + lineShift]
 
     new (sourceFile, lexer, lifetime, path) =
         FSharpTreeBuilderBase(sourceFile, lexer, lifetime, path, 0, 0)
@@ -326,7 +326,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
             | Some(typeParams) -> x.ProcessTypeParameters(typeParams, true)
             | _ -> ()
 
-            x.ProcessConstraints(constraints)
+            x.ProcessConstraintsClause(constraints)
 
             // Needs to advance past id range due to implicit ctor range in class includes id.
             x.AdvanceToEnd(id.idRange)
@@ -344,7 +344,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         for p in typeParams.TyparDecls do
             x.ProcessTypeParameter(p, typeParameterElementType)
-        x.ProcessConstraints(typeParams.Constraints)
+        x.ProcessConstraintsClause(typeParams.Constraints)
 
         let typeParameterListElementType =
             match typeParams with
@@ -353,9 +353,15 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         x.Done(range, mark, typeParameterListElementType)
 
-    member x.ProcessConstraints(constraints) =
+    member x.ProcessConstraintsClause(constraints: SynTypeConstraint list) =
+        match constraints with
+        | [] -> ()
+        | typeConstraint :: _ ->
+
+        let mark = x.MarkTokenOrRange(FSharpTokenType.WHEN, typeConstraint.Range)
         for typeConstraint in constraints do
             x.ProcessTypeConstraint(typeConstraint)
+        x.Done(mark, ElementType.TYPE_CONSTRAINTS_CLAUSE)
 
     member x.ProcessTypeParameter(SynTyparDecl(_, SynTypar(IdentRange range, _, _)), elementType) =
         x.MarkAndDone(range, elementType)
@@ -419,7 +425,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
             let representationMark =
                 match cases with
                 | [] -> x.Mark(range)
-                | SynUnionCase(_, _, _, XmlDoc xmlDoc, _, _) :: _ ->
+                | SynUnionCase(_, _, _, XmlDoc xmlDoc, _, _, _) :: _ ->
                     x.MarkXmlDocOwner(xmlDoc, null, range)
 
             for case in cases do
@@ -441,7 +447,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         | _ -> failwithf "Unexpected simple type representation: %A" repr
 
-    member x.ProcessUnionCase(SynUnionCase(attrs, _, caseType, XmlDoc xmlDoc, _, range)) =
+    member x.ProcessUnionCase(SynUnionCase(attrs, _, caseType, XmlDoc xmlDoc, _, range, _)) =
         let mark = x.MarkXmlDocOwner(xmlDoc, FSharpTokenType.BAR, range)
         x.ProcessAttributeLists(attrs)
         x.ProcessUnionCaseType(caseType, ElementType.UNION_CASE_FIELD_DECLARATION)
@@ -490,7 +496,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         x.Done(attr.Range, mark, ElementType.ATTRIBUTE)
 
-    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, _, _, XmlDoc xmlDoc, range)) =
+    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, _, XmlDoc xmlDoc, range, _)) =
         let mark = x.MarkXmlDocOwner(xmlDoc, FSharpTokenType.BAR, range)
         x.ProcessAttributeLists(attrs)
         x.Done(range, mark, ElementType.ENUM_CASE_DECLARATION)
@@ -614,19 +620,19 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
             // The last one is an already processed reference expr from this type app (see ProcessExpression).
             let exprEndIndex = productions.Count - 1
-            let mutable exprEndMarker = productions.[exprEndIndex]
+            let mutable exprEndMarker = productions[exprEndIndex]
 
             let expectedType = ElementType.REFERENCE_EXPR :> NodeType
             Assertion.Assert(exprEndMarker.ElementType == expectedType, "exprEnd.ElementType <> refExpr; {0}", expr)
 
             // Get reference expr start marker.
             let exprStart = exprEndIndex + exprEndMarker.OppositeMarker
-            let mutable exprStartMarker = productions.[exprStart]
+            let mutable exprStartMarker = productions[exprStart]
 
             // Remove the Done marker, reset start marker so it's considered unfinished.
             productions.RemoveAt(exprEndIndex)
             exprStartMarker.OppositeMarker <- Marker.InvalidPointer
-            productions.[exprStart] <- exprStartMarker
+            productions[exprStart] <- exprStartMarker
 
             // Process type args as part of reference expr.
             match ltRange, typeArgs with
@@ -776,9 +782,8 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
         | SynType.WithGlobalConstraints(synType, constraints, _) ->
             let mark = x.Mark(range)
             x.ProcessType(synType)
-            for typeConstraint in constraints do
-                x.ProcessTypeConstraint(typeConstraint)
-            x.Done(range, mark, ElementType.UNSUPPORTED_TYPE_USAGE)
+            x.ProcessConstraintsClause(constraints)
+            x.Done(range, mark, ElementType.CONSTRAINED_TYPE_USAGE)
 
         | SynType.HashConstraint(synType, _)
         | SynType.MeasurePower(synType, _, _) ->
@@ -887,7 +892,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
     member x.ProcessTypeMemberSignature(memberSig) =
         match memberSig with
-        | SynMemberSig.Member(SynValSig(attrs, id, _, synType, arity, _, _, XmlDoc xmlDoc, _, _, _), flags, range) ->
+        | SynMemberSig.Member(SynValSig(attrs, id, _, synType, arity, _, _, XmlDoc xmlDoc, _, _, _, _), flags, range) ->
             let mark = x.MarkAndProcessAttributesOrIdOrRange(attrs, xmlDoc, Some id, range)
             x.ProcessReturnTypeInfo(arity, synType)
             let elementType =
@@ -957,7 +962,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
         x.AdvanceToEnd(range)
         x.Builder.AlterToken(tokenMark, FSharpTokenType.CHAMELEON)
 
-        let lineStart = lineOffsets.[range.StartLine - 1]
+        let lineStart = lineOffsets[range.StartLine - 1]
         let data = expr, startOffset, lineStart
         x.Done(range, mark, ChameleonExpressionNodeType.Instance, data)
 
