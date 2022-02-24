@@ -88,6 +88,10 @@
         <Title>Redundant 'as' pattern</Title>
         <Description>'as' pattern can be replaced with its name.</Description>
       </Tag>
+      <Tag name="FSharpEqualityOperatorBoxing" default="WARNING">
+        <Title>Consider using custom equality operator with supported collections and IEquatable structs</Title>
+        <Description>Using equality operator result in slow equality for structs and some collections. Consider using custom equality operator.</Description>
+      </Tag>
     </Group>
   </SeverityConfiguration>
 
@@ -165,6 +169,13 @@
     <Range>parenExpr.LeftParen.GetHighlightingRange()</Range>
     <SecondaryRanges>secondaryRangesFromNode parenExpr.RightParen</SecondaryRanges>
     <QuickFix>RemoveRedundantParenExprFix</QuickFix>
+  </Warning>
+
+  <Warning staticGroup="FSharpErrors" name="EqualityOperatorBoxing" configurableSeverity="FSharpEqualityOperatorBoxing" isSuppressedInTests="true">
+    <Parameter type="IBinaryAppExpr" name="binaryAppExpr"/>
+    <Range>binaryAppExpr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <Message value="Consider using custom equality operator"/>
   </Warning>
 
   <Warning staticGroup="FSharpErrors" name="RedundantParenPat" configurableSeverity="FSharpRedundantParens">
