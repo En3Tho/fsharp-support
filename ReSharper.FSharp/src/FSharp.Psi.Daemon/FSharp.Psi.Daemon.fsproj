@@ -53,6 +53,9 @@
     <Compile Include="src\Analyzers\AsPatAnalyzer.fs" />
     <Compile Include="src\Analyzers\IndexerExprAnalyzer.fs" />
     <Compile Include="src\Analyzers\EqualityOperatorUsageAnalyzer.fs" />
+    <Compile Include="src\Analyzers\ILoggerLikeUsageAnalyzer.fs" />
+    <Compile Include="src\Analyzers\ProperAliasUsageAnalyzer.fs" />
+    <Compile Include="src\Analyzers\DisposablesAnalyzer.fs" />
   </ItemGroup>
 
   <ItemGroup>
