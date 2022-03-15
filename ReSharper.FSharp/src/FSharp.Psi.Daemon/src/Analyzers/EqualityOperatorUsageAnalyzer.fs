@@ -1,4 +1,4 @@
-module JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers.EqualityOperatorUsageAnalyzer
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers
 
 open FSharp.Compiler.Symbols
 open JetBrains.ReSharper.Feature.Services.Daemon
@@ -19,6 +19,7 @@ type EqualityOperatorUsageAnalyzer() =
 
         let isFsharpCoreEqualsOperator (operatorExpr: IReferenceExpr) =
             let symbol = operatorExpr.Reference.GetFcsSymbol()
+
             isNotNull symbol
             && symbol.Assembly.SimpleName.Equals("FSharp.Core")
 
@@ -96,6 +97,7 @@ type EqualityOperatorUsageAnalyzer() =
                         match name with
                         | "Microsoft.FSharp.Collections.FSharpList`1"
                         | "System.Collections.Generic.List`1"
+                        | "System.Collections.Generic.LinkedList`1"
                         | "System.Collections.Generic.IList`1"
                         | "System.Collections.Generic.HashSet`1"
                         | "System.Collections.Generic.IEnumerable`1" ->
@@ -127,7 +129,7 @@ type EqualityOperatorUsageAnalyzer() =
             match binaryAppExpr.LeftArgument, binaryAppExpr.RightArgument with
             | :? IReferenceExpr as leftArg, (:? IReferenceExpr as rightArg) ->
                 if declaredElementsHaveSameTypes leftArg rightArg
-                   && isCoreEqualityIntrinsic leftArg
+                   && not (isCoreEqualityIntrinsic leftArg)
                    && isCustomEqualityCandidate leftArg then
                     consumer.AddHighlighting(EqualityOperatorUsageWarning(binaryAppExpr))
                 else

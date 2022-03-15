@@ -1,4 +1,4 @@
-module JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers.ILoggerLikeUsageAnalyzer
+namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers
 
 // method call
 // (Log*Information/Debug/Warning etc) calls where (const format) ->
@@ -6,7 +6,3 @@ module JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers.ILoggerLikeUsageA
 
 
 // TODO: try warn if logging format holes are not fully used
-
-// TODO: Alias inspector
-
-// TODO: En3Tho.FSharp.Extensions.Disposables analyzer
