@@ -11,5 +11,5 @@ type T() =
     class
         member x.P1 = 1
     end
-    {caret}member x.P2 = 1
-    override this.ToString() = failwith "todo"
+    member x.P2 = 1
+    override this.ToString() = {selstart}failwith "todo"{selend}
