@@ -108,13 +108,13 @@ type ProperAliasUsageAnalyzer() =
                             match arg.Expression with
                             | :? IReferenceExpr as (wrongAliasRef & HasFcsMfvSymbolUse argumentMfv) ->
                                 if checkForWarning parameter.Type argumentMfv.FullType then
-                                    consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                                    consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
 
                             | :? IPrefixAppExpr as localPrefixAppExpr ->
                                 match localPrefixAppExpr.FunctionExpression with
                                 | :? IReferenceExpr as (HasFcsMfvSymbolUse argumentMfv) ->
                                     if checkForWarning parameter.Type argumentMfv.FullType then
-                                        consumer.AddHighlighting(ProperAliasUsageWarning(localPrefixAppExpr))
+                                        consumer.AddHighlighting(SuspiciousAliasUsageWarning(localPrefixAppExpr))
                                 | _ ->
                                     ()
                             | _ ->
@@ -122,22 +122,25 @@ type ProperAliasUsageAnalyzer() =
                             index <- index + 1
             | _ -> ()
 
+    // x <- value
     let checkSetExpr (consumer: IHighlightingConsumer) (parentExpression: ISetExpr) =
         match parentExpression.LeftExpression, parentExpression.RightExpression with
         | :? IReferenceExpr as HasFcsMfvSymbolUse leftMfv, (:? IReferenceExpr as (wrongAliasRef & HasFcsMfvSymbolUse rightMfv)) ->
            if checkForWarning leftMfv.FullType rightMfv.FullType then
-                consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
         | _ ->
             ()
 
+    // let x = { A = ... }
     let checkRecordFieldBinding (consumer: IHighlightingConsumer) (parentExpression: IRecordFieldBinding) =
         match parentExpression.ReferenceName, parentExpression.LastChild with
         | HasFcsFSharpFieldSymbolUse recordField, (:? IReferenceExpr as (wrongAliasRef & HasFcsMfvSymbolUse valueMfv)) ->
             if checkForWarning recordField.FieldType valueMfv.FullType then
-                consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
         | _ ->
             ()
 
+    // let f x y = ...
     let checkLetOrUseExpr (consumer: IHighlightingConsumer) (parentExpression: ILetOrUseExpr) =
         for binding in parentExpression.Bindings do
             match binding.HeadPattern with
@@ -145,12 +148,13 @@ type ProperAliasUsageAnalyzer() =
                 match localPat.ReferenceName, binding.Expression with
                 | HasFcsMfvSymbolUse localPatMfv, (:? IReferenceExpr as (wrongAliasRef & HasFcsMfvSymbolUse valueMfv)) ->
                     if checkForWarning localPatMfv.FullType valueMfv.FullType then
-                        consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                        consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
                 | _ ->
                     ()
             | _ ->
                 ()
 
+    // let x = y in module
     let checkChameleonExpr (consumer: IHighlightingConsumer) (originalExpression: IReferenceExpr) (parentExpression: IChameleonExpression) =
         match parentExpression.Parent with
         | :? ITopBinding as topBinding ->
@@ -159,7 +163,7 @@ type ProperAliasUsageAnalyzer() =
                 match topReference.ReferenceName, originalExpression with
                 | HasFcsMfvSymbolUseOrReference topSymbol, (wrongAliasRef & HasFcsMfvSymbolUse valueMfv) ->
                     if checkForWarning topSymbol.FullType valueMfv.FullType then
-                        consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                        consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
                 | _ ->
                     ()
             | _ ->
@@ -167,13 +171,14 @@ type ProperAliasUsageAnalyzer() =
         | _ ->
             ()
 
+    // let x = y in local function
     let checkLocalBinding (consumer: IHighlightingConsumer) (originalExpression: IReferenceExpr) (parentExpression: ILocalBinding) =
         match parentExpression.HeadPattern with
         | :? ILocalReferencePat as localReference ->
             match localReference.ReferenceName, originalExpression with
             | HasFcsMfvSymbolUseOrReference topSymbol, (wrongAliasRef & HasFcsMfvSymbolUse valueMfv) ->
                 if checkForWarning topSymbol.FullType valueMfv.FullType then
-                    consumer.AddHighlighting(ProperAliasUsageWarning(wrongAliasRef))
+                    consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
             | _ ->
                 ()
         | _ ->
@@ -183,31 +188,33 @@ type ProperAliasUsageAnalyzer() =
         match parentExpression.FunctionExpression with
         | :? IReferenceExpr as opExpr ->
             if opExpr.QualifiedName.Equals("|>") then
-
                 match parentExpression.LeftArgument, parentExpression.RightArgument with
+                // value |> f x
                 | :? IReferenceExpr as (leftReferenceExpr & HasFcsMfvSymbolUse leftReferenceMfv), (:? IPrefixAppExpr as rightPrefixAppExpr) ->
                     match rightPrefixAppExpr.FunctionExpression with
                     | :? IReferenceExpr as (HasFcsMfvSymbolUse rightFuncMfv) ->
                         let funcType = rightFuncMfv.FullType
-                        if funcType.IsFunctionType then
+                        if funcType.IsFunctionType then // TODO: check for my custom pipe with delegate?
                             let argIndexToCheck = funcType.GenericArguments.Count - rightPrefixAppExpr.Arguments.Count
                             if argIndexToCheck < funcType.GenericArguments.Count then
+                                // inner type is usually a func too, meaning a curried representation
                                 let innerType = funcType.GenericArguments[argIndexToCheck]
                                 let typeToCheck =
                                     if innerType.IsFunctionType then
-                                        innerType.GenericArguments[0] // the next arg in curried representation of a func?
+                                        innerType.GenericArguments[0] // the next arg in curried representation of a func
                                     else
                                         innerType
                                 if checkForWarning leftReferenceMfv.FullType typeToCheck then
-                                    consumer.AddHighlighting(ProperAliasUsageWarning(leftReferenceExpr))
+                                    consumer.AddHighlighting(SuspiciousAliasUsageWarning(leftReferenceExpr))
                     | _ ->
                         ()
-
+                // value |> f
                 | :? IReferenceExpr as (leftReferenceExpr & HasFcsMfvSymbolUse leftReferenceMfv), (:? IReferenceExpr as (HasFcsMfvSymbolUse rightReferenceMfv)) ->
                     let funcType = rightReferenceMfv.FullType
                     if funcType.IsFunctionType then
                         if checkForWarning leftReferenceMfv.FullType funcType then
-                            consumer.AddHighlighting(ProperAliasUsageWarning(leftReferenceExpr))
+                            consumer.AddHighlighting(SuspiciousAliasUsageWarning(leftReferenceExpr))
+
                 | _ ->
                     ()
         | _ ->
