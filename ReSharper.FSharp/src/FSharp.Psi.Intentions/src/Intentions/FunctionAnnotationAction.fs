@@ -71,6 +71,24 @@ module SpecifyTypes =
 
         ModificationUtil.ReplaceChild(pattern, typedPat) |> ignore
 
+    let specifyLocalValueType displayContext (fcsType: FSharpType) (pattern: IFSharpPattern) =
+        let pattern = pattern.IgnoreParentParens()
+        let factory = pattern.CreateElementFactory()
+
+        let newPattern =
+            match pattern.IgnoreInnerParens() with
+            | :? ITuplePat as tuplePat -> addParens factory tuplePat
+            | pattern -> pattern
+
+        let typedPat =
+            let typedPat = factory.CreateTypedPat(newPattern, factory.CreateTypeUsage(fcsType.Format(displayContext)))
+            if isNull (TuplePatNavigator.GetByPattern(pattern)) then
+                addParens factory typedPat
+            else
+                typedPat :> _
+
+        ModificationUtil.ReplaceChild(pattern, typedPat.IgnoreInnerParens()) |> ignore
+
     let specifyPropertyType displayContext (fcsType: FSharpType) (decl: IMemberDeclaration) =
         Assertion.Assert(isNull decl.ReturnTypeInfo, "isNull decl.ReturnTypeInfo")
         Assertion.Assert(decl.ParametersDeclarationsEnumerable.IsEmpty(),

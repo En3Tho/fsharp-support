@@ -1040,7 +1040,9 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushRange(range, ElementType.LET_OR_USE_EXPR)
             x.PushExpression(inExpr)
             x.PushStepList(ands, andLocalBindingListProcessor)
-            x.PushRangeForMark(expr.Range, x.Mark(pat.Range), ElementType.LOCAL_BINDING)
+            let exprWithPatRange = Range.mkRange expr.Range.FileName pat.Range.Start expr.Range.End
+            x.AdvanceToTokenOrRangeStart(FSharpTokenType.LET_BANG, exprWithPatRange)
+            x.PushRangeForMark(exprWithPatRange, x.Mark(), ElementType.LOCAL_BINDING)
             x.ProcessPat(pat, true, false)
             x.ProcessExpression(expr)
 
@@ -1107,7 +1109,10 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
         | SynExpr.DebugPoint _ -> failwithf $"Synthetic expression: {expr}"
 
     member x.ProcessAndLocalBinding(pat: SynPat, expr: SynExpr) =
-        x.PushRangeForMark(expr.Range, x.Mark(pat.Range), ElementType.LOCAL_BINDING)
+        let exprWithPatRange = Range.mkRange expr.Range.FileName pat.Range.Start expr.Range.End
+        x.AdvanceToTokenOrRangeStart(FSharpTokenType.AND_BANG, exprWithPatRange)
+        x.PushRangeForMark(exprWithPatRange, x.Mark(), ElementType.LOCAL_BINDING)
+
         x.ProcessPat(pat, true, false)
         x.ProcessExpression(expr)
 
