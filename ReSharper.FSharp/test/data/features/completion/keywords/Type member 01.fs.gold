@@ -1,7 +1,8 @@
-﻿# 7 ITEMS #
+﻿# 8 ITEMS #
 
 + abstract
 + default
++ inherit
 + member
 + override
 + static

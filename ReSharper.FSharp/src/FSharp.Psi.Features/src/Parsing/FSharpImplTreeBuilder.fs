@@ -1040,8 +1040,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushRange(range, ElementType.LET_OR_USE_EXPR)
             x.PushExpression(inExpr)
             x.PushStepList(ands, andLocalBindingListProcessor)
-            let exprWithPatRange = Range.mkRange expr.Range.FileName pat.Range.Start expr.Range.End
-            x.AdvanceToTokenOrRangeStart(FSharpTokenType.LET_BANG, exprWithPatRange)
+            let exprWithPatRange = Range.unionRanges expr.Range pat.Range
             x.PushRangeForMark(exprWithPatRange, x.Mark(), ElementType.LOCAL_BINDING)
             x.ProcessPat(pat, true, false)
             x.ProcessExpression(expr)
@@ -1108,11 +1107,10 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
 
         | SynExpr.DebugPoint _ -> failwithf $"Synthetic expression: {expr}"
 
-    member x.ProcessAndLocalBinding(pat: SynPat, expr: SynExpr) =
-        let exprWithPatRange = Range.mkRange expr.Range.FileName pat.Range.Start expr.Range.End
-        x.AdvanceToTokenOrRangeStart(FSharpTokenType.AND_BANG, exprWithPatRange)
+    member x.ProcessAndBangLocalBinding(pat: SynPat, expr: SynExpr, range) =
+        x.AdvanceToTokenOrRangeStart(FSharpTokenType.AND_BANG, range)
+        let exprWithPatRange = Range.unionRanges expr.Range pat.Range
         x.PushRangeForMark(exprWithPatRange, x.Mark(), ElementType.LOCAL_BINDING)
-
         x.ProcessPat(pat, true, false)
         x.ProcessExpression(expr)
 
@@ -1435,8 +1433,8 @@ type SecondaryBindingListProcessor() =
 type AndLocalBindingListProcessor() =
     inherit StepListProcessorBase<SynExprAndBang>()
 
-    override x.Process(SynExprAndBang(_, _, _, pat, expr, _, _), builder) =
-        builder.ProcessAndLocalBinding(pat, expr)
+    override x.Process(SynExprAndBang(_, _, _, pat, expr, range, _), builder) =
+        builder.ProcessAndBangLocalBinding(pat, expr, range)
 
 
 type RecordFieldBindingListProcessor() =
