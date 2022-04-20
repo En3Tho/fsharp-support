@@ -1,8 +1,10 @@
-﻿# 7 ITEMS #
+﻿# 9 ITEMS #
 
 + abstract
 + default
++ inherit
 + member
++ of
 + override
 + static
 + val
