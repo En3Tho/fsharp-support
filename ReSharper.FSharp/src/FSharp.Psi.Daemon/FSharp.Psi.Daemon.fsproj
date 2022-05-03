@@ -52,7 +52,7 @@
     <Compile Include="src\Analyzers\IfExpressionAnalyzer.fs" />
     <Compile Include="src\Analyzers\AsPatAnalyzer.fs" />
     <Compile Include="src\Analyzers\IndexerExprAnalyzer.fs" />
-    <Compile Include="src\Analyzers\EqualityOperatorUsageAnalyzer.fs" />
+    <Compile Include="src\Analyzers\OperatorUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\ILoggerLikeUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\SuspiciousAliasUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\DisposablesAnalyzer.fs" />

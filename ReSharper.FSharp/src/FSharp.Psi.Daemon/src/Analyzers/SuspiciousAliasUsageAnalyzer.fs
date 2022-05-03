@@ -9,10 +9,8 @@ open JetBrains.ReSharper.Plugins.FSharp.Util
 type IFSharpProperAliasUsageAnalyzer =
     inherit IElementProblemAnalyzer
 
-[<ElementProblemAnalyzer(typeof<IReferenceExpr>, HighlightingTypes = [| |])>]
-type ProperAliasUsageAnalyzer() =
-    inherit ElementProblemAnalyzer<IReferenceExpr>()
-
+module ProperAliasUsageAnalyzerUtil =
+    
     let getSymbolUseOrSymbolReference (referenceOwner: IFSharpReferenceOwner) =
         if isNotNull referenceOwner.Reference then
             let symbol = referenceOwner.Reference.GetFcsSymbol()
@@ -60,15 +58,56 @@ type ProperAliasUsageAnalyzer() =
             ValueSome mvf
         | _ ->
             ValueNone
-
+    
+    let isFSharpNativeAbbreviation (abbreviationType: FSharpType) =
+        match abbreviationType.QualifiedBaseName with
+        | "Microsoft.FSharp.Core.obj"
+        | "Microsoft.FSharp.Core.exn"
+        | "Microsoft.FSharp.Core.nativeint"
+        | "Microsoft.FSharp.Core.unativeint"
+        | "Microsoft.FSharp.Core.string"
+        | "Microsoft.FSharp.Core.float32"
+        | "Microsoft.FSharp.Core.float"
+        | "Microsoft.FSharp.Core.single"
+        | "Microsoft.FSharp.Core.double"
+        | "Microsoft.FSharp.Core.sbyte"
+        | "Microsoft.FSharp.Core.byte"
+        | "Microsoft.FSharp.Core.int8"
+        | "Microsoft.FSharp.Core.uint8"
+        | "Microsoft.FSharp.Core.int16"
+        | "Microsoft.FSharp.Core.uint16"
+        | "Microsoft.FSharp.Core.int32"
+        | "Microsoft.FSharp.Core.uint32"
+        | "Microsoft.FSharp.Core.int64"
+        | "Microsoft.FSharp.Core.uint64"
+        | "Microsoft.FSharp.Core.char"
+        | "Microsoft.FSharp.Core.bool"
+        | "Microsoft.FSharp.Core.decimal"
+        | "Microsoft.FSharp.Core.int"
+        | "Microsoft.FSharp.Core.uint" ->
+            true
+        | _ ->
+            false
+    
     let bothTypesAreAbbreviations (left: FSharpType) (right: FSharpType) =
-            left.IsAbbreviation && right.IsAbbreviation
+        left.IsAbbreviation
+        && right.IsAbbreviation
 
     let abbreviatedTypesAreEqual (left: FSharpType) (right: FSharpType) =
         let leftType = getAbbreviatedType left
         let rightType = getAbbreviatedType right
         leftType.Equals(rightType)
+    
+    let abbreviationsAreChildrenOfEachOther (left: FSharpType) (right: FSharpType) =
+        left.QualifiedBaseName.Equals(right.AbbreviatedType.QualifiedBaseName)
+        || right.QualifiedBaseName.Equals(left.AbbreviatedType.QualifiedBaseName)
+        || isFSharpNativeAbbreviation left
+        || isFSharpNativeAbbreviation right
 
+    let abbreviationsAreFSharpCoreNativeTypes (left: FSharpType) (right: FSharpType) =
+        isFSharpNativeAbbreviation left
+        && isFSharpNativeAbbreviation right
+    
     let abbreviationsAreDifferent (left: FSharpType) (right: FSharpType) =
         not (left.QualifiedBaseName.Equals(right.QualifiedBaseName))
 
@@ -81,7 +120,9 @@ type ProperAliasUsageAnalyzer() =
 
         bothTypesAreAbbreviations left right
         && abbreviatedTypesAreEqual left right
+        && not (abbreviationsAreChildrenOfEachOther left right)
         && abbreviationsAreDifferent left right
+        && not (abbreviationsAreFSharpCoreNativeTypes left right)
 
     let checkPrefixAppExpr (consumer: IHighlightingConsumer) (parentExpression: IPrefixAppExpr) =
         if parentExpression.Arguments.Count > 0 then
@@ -183,7 +224,8 @@ type ProperAliasUsageAnalyzer() =
                 ()
         | _ ->
             ()
-
+    
+    // operators
     let checkBinaryAppExpr (consumer: IHighlightingConsumer) (parentExpression: IBinaryAppExpr) =
         match parentExpression.FunctionExpression with
         | :? IReferenceExpr as opExpr ->
@@ -214,38 +256,55 @@ type ProperAliasUsageAnalyzer() =
                     if funcType.IsFunctionType then
                         if checkForWarning leftReferenceMfv.FullType funcType then
                             consumer.AddHighlighting(SuspiciousAliasUsageWarning(leftReferenceExpr))
-
                 | _ ->
                     ()
         | _ ->
             ()
 
-    // TODO: Find a way not to report ReferenceExpressions in PrefixAppExpressions multiple times.
-    // Maybe splitting an analyzer might help?
+open ProperAliasUsageAnalyzerUtil
 
-    override this.Run(originalReferenceExpression, data, consumer) =
+[<ElementProblemAnalyzer(typeof<ISetExpr>, HighlightingTypes = [| |])>]
+type ISetExprAnalyzer() =
+    inherit ElementProblemAnalyzer<ISetExpr>()
+    override this.Run(element, _, consumer) = checkSetExpr consumer element
+    interface IFSharpProperAliasUsageAnalyzer
+
+[<ElementProblemAnalyzer(typeof<IPrefixAppExpr>, HighlightingTypes = [| |])>]
+type IPrefixAppExprAnalyzer() =
+    inherit ElementProblemAnalyzer<IPrefixAppExpr>()
+    override this.Run(element, _, consumer) = checkPrefixAppExpr consumer element
+    interface IFSharpProperAliasUsageAnalyzer
+
+[<ElementProblemAnalyzer(typeof<IRecordFieldBinding>, HighlightingTypes = [| |])>]
+type IRecordFieldBindingAnalyzer() =
+    inherit ElementProblemAnalyzer<IRecordFieldBinding>()
+    override this.Run(element, _, consumer) = checkRecordFieldBinding consumer element
+    interface IFSharpProperAliasUsageAnalyzer
+
+[<ElementProblemAnalyzer(typeof<ILetOrUseExpr>, HighlightingTypes = [| |])>]
+type ILetOrUseExprAnalyzer() =
+    inherit ElementProblemAnalyzer<ILetOrUseExpr>()
+    override this.Run(element, _, consumer) = checkLetOrUseExpr consumer element
+    interface IFSharpProperAliasUsageAnalyzer
+
+[<ElementProblemAnalyzer(typeof<IBinaryAppExpr>, HighlightingTypes = [| |])>]
+type IBinaryAppExprAnalyzer() =
+    inherit ElementProblemAnalyzer<IBinaryAppExpr>()
+    override this.Run(element, _, consumer) = checkBinaryAppExpr consumer element
+    interface IFSharpProperAliasUsageAnalyzer
+
+[<ElementProblemAnalyzer(typeof<IReferenceExpr>, HighlightingTypes = [| |])>]
+type IReferenceExprAnalyzer() =
+    inherit ElementProblemAnalyzer<IReferenceExpr>()
+
+    override this.Run(originalReferenceExpression, _, consumer) =
 
         match originalReferenceExpression.Parent with
-        | :? ISetExpr as setExpr ->
-            checkSetExpr consumer setExpr
-
-        | :? IPrefixAppExpr as prefixAppExpr ->
-            checkPrefixAppExpr consumer prefixAppExpr
-
-        | :? IRecordFieldBinding as recordFieldBinding ->
-            checkRecordFieldBinding consumer recordFieldBinding
-
-        | :? ILetOrUseExpr as letOrUseExpr ->
-            checkLetOrUseExpr consumer letOrUseExpr
-
         | :? IChameleonExpression as chameleonExpr ->
             checkChameleonExpr consumer originalReferenceExpression chameleonExpr
 
         | :? ILocalBinding as localBinding ->
             checkLocalBinding consumer originalReferenceExpression localBinding
-
-        | :? IBinaryAppExpr as binaryAppExpr ->
-            checkBinaryAppExpr consumer binaryAppExpr
 
         | _ ->
             ()
