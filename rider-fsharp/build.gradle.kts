@@ -26,7 +26,7 @@ repositories {
     maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
-val baseVersion = "2022.1"
+val baseVersion = "2022.2"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
@@ -46,6 +46,14 @@ intellij {
     // localPath 'build/riderRD-173-SNAPSHOT'
 
     version.set(baseVersion)
+    val dir = file("build/rider")
+    if (dir.exists()) {
+        logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
+        localPath.set(dir.absolutePath)
+    } else {
+        logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
+        version.set("$baseVersion-SNAPSHOT")
+    }
 
     instrumentCode.set(false)
     downloadSources.set(false)
