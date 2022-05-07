@@ -45,7 +45,7 @@ intellij {
     // localPath = "C:\\Users\\ivan.pashchenko\\AppData\\Local\\JetBrains\\Toolbox\\apps\\Rider\\ch-0\\dev"
     // localPath 'build/riderRD-173-SNAPSHOT'
 
-    version.set(baseVersion)
+    //version.set(baseVersion)
     val dir = file("build/rider")
     if (dir.exists()) {
         logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
