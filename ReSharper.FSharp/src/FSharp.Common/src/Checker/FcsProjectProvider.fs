@@ -8,6 +8,7 @@ open JetBrains.Application.Settings
 open JetBrains.Application.Threading
 open JetBrains.Application.changes
 open JetBrains.DataFlow
+open JetBrains.Diagnostics
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Build
@@ -26,9 +27,7 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Files
 open JetBrains.ReSharper.Psi.Files.SandboxFiles
 open JetBrains.ReSharper.Psi.Modules
-open JetBrains.Threading
 open JetBrains.Util
-
 
 [<AutoOpen>]
 module FcsProjectProvider =
@@ -64,12 +63,18 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         fcsAssemblyReaderShim: IFcsAssemblyReaderShim) as this =
     inherit RecursiveProjectModelChangeDeltaVisitor()
 
-    let locker = JetFastSemiReenterableRWLock()
-
     let fcsProjects = Dictionary<IPsiModule, FcsProject>()
+    let fcsParsingOptions = Dictionary<IPsiModule, FcsParsingOptions>()
+
     let referencedModules = Dictionary<IPsiModule, ReferencedModule>()
+
+    /// Psi modules known to Fcs project model as either an F# project or a supported referenced project output
     let projectsPsiModules = OneToSetMap<IModule, IPsiModule>()
+
+    /// Used to synchronize project model changes with FSharpItemsContainer
     let projectsProjectMarks = Dictionary<IProjectMark, IProject>()
+
+    /// Used to synchronize project model changes with FSharpItemsContainer
     let projectMarkModules = Dictionary<IPsiModule, IProjectMark>()
 
     let dirtyModules = HashSet<IPsiModule>()
@@ -81,39 +86,45 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         | Some referencedModule -> referencedModule.ReferencingModules :> _
 
     let rec invalidateFcsProject (psiModule: IPsiModule) =
+        logger.Trace("Start invalidating referencing modules of psiModule: {0}", psiModule)
+
+        getReferencingModules psiModule |> Seq.iter invalidateFcsProject
+        referencedModules.Remove(psiModule) |> ignore
+        projectsPsiModules.Remove(psiModule.ContainingProjectModule, psiModule) |> ignore
+
+        logger.Trace("Done invalidating referencing modules of psiModule: {0}", psiModule)
+
         match tryGetValue psiModule fcsProjects with
         | None -> ()
         | Some fcsProject ->
+            logger.Trace("Start invalidating FcsProject: {0}", psiModule)
+            fcsProjectInvalidated.Fire(psiModule)
 
-        logger.Trace("Start invalidating project: {0}", psiModule)
-        fcsProjectInvalidated.Fire(psiModule)
+            // Invalidate FCS projects for the old project options, before creating new ones.
+            // todo: try to not invalidate FCS project if a project is not changed actually?
+            checkerService.InvalidateFcsProject(fcsProject.ProjectOptions)
 
-        // Invalidate FCS projects for the old project options, before creating new ones.
-        // todo: try to not invalidate FCS project if a project is not changed actually?
-        checkerService.InvalidateFcsProject(fcsProject.ProjectOptions)
-        getReferencingModules psiModule |> Seq.iter invalidateFcsProject
+            for referencedPsiModule in fcsProject.ReferencedModules do
+                match tryGetValue referencedPsiModule referencedModules with
+                | None -> ()
+                | Some referencedModule -> referencedModule.ReferencingModules.Remove(referencedPsiModule) |> ignore
 
-        for referencedPsiModule in fcsProject.ReferencedModules do
-            match tryGetValue referencedPsiModule referencedModules with
+            fcsProjects.Remove(psiModule) |> ignore
+            fcsParsingOptions.Remove(psiModule) |> ignore
+
+            match tryGetValue psiModule projectMarkModules with
             | None -> ()
-            | Some referencedModule ->
-                referencedModule.ReferencingModules.Remove(referencedPsiModule) |> ignore
+            | Some projectMark -> projectsProjectMarks.Remove(projectMark) |> ignore
 
-        referencedModules.Remove(psiModule) |> ignore
-        fcsProjects.Remove(psiModule) |> ignore
-        projectsPsiModules.Remove(psiModule.ContainingProjectModule, psiModule) |> ignore
+            projectMarkModules.Remove(psiModule) |> ignore
 
-        let projectMark = projectMarkModules[psiModule]
-        projectsProjectMarks.Remove(projectMark) |> ignore
-        projectMarkModules.Remove(psiModule) |> ignore
+            // todo: remove removed psiModules? (don't we remove them anyway?) (standalone projects only?)
+            logger.Trace("Done invalidating FcsProject: {0}", psiModule)
 
         dirtyModules.Remove(psiModule) |> ignore
 
-        // todo: remove removed psiModules? (don't we remove them anyway?) (standalone projects only?)
-        logger.Trace("Done invalidating project: {0}", psiModule)
-
     let processDirtyFcsProjects () =
-        use lock = locker.UsingWriteLock()
+        use lock = FcsReadWriteLock.WriteCookie.Create()
         if dirtyModules.IsEmpty() then () else
 
         logger.Trace("Start invalidating dirty modules")
@@ -123,7 +134,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         logger.Trace("Done invalidating dirty modules")
 
     do
-        // Start listening for the changes after project model is updated.
+        // Start listening for the changes after project model is ready.
         scheduler.EnqueueTask(SolutionLoadTask("FSharpProjectOptionsProvider", SolutionLoadTaskKinds.StartPsi, fun _ ->
             changeManager.Changed2.Advise(lifetime, this.ProcessChange)
             fsItemsContainer.FSharpProjectLoaded.Advise(lifetime, this.ProcessFSharpProjectLoaded)))
@@ -132,11 +143,26 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         lifetime.OnTermination(fun _ -> checkerService.FcsProjectProvider <- Unchecked.defaultof<_>) |> ignore
 
     let tryGetFcsProject (psiModule: IPsiModule): FcsProject option =
-        use lock = locker.UsingReadLock()
+        use lock = FcsReadWriteLock.ReadCookie.Create()
         tryGetValue psiModule fcsProjects
 
     let createReferencedModule psiModule =
         ReferencedModule.create modulePathProvider psiModule
+
+    let tryGetParsingOptions psiModule =
+        use lock = FcsReadWriteLock.ReadCookie.Create()
+        tryGetValue psiModule fcsParsingOptions
+
+    let getOrCreateParsingOptions (psiModule: IPsiModule) =
+        match tryGetParsingOptions psiModule with
+        | Some fcsParsingOptions -> fcsParsingOptions
+        | None ->
+
+        use lock = FcsReadWriteLock.WriteCookie.Create()
+        let project = psiModule.ContainingProjectModule.As<IProject>().NotNull()
+        let parsingOptions = fcsProjectBuilder.BuildParsingOptions(psiModule, project)
+        fcsParsingOptions[psiModule] <- parsingOptions
+        parsingOptions
 
     // todo: split getting parsing options from creating references:
     //   we don't want to build the whole FcsProject when HasPairFile info is needed
@@ -171,7 +197,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             | Some referencedProjectPsiModules ->
                 if fcsProjects.ContainsKey(psiModule) then () else
 
-                let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, project)
+                let parsingOptions = getOrCreateParsingOptions psiModule
+                let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, project, parsingOptions)
 
                 for referencedPsiModule in referencedProjectPsiModules do
                     let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, createReferencedModule)
@@ -190,6 +217,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                             | ReferencedAssembly.Ignored -> None
                             | ReferencedAssembly.ProjectOutput reader ->
 
+                            projectsPsiModules.Add(psiModule.ContainingProjectModule, psiModule) |> ignore 
+
                             let referencedModule = referencedModules[psiModule]
                             let path = referencedModule.ReferencedPath.FullPath
 
@@ -206,6 +235,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                 let fcsProject = { fcsProject with ProjectOptions = fcsProjectOptions }
 
                 fcsProjects[psiModule] <- fcsProject
+                fcsParsingOptions[psiModule] <- fcsProject.ParsingOptions
+
                 projectsPsiModules.Add(project, psiModule) |> ignore
                 fcsAssemblyReaderShim.RecordDependencies(psiModule)
 
@@ -222,7 +253,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
         match getModuleProject psiModule with
         | FSharpProject project ->
-            use lock = locker.UsingWriteLock()
+            use lock = FcsReadWriteLock.WriteCookie.Create()
             let fcsProject = createFcsProject project psiModule
             Some fcsProject
 
@@ -244,11 +275,12 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     let invalidateProject (project: IProject) =
         for psiModule in projectsPsiModules.GetValuesSafe(project) do
             dirtyModules.Add(psiModule) |> ignore
+            fcsAssemblyReaderShim.InvalidateModule(psiModule)
 
     member x.FcsProjectInvalidated = fcsProjectInvalidated
 
     member private this.ProcessFSharpProjectLoaded(projectMark: IProjectMark) =
-        use lock = locker.UsingWriteLock()
+        use lock = FcsReadWriteLock.WriteCookie.Create()
 
         tryGetValue projectMark projectsProjectMarks
         |> Option.iter invalidateProject
@@ -257,7 +289,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         let change = obj.ChangeMap.GetChange<ProjectModelChange>(solution)
         if isNull change || change.IsClosingSolution then () else
 
-        use lock = locker.UsingWriteLock()
+        use lock = FcsReadWriteLock.WriteCookie.Create()
         match change with
         | :? ProjectReferenceChange as referenceChange ->
             let referenceOwnerProject = referenceChange.ProjectToModuleReference.OwnerModule
@@ -290,7 +322,11 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                      if invalidate then
                          invalidateProject project
 
-             else if project.ProjectProperties.ProjectKind = ProjectKind.SOLUTION_FOLDER then
+             elif fcsAssemblyReaderShim.IsEnabled && AssemblyReaderShim.isSupportedProject project then
+                 if change.ContainsChangeType(invalidateProjectChangeType) then
+                     invalidateProject project
+
+             elif project.ProjectProperties.ProjectKind = ProjectKind.SOLUTION_FOLDER then
                  base.VisitDelta(change)
 
          | :? ISolution -> base.VisitDelta(change)
@@ -303,7 +339,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             // Scripts belong to separate psi modules even when are in projects, project/misc module check is enough.
             if isFSharpProjectModule psiModule then
                 match getOrCreateFcsProject psiModule with
-                | Some fcsProject when fcsProject.IsKnownFile(sourceFile) -> Some fcsProject.ProjectOptions
+                | Some fcsProject when fcsProject.ParsingOptions.IsKnownFile(sourceFile) -> Some fcsProject.ProjectOptions
                 | _ -> None
 
             elif psiModule :? FSharpScriptPsiModule then
@@ -332,9 +368,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
             if isScriptLike sourceFile then false else
 
-            match getOrCreateFcsProjectForFile sourceFile with
-            | Some fsProject -> fsProject.ImplementationFilesWithSignatures.Contains(sourceFile.GetLocation())
-            | _ -> false
+            let fcsParsingOptions = getOrCreateParsingOptions sourceFile.PsiModule
+            fcsParsingOptions.ImplementationFilesWithSignatures.Contains(sourceFile.GetLocation())
 
         member x.GetParsingOptions(sourceFile) =
             locks.AssertReadAccessAllowed()
@@ -343,9 +378,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             if isNull sourceFile then sandboxParsingOptions else
             if isScriptLike sourceFile then getParsingOptionsForSingleFile sourceFile true else
 
-            match getOrCreateFcsProjectForFile sourceFile with
-            | Some fsProject -> fsProject.ParsingOptions
-            | _ -> getParsingOptionsForSingleFile sourceFile false
+            let fcsParsingOptions = getOrCreateParsingOptions sourceFile.PsiModule
+            fcsParsingOptions.ParsingOptions
 
         member x.GetFileIndex(sourceFile) =
             locks.AssertReadAccessAllowed()
@@ -353,10 +387,11 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
             if isScriptLike sourceFile then 0 else
 
-            getOrCreateFcsProjectForFile sourceFile
-            |> Option.bind (fun fsProject ->
-                let path = sourceFile.GetLocation()
-                tryGetValue path fsProject.FileIndices)
+            let path = sourceFile.GetLocation()
+
+            let fcsParsingOptions = getOrCreateParsingOptions sourceFile.PsiModule
+
+            tryGetValue path fcsParsingOptions.FileIndices
             |> Option.defaultWith (fun _ -> -1)
 
         member x.ModuleInvalidated = x.FcsProjectInvalidated :> _
