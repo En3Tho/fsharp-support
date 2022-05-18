@@ -38,6 +38,7 @@ module FSharpTestAttribute =
 module PackageReferences =
     let [<Literal>] FSharpCorePackage = "FSharp.Core/4.7.2"
     let [<Literal>] SqlProviderPackage = "SQLProvider/1.1.101"
+    let [<Literal>] FsPickler = "FsPickler/5.3.2"
 
 
 type FSharpTestAttribute(extension) =
@@ -109,7 +110,7 @@ type TestFSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsPro
 
 [<SolutionComponent>]
 type TestFcsProjectBuilder(checkerService: FcsCheckerService, modulePathProvider: ModulePathProvider, logger: ILogger) =
-    inherit FcsProjectBuilder(checkerService, Mock<_>().Object, logger, modulePathProvider)
+    inherit FcsProjectBuilder(checkerService, Mock<_>().Object, modulePathProvider, logger)
 
     override x.GetProjectItemsPaths(project, targetFrameworkId) =
         project.GetAllProjectFiles()
@@ -128,7 +129,8 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
         lifetime.OnTermination(fun _ -> checkerService.FcsProjectProvider <- Unchecked.defaultof<_>) |> ignore
 
     let getFcsProject (psiModule: IPsiModule) =
-        fcsProjectBuilder.BuildFcsProject(psiModule, psiModule.ContainingProjectModule.As<IProject>())
+        let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, psiModule.ContainingProjectModule.As<IProject>())
+        fcsProjectBuilder.AddReferences(fcsProject, getReferencedModules psiModule)
 
     let getProjectOptions (sourceFile: IPsiSourceFile) =
         let fcsProject = getFcsProject sourceFile.PsiModule

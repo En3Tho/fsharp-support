@@ -30,10 +30,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     protected readonly IDictionary<IPsiModule, FcsModuleResolvedSymbols> PsiModulesCaches =
       new Dictionary<IPsiModule, FcsModuleResolvedSymbols>();
 
-    private readonly OneToSetMap<IPsiModule, IPsiModule> myReferencingModules =
-      new OneToSetMap<IPsiModule, IPsiModule>();
-
-    private readonly object myLock = new object();
+    private readonly OneToSetMap<IPsiModule, IPsiModule> myReferencingModules = new();
     private readonly ISet<IPsiSourceFile> myDirtyFiles = new HashSet<IPsiSourceFile>();
 
     public FcsResolvedSymbolsCache(Lifetime lifetime, FcsCheckerService checkerService, IPsiModules psiModules,
@@ -52,7 +49,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     public void Invalidate(IPsiModule psiModule)
     {
-      lock (myLock)
+      using var _ = FcsReadWriteLock.WriteCookie.Create();
       {
         InvalidateReferencingModules(psiModule);
         if (PsiModulesCaches.TryGetValue(psiModule, out var symbols) && symbols.FcsProject is { } fcsProject)
@@ -97,7 +94,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       if (!IsApplicable(sourceFile))
         return;
 
-      lock (myLock)
+      using var _ = FcsReadWriteLock.WriteCookie.Create();
         myDirtyFiles.Add(sourceFile);
     }
 
@@ -113,7 +110,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     public bool UpToDate(IPsiSourceFile sourceFile)
     {
-      lock (myLock)
+      using var _ = FcsReadWriteLock.ReadCookie.Create();
         return !myDirtyFiles.Contains(sourceFile);
     }
 
@@ -125,7 +122,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     public void Drop(IPsiSourceFile sourceFile)
     {
-      lock (myLock)
+      using var _ = FcsReadWriteLock.WriteCookie.Create();
       {
         if (PsiModulesCaches.IsEmpty())
           return;
@@ -159,7 +156,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     public void SyncUpdate(bool underTransaction)
     {
-      lock (myLock)
+      using var _ = FcsReadWriteLock.WriteCookie.Create();
         InvalidateDirty();
     }
 
@@ -171,7 +168,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     {
       get
       {
-        lock (myLock)
+        using var _ = FcsReadWriteLock.ReadCookie.Create();
           return !myDirtyFiles.IsEmpty();
       }
     }
@@ -186,10 +183,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       if (psiModule.IsMiscFilesProjectModule() && !(psiModule is SandboxPsiModule))
         return FcsModuleResolvedSymbols.Empty;
 
-      FcsProjectProvider.InvalidateDirty();
-
-      lock (myLock)
+      using var _ = FcsReadWriteLock.WriteCookie.Create();
       {
+        FcsProjectProvider.InvalidateDirty();
+
         if (HasDirtyFiles)
           InvalidateDirty();
 

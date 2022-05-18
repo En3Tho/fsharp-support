@@ -3,7 +3,6 @@ package typeProviders
 import com.jetbrains.rdclient.testFramework.executeWithGold
 import com.jetbrains.rdclient.testFramework.waitForDaemon
 import com.jetbrains.rider.plugins.fsharp.test.dumpTypeProviders
-import com.jetbrains.rider.plugins.fsharp.test.withOutOfProcessTypeProviders
 import com.jetbrains.rider.test.annotations.TestEnvironment
 import com.jetbrains.rider.test.asserts.shouldBeTrue
 import com.jetbrains.rider.test.base.BaseTestWithSolution
@@ -21,9 +20,9 @@ import java.io.File
 class TypeProvidersCacheTest : BaseTestWithSolution() {
     override fun getSolutionDirectoryName() = "TypeProviderLibrary"
     override val restoreNuGetPackages = true
-    private val sourceFile = "TypeProviderLibrary/Caches.fs"
+    private val defaultSourceFile = "TypeProviderLibrary/Caches.fs"
 
-    private fun checkTypeProviders(testGoldFile: File) {
+    private fun checkTypeProviders(testGoldFile: File, sourceFile: String) {
         withOpenedEditor(project, sourceFile) {
             waitForDaemon()
             executeWithGold(testGoldFile) {
@@ -34,64 +33,66 @@ class TypeProvidersCacheTest : BaseTestWithSolution() {
 
     @Test
     fun checkCachesWhenProjectReloading() {
-        withOutOfProcessTypeProviders {
-            checkTypeProviders(File(testGoldFile.path + "_before"))
+        checkTypeProviders(File(testGoldFile.path + "_before"), defaultSourceFile)
 
-            unloadAllProjects()
-            reloadAllProjects(project)
+        unloadAllProjects()
+        reloadAllProjects(project)
 
-            checkTypeProviders(File(testGoldFile.path + "_after"))
-        }
+        checkTypeProviders(File(testGoldFile.path + "_after"), defaultSourceFile)
     }
 
     @Test
     fun invalidation() {
         val testDirectory = File(project.basePath + "/TypeProviderLibrary/Test")
 
-        withOutOfProcessTypeProviders {
-            withOpenedEditor(project, sourceFile) {
-                waitForDaemon()
+        withOpenedEditor(project, defaultSourceFile) {
+            waitForDaemon()
 
-                testDirectory.deleteRecursively().shouldBeTrue()
-                typeWithLatency("//")
-                waitForDaemon()
+            testDirectory.deleteRecursively().shouldBeTrue()
+            typeWithLatency("//")
+            waitForDaemon()
 
-                executeWithGold(File(testGoldFile.path + "_before")) {
-                    dumpTypeProviders(it)
-                }
+            executeWithGold(File(testGoldFile.path + "_before")) {
+                dumpTypeProviders(it)
+            }
 
-                testDirectory.mkdir().shouldBeTrue()
-                typeWithLatency(" ")
-                waitForDaemon()
+            testDirectory.mkdir().shouldBeTrue()
+            typeWithLatency(" ")
+            waitForDaemon()
 
-                executeWithGold(File(testGoldFile.path + "_after")) {
-                    dumpTypeProviders(it)
-                }
+            executeWithGold(File(testGoldFile.path + "_after")) {
+                dumpTypeProviders(it)
             }
         }
     }
 
     @Test
     fun typing() {
-        withOutOfProcessTypeProviders {
-            withOpenedEditor(project, sourceFile) {
-                waitForDaemon()
-                typeWithLatency("//")
-                checkTypeProviders(testGoldFile)
-            }
+        withOpenedEditor(project, defaultSourceFile) {
+            waitForDaemon()
+            typeWithLatency("//")
+            checkTypeProviders(testGoldFile, defaultSourceFile)
         }
     }
 
     @Test
     fun projectsWithEqualProviders() {
-        withOutOfProcessTypeProviders {
-            withOpenedEditor(project, "TypeProviderLibrary/Library.fs") {
-                waitForDaemon()
-            }
-            withOpenedEditor(project, "TypeProviderLibrary2/Library.fs") {
-                waitForDaemon()
-                checkTypeProviders(testGoldFile)
-            }
+        withOpenedEditor(project, "TypeProviderLibrary/Library.fs") {
+            waitForDaemon()
         }
+        withOpenedEditor(project, "TypeProviderLibrary2/Library.fs") {
+            waitForDaemon()
+            checkTypeProviders(testGoldFile, defaultSourceFile)
+        }
+    }
+
+    @Test(description = "RIDER-73091", enabled = false)
+    fun script() {
+        checkTypeProviders(File(testGoldFile.path + "_before"), "TypeProviderLibrary/Script.fsx")
+
+        unloadAllProjects()
+        reloadAllProjects(project)
+
+        checkTypeProviders(File(testGoldFile.path + "_after"), "TypeProviderLibrary/Script.fsx")
     }
 }

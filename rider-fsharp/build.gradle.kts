@@ -1,48 +1,32 @@
 import com.jetbrains.rd.generator.gradle.RdGenExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.jetbrains.grammarkit.tasks.GenerateLexer
+import org.jetbrains.grammarkit.tasks.GenerateLexerTask
 import org.jetbrains.intellij.IntelliJPluginConstants
 import org.jetbrains.intellij.tasks.IntelliJInstrumentCodeTask
 import org.jetbrains.intellij.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.tasks.RunIdeTask
 import org.jetbrains.kotlin.daemon.common.toHexString
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.net.URI
-
-buildscript {
-    repositories {
-        maven { setUrl("https://cache-redirector.jetbrains.com/repo.maven.apache.org/maven2")}
-    }
-    dependencies {
-        classpath("com.jetbrains.rd:rd-gen:2022.1.2")
-    }
-}
-
-repositories {
-    maven { setUrl("https://cache-redirector.jetbrains.com/repo.maven.org/maven2")}
-    maven { setUrl("https://cache-redirector.jetbrains.com/repo.maven.apache.org/maven2")}
-}
 
 plugins {
-    id("org.jetbrains.intellij") version "1.4.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
-    id("org.jetbrains.grammarkit") version "2021.1.3"
+    id ("com.jetbrains.rdgen") version "2022.1.2"
+    id("org.jetbrains.intellij") version "1.5.3" // https://github.com/JetBrains/gradle-intellij-plugin/releases
+    id("org.jetbrains.grammarkit") version "2021.2.2"
     id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
     kotlin("jvm") version "1.6.10"
 }
 
 apply {
     plugin("kotlin")
-    plugin("com.jetbrains.rdgen")
-    plugin("org.jetbrains.grammarkit")
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+repositories {
+    mavenCentral()
+    maven("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2")
+    maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
-
-val baseVersion = "2022.1"
+val baseVersion = "2022.2"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
@@ -78,24 +62,6 @@ intellij {
 
     // Workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
     plugins.set(listOf("rider-plugins-appender"))
-}
-
-repositories.forEach {
-    fun replaceWithCacheRedirector(u: URI): URI {
-        val cacheHost = "cache-redirector.jetbrains.com"
-        return if (u.scheme.startsWith("http") && u.host != cacheHost)
-            URI("https", cacheHost, "/${u.host}/${u.path}", u.query, u.fragment)
-        else u
-    }
-
-    when (it) {
-        is MavenArtifactRepository -> {
-            it.url = replaceWithCacheRedirector(it.url)
-        }
-        is IvyArtifactRepository -> {
-            it.url = replaceWithCacheRedirector(it.url)
-        }
-    }
 }
 
 val repoRoot = projectDir.parentFile!!
@@ -137,11 +103,12 @@ val typeProvidersFiles = listOf(
         "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.unix.runtimeconfig.json")
 
 val fantomasFiles = listOf(
-        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.exe",
-        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.runtimeconfig.json",
-        "FSharp.Fantomas.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
-        "FSharp.Fantomas.Host/$outputRelativePath/FSharp.Compiler.Service.dll",
-        "FSharp.Fantomas.Host/$outputRelativePath/Fantomas.dll")
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.dll",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.win.runtimeconfig.json",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.unix.runtimeconfig.json",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/FSharp.Compiler.Service.dll",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.dll")
 
 
 val nugetConfigPath = File(repoRoot, "NuGet.Config")
@@ -323,12 +290,12 @@ tasks {
         into(backendLexerSources)
     }
 
-    val generateFSharpLexer = task<GenerateLexer>("generateFSharpLexer") {
+    val generateFSharpLexer = task<GenerateLexerTask>("generateFSharpLexer") {
         dependsOn(copyBackendLexerSources, copyUnicodeLex)
-        source = "src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer/_FSharpLexer.flex"
-        targetDir = "src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer"
-        targetClass = "_FSharpLexer"
-        purgeOldFiles = true
+        source.set("src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer/_FSharpLexer.flex")
+        targetDir.set("src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer")
+        targetClass.set("_FSharpLexer")
+        purgeOldFiles.set(true)
     }
 
     withType<KotlinCompile> {
@@ -395,19 +362,6 @@ tasks {
             exec {
                 executable = "msbuild"
                 args = listOf("$resharperPluginPath/ReSharper.FSharp.sln")
-            }
-        }
-    }
-
-    task("listrepos"){
-        doLast {
-            logger.lifecycle("Repositories:")
-            project.repositories.forEach {
-                when (it) {
-                    is MavenArtifactRepository -> logger.lifecycle("Name: ${it.name}, url: ${it.url}")
-                    is IvyArtifactRepository -> logger.lifecycle("Name: ${it.name}, url: ${it.url}")
-                    else -> logger.lifecycle("Name: ${it.name}, $it")
-                }
             }
         }
     }

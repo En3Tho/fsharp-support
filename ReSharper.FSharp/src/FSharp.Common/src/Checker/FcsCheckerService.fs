@@ -17,6 +17,7 @@ open JetBrains.ReSharper.Feature.Services
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Settings
+open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.CSharp
@@ -32,9 +33,9 @@ module FcsCheckerService =
 
 type FcsProject =
     { OutputPath: VirtualFileSystemPath
-      FileIndices: Dictionary<VirtualFileSystemPath, int>
       ProjectOptions: FSharpProjectOptions
       ParsingOptions: FSharpParsingOptions
+      FileIndices: Dictionary<VirtualFileSystemPath, int>
       ImplementationFilesWithSignatures: ISet<VirtualFileSystemPath>
       ReferencedModules: HashSet<IPsiModule> }
 
@@ -110,8 +111,6 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         let source = FcsCheckerService.getSourceText sourceFile.Document
         logger.Trace("ParseAndCheckFile: start {0}, {1}", path, opName)
 
-        x.AssemblyReaderShim.PrepareDependencies(sourceFile.PsiModule)
-
         // todo: don't cancel the computation when file didn't change
         match x.Checker.ParseAndCheckDocument(path, source, options, allowStaleResults, opName).RunAsTask() with
         | Some (parseResults, checkResults) ->
@@ -145,6 +144,11 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
             logger.Trace("TryGetStaleCheckResults: fail {0}, {1}", path, opName)
             None
 
+    member x.GetCachedScriptOptions(path) =
+        if checker.IsValueCreated then
+            checker.Value.GetCachedScriptOptions(path)
+        else None
+    
     member x.InvalidateFcsProject(fcsProjectOptions: FSharpProjectOptions) =
         if checker.IsValueCreated then
             checker.Value.InvalidateConfiguration(fcsProjectOptions)
@@ -215,9 +219,3 @@ type IFcsProjectProvider =
 type IScriptFcsProjectProvider =
     abstract GetScriptOptions: IPsiSourceFile -> FSharpProjectOptions option
     abstract GetScriptOptions: VirtualFileSystemPath * string -> FSharpProjectOptions option
-
-
-type IFcsAssemblyReaderShim =
-    /// Creates type defs to prevent C#->F# resolve during accessing typeDefs inside FCS.
-    /// C#->F# resolve may require type checking which currently will lead to a deadlock.
-    abstract PrepareDependencies: psiModule: IPsiModule -> unit
