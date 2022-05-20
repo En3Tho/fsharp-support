@@ -55,18 +55,20 @@ let isAtIfExprKeyword (dataProvider: IContextActionDataProvider) (ifExpr: IIfThe
 let isAtTreeNode (dataProvider: IContextActionDataProvider) (node: ITreeNode) =
     isNotNull node && DisjointedTreeTextRange.From(node).Contains(dataProvider.SelectedTreeRange)
 
-let isAtLetExprKeywordOrReferencePattern (dataProvider: IContextActionDataProvider) (letBindings: ILetBindings) =
-    if isNull letBindings then false else
+let isAtOverridableMemberDeclaration (dataProvider: IContextActionDataProvider) (binding: IOverridableMemberDeclaration) =
+    if isNull binding then false else
+    let ranges = DisjointedTreeTextRange.From(binding.MemberKeyword).Then(binding.Identifier)
+    ranges.Contains(dataProvider.SelectedTreeRange)
 
-    let letToken = letBindings.BindingKeyword
+let isAtBindingKeywordOrReferencePatternOrGenericParameters (dataProvider: IContextActionDataProvider) (binding: IBinding) =
+    if isNull binding then false else
+
+    let letToken = binding.BindingKeyword
     if isNull letToken then false else
 
     let ranges = DisjointedTreeTextRange.From(letToken)
 
-    let bindings = letBindings.BindingsEnumerable
-    if bindings.IsEmpty() then false else
-
-    match bindings.FirstOrDefault().HeadPattern.As<IReferencePat>() with
+    match binding.HeadPattern.As<IReferencePat>() with
     | null -> false
     | parametersOwnerPat ->
 
@@ -75,4 +77,11 @@ let isAtLetExprKeywordOrReferencePattern (dataProvider: IContextActionDataProvid
     | identifier ->
 
     ranges.Then(identifier) |> ignore
+
+    match binding.HeadPattern.GetNextMeaningfulSibling() with
+    | :? IPostfixTypeParameterDeclarationList as list ->
+        ranges.Then(list) |> ignore
+    | _ ->
+        ()
+
     ranges.Contains(dataProvider.SelectedTreeRange)

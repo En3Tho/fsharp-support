@@ -60,32 +60,36 @@ module ProperAliasUsageAnalyzerUtil =
             ValueNone
     
     let isFSharpNativeAbbreviation (abbreviationType: FSharpType) =
-        match abbreviationType.QualifiedBaseName with
-        | "Microsoft.FSharp.Core.obj"
-        | "Microsoft.FSharp.Core.exn"
-        | "Microsoft.FSharp.Core.nativeint"
-        | "Microsoft.FSharp.Core.unativeint"
-        | "Microsoft.FSharp.Core.string"
-        | "Microsoft.FSharp.Core.float32"
-        | "Microsoft.FSharp.Core.float"
-        | "Microsoft.FSharp.Core.single"
-        | "Microsoft.FSharp.Core.double"
-        | "Microsoft.FSharp.Core.sbyte"
-        | "Microsoft.FSharp.Core.byte"
-        | "Microsoft.FSharp.Core.int8"
-        | "Microsoft.FSharp.Core.uint8"
-        | "Microsoft.FSharp.Core.int16"
-        | "Microsoft.FSharp.Core.uint16"
-        | "Microsoft.FSharp.Core.int32"
-        | "Microsoft.FSharp.Core.uint32"
-        | "Microsoft.FSharp.Core.int64"
-        | "Microsoft.FSharp.Core.uint64"
-        | "Microsoft.FSharp.Core.char"
-        | "Microsoft.FSharp.Core.bool"
-        | "Microsoft.FSharp.Core.decimal"
-        | "Microsoft.FSharp.Core.int"
-        | "Microsoft.FSharp.Core.uint" ->
-            true
+        match abbreviationType.TryQualifiedBaseName with
+        | Some qualifiedBaseName ->
+            match qualifiedBaseName with
+            | "Microsoft.FSharp.Core.obj"
+            | "Microsoft.FSharp.Core.exn"
+            | "Microsoft.FSharp.Core.nativeint"
+            | "Microsoft.FSharp.Core.unativeint"
+            | "Microsoft.FSharp.Core.string"
+            | "Microsoft.FSharp.Core.float32"
+            | "Microsoft.FSharp.Core.float"
+            | "Microsoft.FSharp.Core.single"
+            | "Microsoft.FSharp.Core.double"
+            | "Microsoft.FSharp.Core.sbyte"
+            | "Microsoft.FSharp.Core.byte"
+            | "Microsoft.FSharp.Core.int8"
+            | "Microsoft.FSharp.Core.uint8"
+            | "Microsoft.FSharp.Core.int16"
+            | "Microsoft.FSharp.Core.uint16"
+            | "Microsoft.FSharp.Core.int32"
+            | "Microsoft.FSharp.Core.uint32"
+            | "Microsoft.FSharp.Core.int64"
+            | "Microsoft.FSharp.Core.uint64"
+            | "Microsoft.FSharp.Core.char"
+            | "Microsoft.FSharp.Core.bool"
+            | "Microsoft.FSharp.Core.decimal"
+            | "Microsoft.FSharp.Core.int"
+            | "Microsoft.FSharp.Core.uint" ->
+                true
+            | _ ->
+                false
         | _ ->
             false
     
