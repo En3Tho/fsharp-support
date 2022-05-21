@@ -59,37 +59,33 @@ module ProperAliasUsageAnalyzerUtil =
         | _ ->
             ValueNone
     
-    let isFSharpNativeAbbreviation (abbreviationType: FSharpType) =
-        match abbreviationType.TryQualifiedBaseName with
-        | Some qualifiedBaseName ->
-            match qualifiedBaseName with
-            | "Microsoft.FSharp.Core.obj"
-            | "Microsoft.FSharp.Core.exn"
-            | "Microsoft.FSharp.Core.nativeint"
-            | "Microsoft.FSharp.Core.unativeint"
-            | "Microsoft.FSharp.Core.string"
-            | "Microsoft.FSharp.Core.float32"
-            | "Microsoft.FSharp.Core.float"
-            | "Microsoft.FSharp.Core.single"
-            | "Microsoft.FSharp.Core.double"
-            | "Microsoft.FSharp.Core.sbyte"
-            | "Microsoft.FSharp.Core.byte"
-            | "Microsoft.FSharp.Core.int8"
-            | "Microsoft.FSharp.Core.uint8"
-            | "Microsoft.FSharp.Core.int16"
-            | "Microsoft.FSharp.Core.uint16"
-            | "Microsoft.FSharp.Core.int32"
-            | "Microsoft.FSharp.Core.uint32"
-            | "Microsoft.FSharp.Core.int64"
-            | "Microsoft.FSharp.Core.uint64"
-            | "Microsoft.FSharp.Core.char"
-            | "Microsoft.FSharp.Core.bool"
-            | "Microsoft.FSharp.Core.decimal"
-            | "Microsoft.FSharp.Core.int"
-            | "Microsoft.FSharp.Core.uint" ->
-                true
-            | _ ->
-                false
+    let isFSharpNativeAbbreviation qualifiedBaseName =
+        match qualifiedBaseName with
+        | "Microsoft.FSharp.Core.obj"
+        | "Microsoft.FSharp.Core.exn"
+        | "Microsoft.FSharp.Core.nativeint"
+        | "Microsoft.FSharp.Core.unativeint"
+        | "Microsoft.FSharp.Core.string"
+        | "Microsoft.FSharp.Core.float32"
+        | "Microsoft.FSharp.Core.float"
+        | "Microsoft.FSharp.Core.single"
+        | "Microsoft.FSharp.Core.double"
+        | "Microsoft.FSharp.Core.sbyte"
+        | "Microsoft.FSharp.Core.byte"
+        | "Microsoft.FSharp.Core.int8"
+        | "Microsoft.FSharp.Core.uint8"
+        | "Microsoft.FSharp.Core.int16"
+        | "Microsoft.FSharp.Core.uint16"
+        | "Microsoft.FSharp.Core.int32"
+        | "Microsoft.FSharp.Core.uint32"
+        | "Microsoft.FSharp.Core.int64"
+        | "Microsoft.FSharp.Core.uint64"
+        | "Microsoft.FSharp.Core.char"
+        | "Microsoft.FSharp.Core.bool"
+        | "Microsoft.FSharp.Core.decimal"
+        | "Microsoft.FSharp.Core.int"
+        | "Microsoft.FSharp.Core.uint" ->
+            true
         | _ ->
             false
     
@@ -102,18 +98,28 @@ module ProperAliasUsageAnalyzerUtil =
         let rightType = getAbbreviatedType right
         leftType.Equals(rightType)
     
-    let abbreviationsAreChildrenOfEachOther (left: FSharpType) (right: FSharpType) =
-        left.QualifiedBaseName.Equals(right.AbbreviatedType.QualifiedBaseName)
-        || right.QualifiedBaseName.Equals(left.AbbreviatedType.QualifiedBaseName)
-        || isFSharpNativeAbbreviation left
-        || isFSharpNativeAbbreviation right
+    let abbreviationsAreChildrenOfEachOther leftName rightName (left: FSharpType) (right: FSharpType) =
+        match right.AbbreviatedType.TryQualifiedBaseName with
+        | Some rightAbbreviationName ->
+            leftName.Equals(rightAbbreviationName)
 
-    let abbreviationsAreFSharpCoreNativeTypes (left: FSharpType) (right: FSharpType) =
-        isFSharpNativeAbbreviation left
-        && isFSharpNativeAbbreviation right
+        | _ -> false
+        ||
+        match left.AbbreviatedType.TryQualifiedBaseName with
+        | Some leftAbbreviationName ->
+            rightName.Equals(leftAbbreviationName)
+
+        | _ -> false
+
+        || isFSharpNativeAbbreviation leftName
+        || isFSharpNativeAbbreviation rightName
+
+    let abbreviationsAreFSharpCoreNativeTypes leftName rightName =
+        isFSharpNativeAbbreviation leftName
+        && isFSharpNativeAbbreviation rightName
     
-    let abbreviationsAreDifferent (left: FSharpType) (right: FSharpType) =
-        not (left.QualifiedBaseName.Equals(right.QualifiedBaseName))
+    let abbreviationsAreDifferent leftName rightName =
+        not (leftName.Equals(rightName))
 
     let checkForWarning (left: FSharpType) (right: FSharpType) =
         let left, right =
@@ -124,9 +130,13 @@ module ProperAliasUsageAnalyzerUtil =
 
         bothTypesAreAbbreviations left right
         && abbreviatedTypesAreEqual left right
-        && not (abbreviationsAreChildrenOfEachOther left right)
-        && abbreviationsAreDifferent left right
-        && not (abbreviationsAreFSharpCoreNativeTypes left right)
+        &&  match left.TryQualifiedBaseName, right.TryQualifiedBaseName with
+            | Some leftName, Some rightName ->
+                not (abbreviationsAreChildrenOfEachOther leftName rightName left right)
+                && abbreviationsAreDifferent leftName rightName
+                && not (abbreviationsAreFSharpCoreNativeTypes leftName rightName)
+            | _ ->
+                false
 
     let checkPrefixAppExpr (consumer: IHighlightingConsumer) (parentExpression: IPrefixAppExpr) =
         if parentExpression.Arguments.Count > 0 then
@@ -233,7 +243,7 @@ module ProperAliasUsageAnalyzerUtil =
     let checkBinaryAppExpr (consumer: IHighlightingConsumer) (parentExpression: IBinaryAppExpr) =
         match parentExpression.FunctionExpression with
         | :? IReferenceExpr as opExpr ->
-            if opExpr.QualifiedName.Equals("|>") then
+            if opExpr.IsQualified && opExpr.QualifiedName.Equals("|>") then
                 match parentExpression.LeftArgument, parentExpression.RightArgument with
                 // value |> f x
                 | :? IReferenceExpr as (leftReferenceExpr & HasFcsMfvSymbolUse leftReferenceMfv), (:? IPrefixAppExpr as rightPrefixAppExpr) ->
