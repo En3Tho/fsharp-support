@@ -2,7 +2,7 @@ module Module
 
 {off}
 
-let x1{on} = 1
+let x1{off} = 1
 let{off} x2{off}: int = 1
 
 let{off} (x3{off}: int): int = 1

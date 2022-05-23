@@ -18,10 +18,10 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
 
     override x.IsAvailable _ =
         let binding = dataProvider.GetSelectedElement<IBinding>()
-        isNotNull binding
-        && AnnotationUtil.isFunctionBinding binding
-        && isAtBindingKeywordOrReferencePatternOrGenericParameters dataProvider binding
-        && not (AnnotationUtil.isFullyAnnotatedBinding binding)
+        isNotNull binding &&
+        AnnotationUtil.isFunctionBinding binding &&
+        isAtBindingKeywordOrReferencePatternOrGenericParameters dataProvider binding &&
+        not (AnnotationUtil.isFullyAnnotatedBinding binding)
 
     override x.ExecutePsiTransaction _ =
         let binding = dataProvider.GetSelectedElement<IBinding>()
@@ -39,10 +39,10 @@ type FunctionAnnotationAction(dataProvider: FSharpContextActionDataProvider) =
                 let types = FcsMfvUtil.getFunctionParameterTypes parameters.Count mfv.FullType
 
                 (parameters, types)
-                ||> Seq.iter2 (fun parameter fsType ->
+                ||> Seq.iter2 (fun parameter fcsType ->
                     let pattern = parameter.Pattern
                     if not (AnnotationUtil.isFullyAnnotatedPattern pattern) then
-                        SpecifyUtil.specifyPattern displayContext fsType true pattern)
+                        SpecifyUtil.specifyPattern displayContext fcsType true pattern)
 
             if isNull binding.ReturnTypeInfo then
                 SpecifyUtil.specifyFunctionBindingReturnType displayContext mfv binding
