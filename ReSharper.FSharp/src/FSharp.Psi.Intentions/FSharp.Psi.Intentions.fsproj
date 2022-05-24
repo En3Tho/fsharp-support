@@ -7,7 +7,7 @@
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions</AssemblyName>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup>    
     <Compile Include="src\Intentions\DataProviders.fs" />
     <Compile Include="src\Intentions\FSharpContextActionBase.fs" />
     <Compile Include="src\Intentions\DeconstructAction.fs" />
@@ -28,6 +28,7 @@
     <Compile Include="src\Intentions\Annotation\FunctionAnnotationAction.fs" />
     <Compile Include="src\Intentions\Annotation\ValueAnnotationAction.fs" />
     <Compile Include="src\Intentions\Annotation\MemberAnnotationAction.fs" />
+    <Compile Include="src\Intentions\AddEmptyAttributeAction.fs" />
     <Compile Include="src\QuickFixes\FSharpQuickFixBase.fs" />
     <Compile Include="src\QuickFixes\RemoveUnusedOpensFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceUseWithLetFix.fs" />
