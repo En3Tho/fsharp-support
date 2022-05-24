@@ -6,8 +6,10 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
+open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.TextControl
 
@@ -41,6 +43,50 @@ module AttributeUtil =
         Action<_>(fun (textControl: ITextControl) ->
                 textControl.Caret.MoveTo(list.LastChild.GetDocumentStartOffset(), CaretVisualPlacement.Generic))
 
+    let isAtBindingDecl (dataProvider: IContextActionDataProvider) (binding: IBinding) =
+        let ranges =
+            DisjointedTreeTextRange
+                .From(binding.BindingKeyword)
+                .Then(binding.HeadPattern)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
+    let isAtMemberDecl (dataProvider: IContextActionDataProvider) (declaration: IMemberDeclaration) =
+        let ranges =
+            DisjointedTreeTextRange
+                .From(declaration.StaticKeyword)
+                .Then(declaration.MemberKeyword)
+                .Then(declaration.NameIdentifier)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
+    let isAtModuleDecl (dataProvider: IContextActionDataProvider) (declaration: IDeclaredModuleDeclaration) =
+        let ranges =
+            DisjointedTreeTextRange
+                .From(declaration.ModuleOrNamespaceKeyword)
+                .Then(declaration.NameIdentifier)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
+    let isAtTypeDecl (dataProvider: IContextActionDataProvider) (declaration: IFSharpTypeOrExtensionDeclaration) =
+        let ranges =
+            DisjointedTreeTextRange
+                .From(declaration.TypeKeyword)
+                .Then(declaration.NameIdentifier)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
+    let isAtParameterDecl (dataProvider: IContextActionDataProvider) (declaration: IParametersPatternDeclaration) =
+        match declaration.Pattern.IgnoreInnerParens() with
+        | :? IUnitPat -> false
+        | _ ->
+
+        let ranges =
+            DisjointedTreeTextRange
+                .From(declaration.Pattern)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
 [<ContextAction(Group = "F#", Name = "Add empty attribute to type",
                 Description = "Adds an empty attribute to type",
                 Priority = 10s)>]
@@ -59,8 +105,9 @@ type AddEmptyAttributeToTypeAction(dataProvider: FSharpContextActionDataProvider
         |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
 
     override this.IsAvailable(cache) =
-        dataProvider.GetSelectedElement<IFSharpTypeOrExtensionDeclaration>()
-        |> AttributeUtil.isAvailable dataProvider
+        let decl = dataProvider.GetSelectedElement<IFSharpTypeOrExtensionDeclaration>()
+        isNotNull decl &&
+        AttributeUtil.isAtTypeDecl dataProvider decl
 
     override this.Text = "Add empty attribute"
 
@@ -71,19 +118,20 @@ type AddEmptyAttributeToBindingAction(dataProvider: FSharpContextActionDataProvi
     inherit FSharpContextActionBase(dataProvider)
 
     override this.ExecutePsiTransaction(_, _) =
-        let typeDecl = dataProvider.GetSelectedElement<ITopBinding>()
+        let binding = dataProvider.GetSelectedElement<ITopBinding>()
 
-        use writeCookie = WriteLockCookie.Create(typeDecl.IsPhysical())
+        use writeCookie = WriteLockCookie.Create(binding.IsPhysical())
         use disableFormatter = new DisableCodeFormatter()
 
-        typeDecl
+        binding
         |> FSharpAttributesUtil.getBindingAttributeList
         |> AttributeUtil.addEmptyAttributeToEndOfList
         |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
 
     override this.IsAvailable(cache) =
-        dataProvider.GetSelectedElement<ITopBinding>()
-        |> AttributeUtil.isAvailable dataProvider
+        let decl = dataProvider.GetSelectedElement<ITopBinding>()
+        isNotNull decl &&
+        AttributeUtil.isAtBindingDecl dataProvider decl
 
     override this.Text = "Add empty attribute"
 
@@ -105,8 +153,9 @@ type AddEmptyAttributeToMemberAction(dataProvider: FSharpContextActionDataProvid
         |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
 
     override this.IsAvailable(cache) =
-        dataProvider.GetSelectedElement<IMemberDeclaration>()
-        |> AttributeUtil.isAvailable dataProvider
+        let decl = dataProvider.GetSelectedElement<IMemberDeclaration>()
+        isNotNull decl &&
+        AttributeUtil.isAtMemberDecl dataProvider decl
 
     override this.Text = "Add empty attribute"
 
@@ -128,8 +177,9 @@ type AddEmptyAttributeToModuleAction(dataProvider: FSharpContextActionDataProvid
         |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
 
     override this.IsAvailable(cache) =
-        dataProvider.GetSelectedElement<IDeclaredModuleDeclaration>()
-        |> AttributeUtil.isAvailable dataProvider
+        let decl = dataProvider.GetSelectedElement<IDeclaredModuleDeclaration>()
+        isNotNull decl &&
+        AttributeUtil.isAtModuleDecl dataProvider decl
 
     override this.Text = "Add empty attribute"
 
@@ -168,7 +218,8 @@ type AddEmptyAttributeToParameterAction(dataProvider: FSharpContextActionDataPro
         |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
 
     override this.IsAvailable(cache) =
-        dataProvider.GetSelectedElement<IParametersPatternDeclaration>()
-        |> AttributeUtil.isAvailable dataProvider
+        let decl = dataProvider.GetSelectedElement<IParametersPatternDeclaration>()
+        isNotNull decl &&
+        AttributeUtil.isAtParameterDecl dataProvider decl
 
-    override this.Text = "Add attribute"
+    override this.Text = "Add empty attribute"
