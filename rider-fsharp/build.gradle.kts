@@ -27,7 +27,7 @@ repositories {
 }
 
 val baseVersion = "2022.2"
-val buildCounter = ext.properties["build.number"] ?: "9999"
+val buildCounter = ext.properties["build.number"] ?: "0004"
 version = "$baseVersion.$buildCounter"
 
 intellij {
