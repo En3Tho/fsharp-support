@@ -27,7 +27,7 @@ repositories {
 }
 
 val baseVersion = "2022.2"
-val buildCounter = ext.properties["build.number"] ?: "0004"
+val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
 intellij {
@@ -54,7 +54,7 @@ intellij {
         logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
         version.set("$baseVersion-SNAPSHOT")
     }
-    version.set("2022.2-EAP4-SNAPSHOT")
+    version.set("2022.2-EAP5-SNAPSHOT")
     instrumentCode.set(false)
     downloadSources.set(false)
 
