@@ -192,6 +192,9 @@ module ProperAliasUsageAnalyzerUtil =
         | HasFcsFSharpFieldSymbolUse recordField, (:? IReferenceExpr as (wrongAliasRef & HasFcsMfvSymbolUse valueMfv)) ->
             if checkForWarning recordField.FieldType valueMfv.FullType then
                 consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
+        | HasFcsFSharpFieldSymbolUse recordField, (:? IReferenceExpr as (wrongAliasRef & HasFcsFSharpFieldSymbolUse valueField)) ->
+            if checkForWarning recordField.FieldType valueField.FieldType then
+                consumer.AddHighlighting(SuspiciousAliasUsageWarning(wrongAliasRef))
         | _ ->
             ()
 
