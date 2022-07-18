@@ -4,7 +4,9 @@ open System
 open System.Collections.Generic
 open FSharp.Compiler.CodeAnalysis
 open JetBrains.Application
+open JetBrains.Application.FileSystemTracker
 open JetBrains.Diagnostics
+open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.MSBuild
 open JetBrains.ProjectModel.ProjectsHost
@@ -47,10 +49,6 @@ type FSharpTargetsProjectLoadModificator() =
 
 [<AutoOpen>]
 module ProjectOptions =
-    let sandboxParsingOptions =
-        // todo: add implicit defines
-        { FSharpParsingOptions.Default with SourceFiles = [| "Sandbox.fs" |] }
-
     [<RequireQualifiedAccess>]
     module ImplicitDefines =
         // todo: don't pass to FCS, only use in internal lexing; these defines added by FCS too
@@ -60,10 +58,32 @@ module ProjectOptions =
         let getImplicitDefines isScript =
             if isScript then scriptDefines else sourceDefines
 
+    let sandboxParsingOptions =
+        // todo: use script defines in interactive?
+        { FSharpParsingOptions.Default with
+            ConditionalCompilationDefines = ImplicitDefines.sourceDefines
+            SourceFiles = [| "Sandbox.fs" |] }
+
+module FcsProjectBuilder =
+    let itemsDelimiters = [| ';'; ','; ' ' |]
+
+    let splitAndTrim (delimiters: char[]) (s: string) =
+        if isNull s then EmptyArray.Instance else
+        s.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+
+    let getProjectConfiguration (targetFramework: TargetFrameworkId) (project: IProject) =
+        let projectProperties = project.ProjectProperties
+        projectProperties.ActiveConfigurations.TryGetConfiguration(targetFramework).As<IManagedProjectConfiguration>()
+
+    let getDefines (configuration: IManagedProjectConfiguration) =
+        if isNull configuration then [] else
+
+        splitAndTrim itemsDelimiters configuration.DefineConstants
+        |> List.ofArray
 
 [<SolutionComponent>]
-type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFSharpItemsContainer,
-        modulePathProvider: ModulePathProvider, logger: ILogger) =
+type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, itemsContainer: IFSharpItemsContainer,
+        modulePathProvider: ModulePathProvider, fileSystemTracker: IFileSystemTracker, logger: ILogger) =
 
     let mutable stamp = 0L
 
@@ -71,8 +91,6 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
         let result = stamp
         stamp <- stamp + 1L
         result
-
-    let itemsDelimiters = [| ';'; ','; ' ' |]
 
     let defaultOptions =
         [| "--noframework"
@@ -87,10 +105,6 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
 
     let unusedValuesWarns =
         [| "--warnon:1182" |]
-
-    let splitAndTrim (delimiters: char[]) (s: string) =
-        if isNull s then EmptyArray.Instance else
-        s.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
 
     let getOutputType (outputType: ProjectOutputType) =
         match outputType with
@@ -150,7 +164,7 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
 
         match projectProperties.ActiveConfigurations.TryGetConfiguration(targetFrameworkId) with
         | :? IManagedProjectConfiguration as cfg ->
-            let definedConstants = splitAndTrim itemsDelimiters cfg.DefineConstants
+            let definedConstants = FcsProjectBuilder.getDefines cfg
             otherOptions.AddRange(definedConstants |> Seq.map (fun c -> "--define:" + c))
 
             otherOptions.Add($"--target:{getOutputType cfg.OutputType}")
@@ -185,11 +199,11 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
             |> otherOptions.AddRange
 
             [ FSharpProperties.NoWarn, None; MSBuildProjectUtil.WarningsAsErrorsProperty, Some("warnaserror") ]
-            |> List.choose (getOption (fun v -> (splitAndTrim itemsDelimiters v).Join(",")))
+            |> List.choose (getOption (fun v -> (FcsProjectBuilder.splitAndTrim FcsProjectBuilder.itemsDelimiters v).Join(",")))
             |> otherOptions.AddRange
 
             match props.TryGetValue(FSharpProperties.OtherFlags) with
-            | true, otherFlags when not (otherFlags.IsNullOrWhitespace()) -> splitAndTrim [| ' ' |] otherFlags
+            | true, otherFlags when not (otherFlags.IsNullOrWhitespace()) -> FcsProjectBuilder.splitAndTrim [| ' ' |] otherFlags
             | _ -> EmptyArray.Instance
             |> otherOptions.AddRange
         | _ -> ()
@@ -238,7 +252,11 @@ type FcsProjectBuilder(checkerService: FcsCheckerService, itemsContainer: IFShar
         let paths =
             referencedPsiModules
             |> Array.ofSeq
-            |> Array.map modulePathProvider.GetModulePath
+            |> Array.map (fun psiModule ->
+                let path = modulePathProvider.GetModulePath(psiModule)
+                if psiModule :? IProjectPsiModule then
+                    fileSystemTracker.AdviseFileChanges(lifetime, path) |> ignore
+                path)
             |> Array.map (fun r -> "-r:" + r.FullPath)
 
         let otherOptions = Array.append fcsProject.ProjectOptions.OtherOptions paths

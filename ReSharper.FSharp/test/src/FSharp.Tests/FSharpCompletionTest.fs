@@ -17,6 +17,11 @@ type FSharpCompletionTest() =
 
     override x.TestType = CodeCompletionTestType.Action
 
+    member x.DoTestFiles([<ParamArray>] names: string[]) =
+        let testDir = x.TestDataPath / x.TestMethodName
+        let paths = names |> Array.map (fun name -> testDir.Combine(name).FullPath)
+        x.DoTestSolution(paths)
+
     [<Test>] member x.``Attribute 01``() = x.DoNamedTest()
     [<Test>] member x.``Attribute 02``() = x.DoNamedTest()
 
@@ -139,6 +144,11 @@ type FSharpCompletionTest() =
     [<TestSetting(typeof<FSharpOptions>, "EnableOutOfScopeCompletion", "false")>]
     [<Test>] member x.``Import - Same project 02 - Disabled import``() = x.DoNamedTest()
 
+    [<Test>] member x.``Import - Same ns 01``() = x.DoTestFiles("File1.fs", "File2.fs")
+    [<Test>] member x.``Import - Same ns 02``() = x.DoTestFiles("File1.fs", "File2.fs")
+    [<Test>] member x.``Import - Same ns 03``() = x.DoTestFiles("File1.fs", "File2.fs")
+    [<Test>] member x.``Import - Same ns 04``() = x.DoTestFiles("File1.fs", "File2.fs")
+    [<Test>] member x.``Import - Same ns 05``() = x.DoTestFiles("File1.fs", "File2.fs")
 
 [<FSharpTest>]
 type FSharpPostfixCompletionTest() =
@@ -147,6 +157,35 @@ type FSharpPostfixCompletionTest() =
     override x.RelativeTestDataPath = "features/completion/postfix"
 
     override x.TestType = CodeCompletionTestType.Action
+
+    [<Test; Explicit>] member x.``For - Array - Literal 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Array - Literal 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Array 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - List - Literal 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - List - Literal 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - List 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Not available - Bool 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Not available - Bool 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Not available - Int 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Not available - Int 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Arg 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Arg 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Function return 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Function return 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Function return 03``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Active pattern 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Active pattern 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Constraints 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Constraints 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 03``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 04``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 05``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type context - Param 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type parameter 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type parameter 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - Type parameter 03``() = x.DoNamedTest()
 
     [<Test>] member x.``Let - Decl 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Decl 02``() = x.DoNamedTest()
@@ -166,6 +205,9 @@ type FSharpPostfixCompletionTest() =
     [<Test>] member x.``Let - Type - Function 02``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type - Named 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type - Tuple 01``() = x.DoNamedTest()
+
+    [<TestDefines("DEFINE")>]
+    [<Test>] member x.``Let - Preprocessor 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Not available - Let - Open 01``() = x.DoNamedTest()
     [<Test>] member x.``Not available - Let - Namespace 01``() = x.DoNamedTest()
