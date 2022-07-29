@@ -252,8 +252,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
           // e.g. `fun Literal -> ()` has both pattern and binding symbols at pattern range.
           if (symbolUse.IsFromPattern || !resolvedSymbols.Declarations.ContainsKey(startOffset))
           {
-            if (resolvedSymbols.Uses.TryGetValue(startOffset, out var existingSymbol) &&
-                existingSymbol.SymbolUse.Symbol is FSharpEntity && !isCtor)
+            if (resolvedSymbols.Uses.TryGetValue(startOffset, out var existingSymbol)
+                && existingSymbol.SymbolUse.Symbol is FSharpEntity fsEntity
+                && !isCtor
+                && symbolUse.Symbol is FSharpEntity fsSymbol
+                && !(fsEntity.IsNamespace && (fsSymbol.IsClass || fsSymbol.IsFSharpModule)))
               continue;
 
             resolvedSymbols.Uses[startOffset] = new FcsResolvedSymbolUse(symbolUse, nameRange);

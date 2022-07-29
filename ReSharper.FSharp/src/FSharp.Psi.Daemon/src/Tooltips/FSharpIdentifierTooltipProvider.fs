@@ -2,6 +2,7 @@ module JetBrains.ReSharper.Plugins.FSharp.Daemon.Tooltips
 
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.EditorServices
+open FSharp.Compiler.Symbols
 open FSharp.Compiler.Tokenization
 open JetBrains.DocumentModel
 open JetBrains.ProjectModel
@@ -50,6 +51,18 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
         // todo: provide tooltip for #r strings in fsx, should pass String tag
         checkResults.GetToolTip(int coords.Line + 1, int coords.Column, lineText, tokenNames, FSharpTokenTag.Identifier)
 
+    member _.GetFSharpEntityByToken(checkResults: FSharpCheckFileResults, token: IFSharpIdentifierToken) =
+        // todo: fix getting qualifiers
+        let tokenNames = [token.Name]
+
+        let sourceFile = token.GetSourceFile()
+        let coords = sourceFile.Document.GetCoordsByOffset(token.GetTreeEndOffset().Offset)
+        let lineText = sourceFile.Document.GetLineText(coords.Line)
+        use cookie = CompilationContextCookie.GetOrCreate(sourceFile.GetPsiModule().GetContextFromModule())
+
+        // todo: provide tooltip for #r strings in fsx, should pass String tag
+        checkResults.GetSymbolUseAtLocation(int coords.Line + 1, int coords.Column, lineText, tokenNames)
+
     override x.GetRichTooltip(highlighter, _) =
         if not highlighter.IsValid then emptyPresentation else
 
@@ -76,6 +89,37 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
         | Some results ->
             let (ToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token)
 
+            let getDeclaringEntityHeaderIfExtensionMember() = [
+                match x.GetFSharpEntityByToken(results.CheckResults, token) with
+                | Some entity ->
+                    match entity.Symbol with
+                    | :? FSharpMemberOrFunctionOrValue as mfv ->
+                        if mfv.IsExtensionMember && mfv.DeclaringEntity.IsSome then
+                            let declaringEntities = List.rev [
+                                let mutable declaringEntity = mfv.DeclaringEntity.Value
+                                declaringEntity
+                                while declaringEntity.DeclaringEntity.IsSome do
+                                    declaringEntity <- declaringEntity.DeclaringEntity.Value
+                                    declaringEntity
+                            ]
+
+                            let result = RichText()
+                            result.Append("From ") |> ignore
+                            for declaringEntity in declaringEntities do
+                                if declaringEntity.IsNamespace then
+                                    result.Append(declaringEntity.DisplayName, TextStyle(FSharpHighlightingAttributeIds.Namespace)) |> ignore
+                                elif declaringEntity.IsFSharpModule then
+                                    result.Append(declaringEntity.DisplayName, TextStyle(FSharpHighlightingAttributeIds.Module)) |> ignore
+                                elif declaringEntity.IsClass then
+                                    result.Append(declaringEntity.DisplayName, TextStyle(FSharpHighlightingAttributeIds.Class)) |> ignore
+                                result.Append(".") |> ignore
+                            yield result.TrimEnd('.')
+                    | _ ->
+                        ()
+                | None ->
+                    ()
+            ]
+
             layouts |> List.collect (function
                 | ToolTipElement.None
                 | ToolTipElement.CompositionError _ -> []
@@ -87,7 +131,9 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
                                 yield overload.MainDescription |> richText
 
                               if not overload.TypeMapping.IsEmpty then
-                                yield overload.TypeMapping |> List.map richText |> richTextJoin "\n" ]
+                                yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
+
+                              yield! getDeclaringEntityHeaderIfExtensionMember() ]
                             |> richTextJoin "\n\n"
 
                         let body =
