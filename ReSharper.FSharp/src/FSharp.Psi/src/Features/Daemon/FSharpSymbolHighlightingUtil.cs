@@ -109,7 +109,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
                 ? FSharpHighlightingAttributeIdsModule.MutableProperty
                 : FSharpHighlightingAttributeIdsModule.Property;
           else
-            return mfv.IsExtensionMember
+            return mfv.IsExtensionMemberMfv()
               ? FSharpHighlightingAttributeIdsModule.ExtensionMethod
               : FSharpHighlightingAttributeIdsModule.Method;
       }

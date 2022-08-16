@@ -2,6 +2,7 @@
 module JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
 
 open System
+open System.Collections.Generic
 open FSharp.Compiler.Symbols
 open JetBrains.Application.UI.Icons.ComposedIcons
 open JetBrains.Diagnostics
@@ -247,6 +248,21 @@ let isExceptionEntity (entity: FSharpEntity) =
         |> Option.map getAbbreviatedType
         |> Option.map isException
         |> Option.defaultValue false
+
+[<Extension; CompiledName("ContainsExtensionAttribute")>]
+let containsExtensionAttribute (attributes: IList<FSharpAttribute>) =
+    let attrName = "System.Runtime.CompilerServices.ExtensionAttribute"
+    if attributes = null || attributes.Count = 0 then false else
+        let mutable i = 0
+        let mutable found = false
+        while not found && i < attributes.Count do
+            let attribute = attributes[i]
+            found <- attribute.AttributeType.FullName.Equals(attrName, StringComparison.Ordinal)
+        found
+
+[<Extension; CompiledName("IsExtensionMemberMfv")>]
+let isExtensionMemberMfv (mfv: FSharpMemberOrFunctionOrValue) =
+    mfv.IsExtensionMember || containsExtensionAttribute mfv.Attributes
 
 type FSharpActivePatternGroup with
     member x.PatternName = patternName x
