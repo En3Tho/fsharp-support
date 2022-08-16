@@ -258,6 +258,7 @@ let containsExtensionAttribute (attributes: IList<FSharpAttribute>) =
         while not found && i < attributes.Count do
             let attribute = attributes[i]
             found <- attribute.AttributeType.FullName.Equals(attrName, StringComparison.Ordinal)
+            i <- i + 1
         found
 
 [<Extension; CompiledName("IsExtensionMemberMfv")>]
