@@ -1,5 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.Analyzers
 
+open System
 open FSharp.Compiler.Symbols
 open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
@@ -17,14 +18,7 @@ module OperatorUsageAnalyzerUtil =
         | NotSupported
 
     [<return: Struct>]
-    let (|IsFromFSharpCore|_|) (mfv: FSharpMemberOrFunctionOrValue) =
-        if mfv.Assembly.SimpleName.Equals("FSharp.Core") then
-            ValueSome mfv
-        else
-            ValueNone
-
-    [<return: Struct>]
-    let (|HasMfvSymbol|_|) (referenceExpr: IReferenceExpr) =
+    let (|HasMfvSymbol|_|) (referenceExpr: IFSharpReferenceOwner) =
         if isNull referenceExpr then ValueNone else
         match referenceExpr.Reference.GetFcsSymbol() with
         | :? FSharpMemberOrFunctionOrValue as mfv ->
@@ -32,27 +26,50 @@ module OperatorUsageAnalyzerUtil =
         | _ ->
             ValueNone
 
+    [<return: Struct>]
+    let (|HasFSharpType|_|) (expr: IFSharpExpression) =
+        match expr with
+        | :? IFSharpReferenceOwner as HasMfvSymbol mfv ->
+            ValueSome mfv.FullType
+        | :? IFSharpReferenceOwner as refOwner ->
+            ValueNone
+        | :? IRecordExpr as recordExpr ->
+            ValueNone
+        | :? IListExpr as listExpr ->
+            ValueNone
+        | :? IArrayExpr as arrayExpr ->
+            ValueNone
+        | :? IComputationExpr as compExpr ->
+            ValueNone
+        | _ ->
+            ValueNone
+
+    let isFromFSharpCore(mfv: FSharpMemberOrFunctionOrValue) =
+        "FSharp.Core".Equals(mfv.Assembly.SimpleName, StringComparison.Ordinal)
+
     let getOperationType(mfv: FSharpMemberOrFunctionOrValue) =
+        // TODO: Check it's from FSharpCore actually
         match mfv.CompiledName with
         | "op_Equality"
-        | "op_Inequality" ->
+        | "op_Inequality" when isFromFSharpCore mfv ->
             OperationType.Equality
         | "op_GreaterThan"
         | "op_LessThan"
         | "op_GreaterThanOrEqual"
-        | "op_LessThanOrEqual" ->
+        | "op_LessThanOrEqual" when isFromFSharpCore mfv ->
             OperationType.Comparison
         | _ ->
             OperationType.NotSupported
 
-    let declaredElementsHaveSameTypes (left: FSharpMemberOrFunctionOrValue) (right: FSharpMemberOrFunctionOrValue) =
-        left.FullType.Equals(right.FullType)
+    let areSameTypes (left: FSharpType) (right: FSharpType) =
+        left.Equals(right)
 
     /// Is type of an element optimized out of the box with native "=" operator
-    let isCoreEqualityIntrinsic (value: FSharpMemberOrFunctionOrValue) =
-        let typeOfValue = getAbbreviatedType value.FullType
+    let isCoreEqualityIntrinsic (value: FSharpType) =
+        let typeOfValue = getAbbreviatedType value
         match typeOfValue.TryQualifiedBaseName with
         | Some name ->
+            // GenericEqualityFast
             match name with
             | "System.Boolean"
             | "System.SByte"
@@ -68,17 +85,20 @@ module OperatorUsageAnalyzerUtil =
             | "System.Char"
             | "System.IntPtr"
             | "System.UIntPtr"
+            | "System.String"
             | "System.Decimal"
-            | "System.String" ->
+            | "System.DateTime" ->
                 true
             | _ ->
                 false
         | _ ->
             false
 
-    let isCoreComparisonIntrinsic (mfv: FSharpMemberOrFunctionOrValue) =
-        let typeOfValue = getAbbreviatedType mfv.FullType
+    let isCoreComparisonIntrinsic (value: FSharpType) =
+        let typeOfValue = getAbbreviatedType value
         match typeOfValue.TryQualifiedBaseName with
+        // GenericGreaterThanFast
+        // Note String is not here
         | Some name ->
             match name with
             | "System.Boolean"
@@ -86,17 +106,17 @@ module OperatorUsageAnalyzerUtil =
             | "System.Int16"
             | "System.Int32"
             | "System.Int64"
+            | "System.IntPtr"
             | "System.Byte"
             | "System.UInt16"
             | "System.UInt32"
             | "System.UInt64"
+            | "System.UIntPtr"
             | "System.Single"
             | "System.Double"
             | "System.Char"
-            | "System.IntPtr"
-            | "System.UIntPtr"
             | "System.Decimal"
-            | "System.String" ->
+            | "System.DateTime" ->
                 true
             | _ ->
                 false
@@ -152,38 +172,37 @@ module OperatorUsageAnalyzerUtil =
                | _ ->
                    false
 
-    let isCustomEqualityCandidate (value: FSharpMemberOrFunctionOrValue) =
-        let typeOfValue = getAbbreviatedType value.FullType
+    let isCustomEqualityCandidate (value: FSharpType) =
+        let typeOfValue = getAbbreviatedType value
 
         (isStruct typeOfValue
          && isIEquatableOfSelf typeOfValue)
         || isSpecialCaseForCustomEquality typeOfValue
 
-    let isCustomComparisonCandidate (value: FSharpMemberOrFunctionOrValue) =
-        let typeOfValue = getAbbreviatedType value.FullType
+    let isCustomComparisonCandidate (value: FSharpType) =
+        let typeOfValue = getAbbreviatedType value
 
         (isStruct typeOfValue
          && isIComparableOfSelf typeOfValue)
 
     let checkBinaryAppExpr (consumer: IHighlightingConsumer) (binaryAppExpr: IBinaryAppExpr) =
+        // This might be not a reference expr, maybe try IReferenceOwner?
+        // I need only Type, not reference?
         match binaryAppExpr.Operator, binaryAppExpr.LeftArgument, binaryAppExpr.RightArgument with
-        | HasMfvSymbol opMfv, (:? IReferenceExpr as HasMfvSymbol leftArgMfv), (:? IReferenceExpr as HasMfvSymbol rightArgMfv) ->
-            if declaredElementsHaveSameTypes leftArgMfv rightArgMfv then
+        | HasMfvSymbol opMfv, HasFSharpType leftType, HasFSharpType rightType ->
+            
+            if areSameTypes leftType rightType then
                 match getOperationType opMfv with
                 | OperationType.NotSupported ->
                     ()
                 | OperationType.Equality ->
-                    if not (isCoreEqualityIntrinsic leftArgMfv)
-                       && isCustomEqualityCandidate leftArgMfv then
+                    if not (isCoreEqualityIntrinsic leftType)
+                       && isCustomEqualityCandidate leftType then
                         consumer.AddHighlighting(EqualityOperatorUsageWarning(binaryAppExpr))
-                    else
-                        ()
                 | OperationType.Comparison ->
-                    if not (isCoreComparisonIntrinsic leftArgMfv)
-                        && isCustomComparisonCandidate leftArgMfv then
+                    if not (isCoreComparisonIntrinsic leftType)
+                        && isCustomComparisonCandidate leftType then
                         consumer.AddHighlighting(EqualityOperatorUsageWarning(binaryAppExpr))
-                    else
-                        ()
         | _ ->
             ()
                 

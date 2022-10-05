@@ -251,14 +251,19 @@ let isExceptionEntity (entity: FSharpEntity) =
 
 [<Extension; CompiledName("ContainsExtensionAttribute")>]
 let containsExtensionAttribute (attributes: IList<FSharpAttribute>) =
-    let attrName = "System.Runtime.CompilerServices.ExtensionAttribute"
     if attributes = null || attributes.Count = 0 then false else
         let mutable i = 0
         let mutable found = false
         while not found && i < attributes.Count do
-            let attribute = attributes[i]
-            found <- attribute.AttributeType.FullName.Equals(attrName, StringComparison.Ordinal)
+            let attribute = attributes[i].AttributeType
             i <- i + 1
+
+            if "ExtensionAttribute".Equals(attribute.CompiledName, StringComparison.Ordinal) then
+                match attribute.TryFullName with
+                | Some fullName ->
+                    found <- "System.Runtime.CompilerServices.ExtensionAttribute".Equals(fullName, StringComparison.Ordinal)
+                | _ ->
+                    ()
         found
 
 [<Extension; CompiledName("IsExtensionMemberMfv")>]

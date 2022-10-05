@@ -152,6 +152,46 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
                     ()
             ]
 
+            let getHexRepresentationIfIntConstant() = [
+                let literal =
+                    match x.GetFSharpEntityByToken(results.CheckResults, token) with
+                    | Some symbolUse ->
+                        match symbolUse.Symbol with
+                        | :? FSharpMemberOrFunctionOrValue as mfv ->
+                            mfv.LiteralValue
+                        | :? FSharpField as field ->
+                            field.LiteralValue
+                        | _ ->
+                            None
+                    | _ ->
+                        None
+
+                match literal with
+                | Some literal ->
+                    match literal with
+                    | :? int8
+                    | :? int16
+                    | :? int32
+                    | :? int64
+                    | :? uint8
+                    | :? uint16
+                    | :? uint32
+                    | :? uint64
+                    | :? char ->
+                        let hexString = $"{literal:X}"
+                        let hexString = $"0x{hexString.PadLeft(hexString.Length + (hexString.Length &&& 1), '0')}"
+                        let typeText = [|
+                            TaggedText(TextTag.Text, "(")
+                            TaggedText(TextTag.NumericLiteral, hexString)
+                            TaggedText(TextTag.Text, ")")
+                        |]
+                        richText typeText
+                    | _ ->
+                        ()
+                | _ ->
+                    ()
+            ]
+
             let (ToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token)
 
             layouts |> List.collect (function
@@ -160,27 +200,28 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
 
                 | ToolTipElement.Group(overloads) ->
                     overloads |> List.map (fun overload ->
-                        let header =
-                            [ if not (isEmpty overload.MainDescription) then
+                        let header = richTextJoin "\n\n" [
+                            if not (isEmpty overload.MainDescription) then
                                 yield overload.MainDescription |> richText
 
-                              if not overload.TypeMapping.IsEmpty then
-                                yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
+                            if not overload.TypeMapping.IsEmpty then
+                              yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
 
-                              yield! getDeclaringEntityHeaderIfExtensionMember()
-                              yield! getAbbreviatedEntityHeaderIfAbbreviation() ]
-                            |> richTextJoin "\n\n"
+                            yield! getDeclaringEntityHeaderIfExtensionMember()
+                            yield! getAbbreviatedEntityHeaderIfAbbreviation()
+                            yield! getHexRepresentationIfIntConstant()
+                        ]
 
-                        let body =
-                            [ match xmlDocService.GetXmlDoc(overload.XmlDoc) with
-                              | null -> ()
-                              | xmlDocText -> yield xmlDocText.RichText
+                        let body = richTextJoin "\n\n" [
+                            match xmlDocService.GetXmlDoc(overload.XmlDoc) with
+                            | null -> ()
+                            | xmlDocText -> yield xmlDocText.RichText
 
-                              match overload.Remarks with
-                              | Some remarks when not (isEmpty remarks) ->
-                                yield remarks |> richText |> asContent
-                              | _ -> () ]
-                            |> richTextJoin "\n\n"
+                            match overload.Remarks with
+                            | Some remarks when not (isEmpty remarks) ->
+                              yield remarks |> richText |> asContent
+                            | _ -> ()
+                        ]
 
                         createToolTip header body))
             |> richTextJoin IdentifierTooltipProvider.RIDER_TOOLTIP_SEPARATOR
