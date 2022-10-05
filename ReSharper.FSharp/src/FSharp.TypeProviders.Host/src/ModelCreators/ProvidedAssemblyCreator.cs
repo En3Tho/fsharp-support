@@ -1,5 +1,5 @@
 ﻿using JetBrains.Rider.FSharp.TypeProviders.Protocol.Server;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.ModelCreators
 {
@@ -10,7 +10,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.ModelCreators
     }
 
     protected override RdProvidedAssembly CreateRdModelInternal(ProvidedAssembly providedModel, int entityId, int _) =>
-      new RdProvidedAssembly(providedModel.FullName, GetName(providedModel), entityId);
+      new(providedModel.FullName, GetName(providedModel), entityId);
 
     private static RdAssemblyName GetName(ProvidedAssembly providedModel)
     {

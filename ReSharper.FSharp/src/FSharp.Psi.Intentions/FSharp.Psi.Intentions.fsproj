@@ -93,6 +93,7 @@
     <Compile Include="src\QuickFixes\FSharpImportTypeFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithTripleQuotedInterpolatedStringFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceReturnTypeFix.fs" />
+    <Compile Include="src\QuickFixes\XmlDocFixes.fs" />
     <ErrorsGen Include="..\FSharp.Psi.Services\src\Daemon\Highlightings\Errors.xml">
       <Mode>QUICKFIX</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>
@@ -112,10 +113,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Compiler.Service, Version=41.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Compiler.Service">
       <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
 
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+
+  <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'"/>
 </Project>

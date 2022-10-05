@@ -1,24 +1,15 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
-open System
-open System.IO
 open JetBrains.ProjectModel
-open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.FeaturesTestFramework.Daemon
 open JetBrains.ReSharper.Plugins.FSharp
-open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Tests
-open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.Files
-open JetBrains.ReSharper.Psi.Resolve
 open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
-[<TestPackages(FSharpCorePackage)>]
+[<FSharpTest>]
 type CSharpResolveTest() =
-    inherit TestWithTwoProjectsBase(CSharpProjectFileType.CS_EXTENSION, FSharpProjectFileType.FsExtension)
-
-    let highlightingManager = HighlightingSettingsManager.Instance
+    inherit CSharpResolveTestBase(FSharpProjectFileType.FsExtension)
 
     [<Test>] member x.``Records 01 - Generated members``() = x.DoNamedTest()
     [<Test>] member x.``Records 02 - CliMutable``() = x.DoNamedTest()
@@ -180,27 +171,56 @@ type CSharpResolveTest() =
     [<Test>] member x.``AttributeUsage 01 - AllowMultiple``() = x.DoNamedTest()
     [<Test>] member x.``AttributeUsage 02 - AttributeTargets``() = x.DoNamedTest()
 
-    override x.RelativeTestDataPath = "cache/csharpResolve"
+    [<Test>] member x.``Parameters 01``() = x.DoNamedTest()
 
-    override x.DoTest(project: IProject, _: IProject) =
-        x.Solution.GetPsiServices().Files.CommitAllDocuments()
-        x.ExecuteWithGold(fun writer ->
-            let projectFile = project.GetAllProjectFiles() |> Seq.exactlyOne
-            let sourceFile = projectFile.ToSourceFiles().Single()
-            let psiFile = sourceFile.GetPrimaryPsiFile()
 
-            let daemon = TestHighlightingDumper(sourceFile, writer, null, Func<_,_,_,_>(x.ShouldHighlight))
-            daemon.DoHighlighting(DaemonProcessKind.VISIBLE_DOCUMENT)
-            daemon.Dump()
+[<FSharpTest>]
+type CSharpResolveFromSignatures() =
+    inherit CSharpResolveTestBase(FSharpSignatureProjectFileType.FsiExtension)
 
-            let referenceProcessor = RecursiveReferenceProcessor(fun r -> x.ProcessReference(r, writer))
-            psiFile.ProcessThisAndDescendants(referenceProcessor)) |> ignore
+    [<Test>] member x.``Type Extension 01 - Struct - Signature``() = x.DoNamedTest()
+    [<Test>] member x.``Type Extension 02 - Class - Signature``() = x.DoNamedTest()
 
-    member x.ShouldHighlight highlighting sourceFile settings =
-        let severity = highlightingManager.GetSeverity(highlighting, sourceFile, x.Solution, settings)
-        severity = Severity.ERROR
 
-    member x.ProcessReference(reference: IReference, writer: TextWriter) =
-        match reference.Resolve().DeclaredElement with
-        | :? IFSharpTypeMember as typeMember -> writer.WriteLine(typeMember.XMLDocId)
-        | _ -> ()
+[<FSharpTest>]
+[<TestFileExtension(".cs")>]
+type CSharpTooltipTest() =
+    inherit IdentifierTooltipTestBase()
+
+    override x.RelativeTestDataPath = "cache/csharpResolve/tooltips"
+
+    member x.DoNamedTestWithFs() =
+        let testName = x.TestMethodName
+        x.DoTestSolution(testName + CSharpProjectFileType.CS_EXTENSION, testName + FSharpProjectFileType.FsExtension)
+
+    member x.DoNamedTestWithFsi() =
+        let testName = x.TestMethodName
+        x.DoTestSolution(testName + CSharpProjectFileType.CS_EXTENSION, testName + FSharpSignatureProjectFileType.FsiExtension)
+
+    member x.DoNamedTestWithFsiAndFs() =
+        let testName = x.TestMethodName
+        x.DoTestSolution(testName + CSharpProjectFileType.CS_EXTENSION,
+                         testName + FSharpSignatureProjectFileType.FsiExtension,
+                         testName + FSharpProjectFileType.FsExtension)
+
+    [<Test>] member x.``XmlDoc 01 - Top binding 01``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 01 - Top binding 02 - Pattern``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 02 - Type``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 03 - Record field``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 04 - Union case``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 05 - Primary constructor``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 06 - Type member``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 07 - Abstract type member``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 08 - Type member signature``() = x.DoNamedTestWithFsi()
+    [<Test>] member x.``XmlDoc 09 - Val``() = x.DoNamedTestWithFsi()
+    [<Test>] member x.``XmlDoc 10 - Module``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 11 - Struct val``() = x.DoNamedTestWithFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 01 - Class``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 02 - Struct``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 03 - Delegate``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 04 - Interface``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 05 - Enum``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 06 - Module``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 12 - Type parts 07 - Union``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 13 - Type members 01 - Top binding``() = x.DoNamedTestWithFsiAndFs()
+    [<Test>] member x.``XmlDoc 13 - Type members 02 - Abstract member``() = x.DoNamedTestWithFsiAndFs()

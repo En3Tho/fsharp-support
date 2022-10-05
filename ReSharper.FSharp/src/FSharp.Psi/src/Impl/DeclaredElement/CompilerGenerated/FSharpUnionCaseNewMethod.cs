@@ -16,6 +16,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGe
 
     public override ITypeElement GetContainingType() => UnionCase.GetContainingType();
     public IClrDeclaredElement OriginElement => UnionCase;
+    public bool IsReadOnly => false;
 
     public IDeclaredElementPointer<IFSharpGeneratedFromOtherElement> CreatePointer() =>
       new FSharpUnionCaseNewMethodPointer(this);
@@ -36,7 +37,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGe
         var fields = UnionCase.CaseFields;
         var result = new IParameter[fields.Count];
         for (var i = 0; i < fields.Count; i++)
-          result[i] = new FSharpGeneratedParameter(this, fields[i]);
+          result[i] = new FSharpGeneratedParameter(this, fields[i], true);
 
         return result;
       }

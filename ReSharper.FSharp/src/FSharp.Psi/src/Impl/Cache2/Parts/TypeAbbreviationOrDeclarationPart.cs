@@ -1,6 +1,7 @@
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
+using JetBrains.ReSharper.Plugins.FSharp.Util;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2;
 
@@ -9,7 +10,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
   internal class TypeAbbreviationOrDeclarationPart : TypeAbbreviationOrDeclarationPartBase, Class.IClassPart
   {
     public TypeAbbreviationOrDeclarationPart([NotNull] IFSharpTypeDeclaration declaration,
-      [NotNull] ICacheBuilder cacheBuilder) : base(declaration, cacheBuilder)
+      [NotNull] ICacheBuilder cacheBuilder) : base(declaration, cacheBuilder, PartKind.Class)
     {
     }
 
@@ -17,14 +18,15 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     {
     }
 
-    public override TypeElement CreateTypeElement() => new FSharpClass(this);
-    protected override byte SerializationTag => (byte) FSharpPartKind.AbbreviationOrSingleCaseUnion;
+    public override TypeElement CreateTypeElement() => new FSharpClassOrProvidedTypeAbbreviation(this);
+
+    protected override byte SerializationTag => (byte)FSharpPartKind.AbbreviationOrSingleCaseUnion;
   }
 
   internal class StructTypeAbbreviationOrDeclarationPart : TypeAbbreviationOrDeclarationPartBase, IFSharpStructPart
   {
     public StructTypeAbbreviationOrDeclarationPart([NotNull] IFSharpTypeDeclaration declaration,
-      [NotNull] ICacheBuilder cacheBuilder) : base(declaration, cacheBuilder)
+      [NotNull] ICacheBuilder cacheBuilder) : base(declaration, cacheBuilder, PartKind.Struct)
     {
     }
 
@@ -33,7 +35,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     }
 
     public override TypeElement CreateTypeElement() => new FSharpStruct(this);
-    protected override byte SerializationTag => (byte) FSharpPartKind.StructAbbreviationOrSingleCaseUnion;
+    protected override byte SerializationTag => (byte)FSharpPartKind.StructAbbreviationOrSingleCaseUnion;
 
     public override IDeclaredType GetBaseClassType() => null;
 
@@ -44,7 +46,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
   internal abstract class TypeAbbreviationOrDeclarationPartBase : UnionPartBase, ITypeAbbreviationOrDeclarationPart
   {
     protected TypeAbbreviationOrDeclarationPartBase([NotNull] IFSharpTypeDeclaration declaration,
-      [NotNull] ICacheBuilder cacheBuilder) : base(declaration, cacheBuilder, false, true)
+      [NotNull] ICacheBuilder cacheBuilder, PartKind partKind) : base(declaration, cacheBuilder, false, true, partKind)
     {
     }
 
@@ -52,9 +54,15 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     {
     }
 
+    public bool IsProvidedAndGenerated =>
+      GetDeclaration() is { } decl &&
+      decl.GetFcsSymbol() is FSharpEntity { IsProvidedAndGenerated: true };
+
     public bool IsUnionCase =>
-      GetDeclaration() is IFSharpTypeDeclaration 
-        { TypeRepresentation: ITypeAbbreviationRepresentation { CanBeUnionCase: true } } decl &&
+      GetDeclaration() is IFSharpTypeDeclaration
+      {
+        TypeRepresentation: ITypeAbbreviationRepresentation { CanBeUnionCase: true }
+      } decl &&
       decl.GetFcsSymbol() is FSharpEntity { IsFSharpUnion: true };
   }
 }

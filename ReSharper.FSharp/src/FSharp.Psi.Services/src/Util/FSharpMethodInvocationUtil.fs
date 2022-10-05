@@ -12,8 +12,7 @@ let tryGetNamedArgRefExpr (expr: IFSharpExpression) =
     let binaryAppExpr = expr.As<IBinaryAppExpr>()
     if isNull binaryAppExpr then null else
 
-    let operatorExpr = binaryAppExpr.Operator
-    if isNull operatorExpr || operatorExpr.Reference.GetName() <> "=" then null else
+    if binaryAppExpr.ShortName <> "=" then null else
 
     binaryAppExpr.LeftArgument.As<IReferenceExpr>()
 
@@ -27,6 +26,19 @@ let isNamedArgReference (expr: IFSharpExpression) =
     | :? FSharpField as fsField -> fsField.IsUnionCaseField
     | _ -> false
 
+let hasNamedArgStructure (app: IBinaryAppExpr) =
+    isNotNull app && app.ShortName = "=" &&
+
+    let refExpr = app.LeftArgument.As<IReferenceExpr>()
+    isNotNull refExpr && refExpr.IsSimpleName
+
+let isTopLevelArg (expr: IFSharpExpression) =
+    let tupleExpr = TupleExprNavigator.GetByExpression(expr)
+    let argExpr = if isNull tupleExpr then expr else tupleExpr
+
+    let parenExpr = ParenExprNavigator.GetByInnerExpression(argExpr)
+    let argOwner = FSharpArgumentOwnerNavigator.GetByArgumentExpression(parenExpr)
+    isNotNull argOwner
 
 let tryGetNamedArg (expr: IFSharpExpression) =
     match tryGetNamedArgRefExpr expr with

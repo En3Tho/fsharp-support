@@ -17,7 +17,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
     public override string ShortName { get; }
     public int Index { get; }
 
-    public override ITypeMember GetContainingTypeMember() => (ITypeMember) Origin;
+    public override ITypeMember GetContainingTypeMember() => (ITypeMember)Origin;
     public override DeclaredElementType GetElementType() => FSharpDeclaredElementType.ActivePatternCase;
 
     public override bool Equals(object obj)
@@ -32,6 +32,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
 
     public string SourceName => ShortName;
     public IClrDeclaredElement OriginElement => Origin;
+    public bool IsReadOnly => false;
 
     public IDeclaredElementPointer<IFSharpGeneratedFromOtherElement> CreatePointer() =>
       new CompiledActivePatternCasePointer(this, ShortName, Index);
@@ -49,7 +50,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.Compiled
       Index = index;
     }
 
-    public override CompiledActivePatternCase CreateGenerated(IMethod fsElement) =>
-      new CompiledActivePatternCase(fsElement, ShortName, Index);
+    public override CompiledActivePatternCase CreateGenerated(IMethod fsElement) => new(fsElement, ShortName, Index);
   }
 }

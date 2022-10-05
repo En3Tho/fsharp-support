@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using JetBrains.Lifetimes;
 using JetBrains.Rd.Tasks;
 using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.ModelCreators;
 using JetBrains.Rider.FSharp.TypeProviders.Protocol.Server;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 using Unit = JetBrains.Core.Unit;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Hosts
@@ -101,13 +100,15 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Hosts
         var typeProviderRdModel =
           myTypeProvidersContext.TypeProviderRdModelsCreator.CreateRdModel(typeProvider, envKey);
 
-        typeProvider.Invalidate += (_, __) =>
+        void OnTypeProviderOnInvalidate(object o, EventArgs eventArgs)
         {
           var tpId = typeProviderRdModel.EntityId;
           Dispose(tpId);
           processModel.Proto.Scheduler.Queue(() => processModel.Invalidate.Fire(tpId));
-        };
+          typeProvider.Invalidate -= OnTypeProviderOnInvalidate;
+        }
 
+        typeProvider.Invalidate += OnTypeProviderOnInvalidate;
         rdTypeProviders.Add(typeProviderRdModel);
       }
 

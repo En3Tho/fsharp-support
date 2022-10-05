@@ -192,6 +192,12 @@ type FSharpTypingAssistTest() =
     [<Test>] member x.``Backspace - String - Triple quote 07``() = x.DoNamedTest()
     [<Test>] member x.``Backspace - String - Verbatim 01 - Empty``() = x.DoNamedTest()
 
+    [<Test>] member x.``New line before 01``() = x.DoNamedTest()
+    [<Test>] member x.``New line before 02 - File start``() = x.DoNamedTest()
+    [<Test>] member x.``New line before 03 - Comment``() = x.DoNamedTest()
+    [<Test>] member x.``New line before 04 - Comment``() = x.DoNamedTest()
+    [<Test>] member x.``New line before 05 - Selection``() = x.DoNamedTest()
+    [<Test>] member x.``New line before 06 - Selection``() = x.DoNamedTest()
 
     [<Test>] member x.``Space 01 - Inside empty list``() = x.DoNamedTest()
     [<Test>] member x.``Space 02 - Inside empty array``() = x.DoNamedTest()
@@ -267,6 +273,8 @@ type FSharpTypingAssistTest() =
     [<Test>] member x.``Brackets - Skip right 04 - Angle``() = x.DoNamedTest()
     [<Test>] member x.``Brackets - Skip right 05 - Multiplication decl``() = x.DoNamedTest()
     [<Test>] member x.``Brackets - Skip right 06 - Interpolated string``() = x.DoNamedTest()
+    [<Test>] member x.``Brackets - Skip right 07 - Less``() = x.DoNamedTest()
+    [<Test>] member x.``Brackets - Skip right 08``() = x.DoNamedTest()
 
     [<Test>] member x.``Brackets - Skip 01 - Attributes``() = x.DoNamedTest()
     [<Test>] member x.``Brackets - Skip 02 - Array``() = x.DoNamedTest()
@@ -329,6 +337,35 @@ type FSharpTypingAssistTest() =
     [<Test>] member x.``Backticks 04 - Before ident``() = x.DoNamedTest()
     [<Test>] member x.``Backticks 05 - Before keyword``() = x.DoNamedTest()
     [<Test>] member x.``Backticks 06 - Eof``() = x.DoNamedTest()
+
+    [<Test>] member x.``XmlDoc - Not available 01``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc - Not available 02``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc - Not available 03``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc - Indent 01``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc - Indent 02``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc - Indent 03``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 01 - Binding``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 02 - Lambda 01``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 02 - Lambda 02``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 02 - Lambda 03``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 03 - Type``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 03 - Delegate``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 04 - Union case``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 04 - Union case - FullType``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 05 - Abstract member 01``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 05 - Abstract member 02 - Constrained type usage``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 06 - Type member 01``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 06 - Type member 02 - Primary constructor``() = x.DoNamedTest()
+    [<Test>] member x.``XmlDoc 06 - Type member 03 - Secondary constructor``() = x.DoNamedTest()
+
+    [<FSharpSignatureTest>]
+    [<Test>] member x.``XmlDoc 07 - Member signature``() = x.DoNamedTest()
+    [<FSharpSignatureTest>]
+    [<Test>] member x.``XmlDoc 08 - Module value``() = x.DoNamedTest()
+    [<FSharpSignatureTest>]
+    [<Test>] member x.``XmlDoc 09 - Constructor signature``() = x.DoNamedTest()
+    [<FSharpSignatureTest>]
+    [<Test>] member x.``XmlDoc 10 - Delegate - Signature``() = x.DoNamedTest()
 
 [<FSharpTest>]
 type LineIndentsTest() =

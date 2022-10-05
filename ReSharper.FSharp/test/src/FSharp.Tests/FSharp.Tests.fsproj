@@ -20,6 +20,7 @@
     <Compile Include="Service\FSharpAssemblyAutoOpenTest.fs" />
     <Compile Include="Service\ArgumentsOwnerTest.fs" />
     <Compile Include="Service\FantomasEditorConfigTests.fs" />
+    <Compile Include="Cache\CSharpResolveTestBase.fs" />
     <Compile Include="Cache\CSharpResolveTest.fs" />
     <Compile Include="Cache\FSharpSymbolCacheTest.fs" />
     <Compile Include="Parsing\FSharpLexerTest.fs" />
@@ -48,6 +49,12 @@
     <ProjectReference Include="..\..\..\src\FSharp.Psi\FSharp.Psi.csproj" />
     <ProjectReference Include="..\..\..\src\FSharp.Psi.Features\FSharp.Psi.Features.fsproj" />
     <ProjectReference Include="..\FSharp.Tests.Common\FSharp.Tests.Common.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.0" />
+      <PackageReference Include="NUnit.Console" Version="3.10.0" />
+      <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
   </ItemGroup>
 
   <Import Project="$(PlatformSdkSubplatform)" Condition="Exists('$(PlatformSdkSubplatform)')" />

@@ -20,16 +20,6 @@ open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 open JetBrains.Util.Dotnet.TargetFrameworkIds
 
-type ReferencedModule =
-    { ReferencedPath: VirtualFileSystemPath
-      ReferencingModules: HashSet<IPsiModule> }
-
-module ReferencedModule =
-    let create (modulePathProvider: ModulePathProvider) (psiModule: IPsiModule) =
-        { ReferencedPath = modulePathProvider.GetModulePath(psiModule)
-          ReferencingModules = HashSet() }
-
-
 [<ShellComponent>]
 type FSharpTargetsProjectLoadModificator() =
     let fsTargets =
@@ -61,7 +51,7 @@ module ProjectOptions =
     let sandboxParsingOptions =
         // todo: use script defines in interactive?
         { FSharpParsingOptions.Default with
-            ConditionalCompilationDefines = ImplicitDefines.sourceDefines
+            ConditionalDefines = ImplicitDefines.sourceDefines
             SourceFiles = [| "Sandbox.fs" |] }
 
 module FcsProjectBuilder =
@@ -101,7 +91,8 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
            "--fullpaths"
            "--flaterrors"
            "--highentropyva+"
-           "--noconditionalerasure" |]
+           "--noconditionalerasure"
+           "--ignorelinedirectives" |]
 
     let unusedValuesWarns =
         [| "--warnon:1182" |]
@@ -230,11 +221,11 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
         let parsingOptions, errors =
             checkerService.Checker.GetParsingOptionsFromCommandLineArgs(List.ofArray projectOptions.OtherOptions)
 
-        let defines = ImplicitDefines.sourceDefines @ parsingOptions.ConditionalCompilationDefines
+        let defines = ImplicitDefines.sourceDefines @ parsingOptions.ConditionalDefines
 
         let parsingOptions = { parsingOptions with
                                  SourceFiles = projectOptions.SourceFiles
-                                 ConditionalCompilationDefines = defines }
+                                 ConditionalDefines = defines }
 
         if not errors.IsEmpty then
             logger.Warn("Getting parsing options: {0}", concatErrors errors)

@@ -15,12 +15,15 @@
     <Compile Include="src\CodeCompletion\Rules\FSharpRelevanceRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\UnionCasePatternRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\RemoveReparsePatternRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\ImportRule.fs" />
     <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpKeywordsProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionProviders.fs" />
     <Compile Include="src\CodeStructure\FSharpCodeStructure.fs" />
     <Compile Include="src\Comment\FSharpBlockCommentActionProvider.fs" />
     <Compile Include="src\Comment\FSharpLineCommentActionProvider.fs" />
+    <Compile Include="src\Comment\FSharpDocCommentElementsItemsProvider.fs" />
+    <Compile Include="src\Comment\FSharpCodeCompletionContextProviderInDocComment.fs" />
     <Compile Include="src\Debugger\FSharpBreakpointVariantsProvider.fs" />
     <Compile Include="src\Debugger\FSharpDebuggerLocalSymbolProvider.fs" />
     <Compile Include="src\Debugger\FSharpExpressionEvaluationInfoProvider.fs" />
@@ -73,6 +76,7 @@
     <Compile Include="src\LanguageService\FSharpQuickDefinitionService.fs" />
     <Compile Include="src\LanguageService\SandboxDocumentLanguageSupportFSharpScript.fs" />
     <Compile Include="src\LanguageService\FSharpLanguageSpecificCopyPasteBehavior.fs" />
+    <Compile Include="src\Internal\FSharpInternalActionGroup.fs" />
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
   </ItemGroup>
@@ -87,7 +91,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Compiler.Service, Version=41.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Compiler.Service">
       <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
@@ -106,4 +110,6 @@
   </ItemGroup>
 
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+
+  <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
 </Project>

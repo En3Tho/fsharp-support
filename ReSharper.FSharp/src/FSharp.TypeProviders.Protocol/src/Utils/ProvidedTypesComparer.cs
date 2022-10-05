@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils
 {
@@ -43,11 +43,17 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils
 
       if (xResult != yResult) return false;
       if (GetAssemblyNameSafe(x) != GetAssemblyNameSafe(y)) return false;
-      if (xResult) return xFullName == yFullName;
 
-      // ReSharper disable PossibleNullReferenceException
-      if (x.Name != y.Name) return false;
-      if (x.Namespace != y.Namespace) return false;
+      if (xResult)
+      {
+        if (xFullName != yFullName) return false;
+      }
+      else
+      {
+        // ReSharper disable PossibleNullReferenceException
+        if (x.Name != y.Name) return false;
+        if (x.Namespace != y.Namespace) return false;
+      }
 
       var xIsGenericType = x.IsGenericType;
       if (xIsGenericType != y.IsGenericType) return false;
@@ -69,6 +75,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils
 
     public int GetHashCode(ProvidedType x) => x.Name.GetHashCode();
 
-    public static readonly ProvidedTypesComparer Instance = new ProvidedTypesComparer();
+    public static readonly ProvidedTypesComparer Instance = new();
   }
 }

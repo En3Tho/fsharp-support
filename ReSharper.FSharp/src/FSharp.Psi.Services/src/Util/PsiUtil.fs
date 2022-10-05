@@ -232,7 +232,7 @@ let skipNewLineAfter (node: ITreeNode) =
     skipTokenOfTypeAfter FSharpTokenType.NEW_LINE node
 
 
-let getThisOrPrevNewLIne (node: ITreeNode) =
+let getThisOrPrevNewLine (node: ITreeNode) =
     getThisOrPrevTokenOfType FSharpTokenType.NEW_LINE node
 
 let getThisOrNextNewLine (node: ITreeNode) =
@@ -300,7 +300,7 @@ let getLastInlineSpaceOrCommentSkipNewLine (node: ITreeNode) =
 /// Only takes siblings into account.
 let isFirstMeaningfulNodeOnLine (node: ITreeNode) =
     let skipBefore = getFirstMatchingNodeBefore isInlineSpaceOrComment node
-    let newLine = getThisOrPrevNewLIne skipBefore
+    let newLine = getThisOrPrevNewLine skipBefore
     newLine == node && isNull node.PrevSibling || isNewLine newLine
 
 /// Only takes siblings into account.
@@ -486,6 +486,11 @@ let rec getPrefixAppExprArgs (expr: IFSharpExpression) =
                 yield prefixApp.ArgumentExpression
             else currentExpr <- null
     }
+
+let isIndexerLikeAppExpr (expr: IFSharpExpression) =
+    match expr with
+    | :? IPrefixAppExpr as appExpr -> appExpr.IsIndexerLike
+    | _ -> false
 
 let rec getIndexerExprOrIgnoreParens (expr: IFSharpExpression) =
     let appExpr = PrefixAppExprNavigator.GetByFunctionExpression(expr)

@@ -1,0 +1,26 @@
+===================
+Init
+
+Readers by module: 1
+  CSharpProject
+Readers by path count: 1
+Dependencies to referencing modules:
+  CSharpProject
+    FSharpProject
+
+===================
+2. Unload C# project
+
+Readers by module: 0
+Dependencies to referencing modules:
+  CSharpProject
+    FSharpProject
+Dirty types in readers:
+  CSharpProject
+    CSharpClass
+
+===================
+3. Open F#
+
+Readers by module: 0
+

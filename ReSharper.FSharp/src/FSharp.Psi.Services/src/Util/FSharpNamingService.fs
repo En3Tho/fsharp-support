@@ -3,7 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open System
 open System.Collections.Generic
 open FSharp.Compiler.Symbols
-open FSharp.Compiler.Tokenization
+open FSharp.Compiler.Syntax
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
@@ -274,7 +274,7 @@ module FSharpNamingService =
         namesCollection.Prepare(namingRule, ScopeKind.Common, suggestionOptions).AllNames()
 
     let mangleNameIfNecessary name =
-        FSharpKeywords.AddBackticksToIdentifierIfNeeded name
+        PrettyNaming.AddBackticksToIdentifierIfNeeded name
 
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpNamingService(language: FSharpLanguage) =
@@ -408,7 +408,7 @@ type FSharpNamingService(language: FSharpLanguage) =
 
     override x.SuggestRoots(treeNode: ITreeNode, useExpectedTypes, policyProvider) =
         match treeNode with
-        | :? IParenExpr as parenExpr ->
+        | :? IParenOrBeginEndExpr as parenExpr ->
             x.SuggestRoots(parenExpr.InnerExpression, useExpectedTypes, policyProvider)
 
         | :? ITypedExpr as typedExpr ->
@@ -434,10 +434,7 @@ type FSharpNamingService(language: FSharpLanguage) =
             Seq.append thenRoots elseRoots
 
         | :? IBinaryAppExpr as binaryApp ->
-            let refExpr = binaryApp.Operator
-            if isNull refExpr then EmptyList.Instance :> _ else
-
-            let name = refExpr.Reference.GetName()
+            let name = binaryApp.ShortName
             if pipeRightOperatorNames.Contains(name) && isNotNull binaryApp.RightArgument then
                 x.SuggestRoots(binaryApp.RightArgument, useExpectedTypes, policyProvider) else
 

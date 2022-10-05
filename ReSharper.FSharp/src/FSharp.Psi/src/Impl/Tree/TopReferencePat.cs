@@ -13,10 +13,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
     public override IFSharpIdentifierLikeNode NameIdentifier => ReferenceName?.Identifier;
 
     public override TreeTextRange GetNameIdentifierRange() =>
-      NameIdentifier.GetMemberNameIdentifierRange();
+      NameIdentifier.GetNameIdentifierRange();
 
     public TreeNodeCollection<IAttribute> Attributes =>
       this.GetBindingFromHeadPattern()?.Attributes ??
       TreeNodeCollection<IAttribute>.Empty;
+
+    public override XmlDocBlock XmlDocBlock =>
+      this.GetBindingFromHeadPattern()?.FirstChild as XmlDocBlock;
   }
 }

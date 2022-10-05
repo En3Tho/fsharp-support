@@ -7,6 +7,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.CodeFormatter
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.LanguageService
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2
 open JetBrains.ReSharper.Plugins.FSharp.Psi.LanguageService.Parsing
@@ -98,7 +99,7 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
 
             let isInstanceFieldOrProperty (element: IDeclaredElement) =
                 match element with
-                | :? IField as field -> not field.IsStatic
+                | :? IField as field -> not field.IsStatic && not (field :? IFSharpPatternDeclaredElement)
                 | :? IProperty as property -> not property.IsStatic
                 | _ -> false
 
@@ -106,8 +107,12 @@ type FSharpLanguageService(languageType, constantValueService, cacheProvider: FS
             if isNotNull indexerExpr && isNotNull (SetExprNavigator.GetByLeftExpression(indexerExpr)) then
                 ReferenceAccessType.READ else
 
-            let binaryAppExpr = BinaryAppExprNavigator.GetByLeftArgument(referenceExpr)
-            if isInstanceFieldOrProperty declaredElement && not referenceExpr.IsQualified && isNotNull binaryAppExpr then
+            let isNamedArg () =
+                let binaryAppExpr = BinaryAppExprNavigator.GetByLeftArgument(referenceExpr)
+                FSharpMethodInvocationUtil.hasNamedArgStructure binaryAppExpr &&
+                FSharpMethodInvocationUtil.isTopLevelArg binaryAppExpr
+
+            if isInstanceFieldOrProperty declaredElement && isNamedArg () then
                 ReferenceAccessType.WRITE else
 
             x.GetDefaultAccessType(declaredElement)

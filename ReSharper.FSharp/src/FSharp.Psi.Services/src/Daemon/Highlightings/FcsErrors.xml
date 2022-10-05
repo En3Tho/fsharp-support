@@ -205,9 +205,22 @@
   </Error>
 
   <Error staticGroup="FSharpErrors" name="UndefinedIndexer" ID="FS0039: Undefined indexer">
-    <Parameter type="ITreeNode" name="indexerNode"/>
-    <Range>indexerNode.GetHighlightingRange()</Range>
-    <Message value="Cannot apply indexing to an expression"/>
+    <Parameter type="IItemIndexerExpr" name="indexerExpr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>indexerExpr.IndexerArgList.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="UndefinedIndexerLikeExpr" ID="FS0039: Undefined indexer">
+    <Parameter type="IPrefixAppExpr" name="prefixAppExpr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>prefixAppExpr.ArgumentExpression.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
   </Error>
 
@@ -537,5 +550,27 @@
     <Range>expr.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
   </Error>
+
+  <Error staticGroup="FSharpErrors" name="MatchClauseWrongType" ID="FS0001: 'match' clause has wrong type">
+    <Parameter type="string" name="expectedType"/>
+    <Parameter type="string" name="actualType"/>
+    <Parameter type="IFSharpExpression" name="expr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>expr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>ReplaceReturnTypeFix</QuickFix>
+  </Error>
+
+  <Warning compilerGroup="FSharpErrors" name="InvalidXmlDocPosition" ID="FS3520: XML comment is not placed on a valid language element">
+    <Parameter type="DocComment" name="comment"/>
+    <Message value="XML comment is not placed on a valid language element."/>
+    <Range>comment.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>ReplaceXmlDocWithLineCommentFix</QuickFix>
+    <QuickFix>RemoveXmlDocFix</QuickFix>
+  </Warning>
 
 </Errors>

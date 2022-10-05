@@ -98,6 +98,7 @@ type FSharpLanguageLevelAttribute(languageLevel: FSharpLanguageLevel) =
 
         PsiFileCachedDataUtil.InvalidateInAllProjectFiles(project, FSharpLanguage.Instance, FSharpLanguageLevel.key)
 
+
 [<AttributeUsage(AttributeTargets.Method ||| AttributeTargets.Class, Inherited = false)>]
 type TestDefinesAttribute(defines: string) =
     inherit TestAspectAttribute()
@@ -108,6 +109,20 @@ type TestDefinesAttribute(defines: string) =
             let oldDefines = projectConfiguration.DefineConstants
             projectConfiguration.DefineConstants <- defines
             context.TestLifetime.OnTermination(fun _ -> projectConfiguration.DefineConstants <- oldDefines) |> ignore
+
+
+[<AttributeUsage(AttributeTargets.Method ||| AttributeTargets.Class, Inherited = false)>]
+type FSharpExperimentalFeatureAttribute(feature: ExperimentalFeature) =
+    inherit TestAspectAttribute()
+
+    let mutable cookie: IDisposable = Unchecked.defaultof<_>
+
+    override this.OnBeforeTestExecute _ =
+        cookie <- FSharpExperimentalFeatureCookie.Create(feature)
+
+    override this.OnAfterTestExecute _ =
+        cookie.Dispose()
+        cookie <- null
 
 
 [<SolutionComponent>]
@@ -193,7 +208,7 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
 
             { FSharpParsingOptions.Default with
                 SourceFiles = paths
-                ConditionalCompilationDefines = defines
+                ConditionalDefines = defines
                 IsExe = isExe
                 IsInteractive = isScript
                 LangVersionText = "preview" } // todo: fix language level attribute is not applied
@@ -211,6 +226,11 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
 
         member x.InvalidateReferencesToProject _ = false
         member x.HasFcsProjects = false
-        member this.GetProjectOptions(_: IPsiModule): FSharpProjectOptions option = failwith "todo"
+        member this.GetAllFcsProjects() = []
 
+        member this.GetProjectOptions(_: IPsiModule): FSharpProjectOptions option = failwith "todo"
         member this.GetFcsProject(psiModule) = Some (getFcsProject psiModule)
+        member this.PrepareAssemblyShim _ = ()
+        member this.GetReferencedModule _ = None
+        member this.GetPsiModule _ = failwith "todo"
+        member this.GetAllReferencedModules() = failwith "todo"

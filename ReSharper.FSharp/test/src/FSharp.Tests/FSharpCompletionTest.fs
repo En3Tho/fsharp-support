@@ -29,7 +29,13 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Basic 02 - Insert``() = x.DoNamedTest()
     [<Test>] member x.``Basic 03 - Replace before``() = x.DoNamedTest()
     [<Test>] member x.``Basic 04 - Insert before``() = x.DoNamedTest()
+    [<Test>] member x.``Basic 05 - Attribute suffix``() = x.DoNamedTest()
+    [<Test>] member x.``Basic 06 - Attribute suffix``() = x.DoNamedTest()
 
+    [<Test>] member x.``Bind - Rqa module 01``() = x.DoNamedTest()
+    [<Test>] member x.``Bind - Rqa module 02``() = x.DoNamedTest()
+    [<Test>] member x.``Bind - Rqa module 03``() = x.DoNamedTest()
+    [<Test>] member x.``Bind - Rqa module 04``() = x.DoNamedTest()
     [<Test>] member x.``Bind - Qualifier - Enum case 01``() = x.DoNamedTest()
     [<Test>] member x.``Bind - Qualifier - Enum case 02 - Escape``() = x.DoNamedTest()
 
@@ -80,6 +86,11 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Pattern - Union case - Qualified 02``() = x.DoNamedTest()
     [<Test; Explicit("Fcs completion fails")>] member x.``Pattern - Union case - Qualified 03``() = x.DoNamedTest()
     [<Test; Explicit("Fcs completion fails")>] member x.``Pattern - Union case - Qualified 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Pattern - Union case - Rqa 01``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Union case - Rqa 02 - Obj expr``() = x.DoNamedTest()
+    [<Test>] member x.``Pattern - Union case - Rqa 03 - Extension``() = x.DoNamedTest()
+
     [<Test>] member x.``Pattern - Union case 01``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Union case 02``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Union case 03``() = x.DoNamedTest()
@@ -149,6 +160,8 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Import - Same ns 03``() = x.DoTestFiles("File1.fs", "File2.fs")
     [<Test>] member x.``Import - Same ns 04``() = x.DoTestFiles("File1.fs", "File2.fs")
     [<Test>] member x.``Import - Same ns 05``() = x.DoTestFiles("File1.fs", "File2.fs")
+
+    [<Test>] member x.``XmlDoc - tags``() = x.DoNamedTest()
 
 [<FSharpTest>]
 type FSharpPostfixCompletionTest() =

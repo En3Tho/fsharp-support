@@ -13,7 +13,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
 
 type IIgnoredHighlighting =
@@ -79,9 +78,8 @@ module FSharpErrors =
     let [<Literal>] UnusedThisVariable = 1183
     let [<Literal>] CantTakeAddressOfExpression = 3236
     let [<Literal>] SingleQuoteInSingleQuote = 3373
+    let [<Literal>] InvalidXmlDocPosition = 3520
 
-    let [<Literal>] undefinedIndexerMessageSuffix = " does not define the field, constructor or member 'Item'."
-    let [<Literal>] undefinedGetSliceMessageSuffix = " does not define the field, constructor or member 'GetSlice'."
     let [<Literal>] ifExprMissingElseBranch = "This 'if' expression is missing an 'else' branch."
     let [<Literal>] expressionIsAFunctionMessage = "This expression is a function value, i.e. is missing arguments. Its type is "
     let [<Literal>] typeConstraintMismatchMessage = "Type constraint mismatch. The type \n    '(.+)'    \nis not compatible with type\n    '(.+)'"
@@ -89,6 +87,7 @@ module FSharpErrors =
     let [<Literal>] typeEquationMessage = "This expression was expected to have type\n    '(.+)'    \nbut here has type\n    '(.+)'"
     let [<Literal>] typeDoesNotMatchMessage = "Type mismatch. Expecting a\n    '(.+)'    \nbut given a\n    '(.+)'"
     let [<Literal>] elseBranchHasWrongTypeMessage = "All branches of an 'if' expression must return values implicitly convertible to the type of the first branch, which here is '(.+)'. This branch returns a value of type '(.+)'."
+    let [<Literal>] matchClauseHasWrongTypeMessage = "All branches of a pattern match expression must return values implicitly convertible to the type of the first branch, which here is '(.+)'. This branch returns a value of type '(.+)'."
     let [<Literal>] ifBranchSatisfyContextTypeRequirements = "The 'if' expression needs to have type '(.+)' to satisfy context type requirements\. It currently has type '(.+)'"
     let [<Literal>] typeMisMatchTupleLengths = "Type mismatch. Expecting a\n    '(.+)'    \nbut given a\n    '(.+)'    \nThe tuples have differing lengths of \\d+ and \\d+"
 
@@ -170,6 +169,10 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | null -> null
         | node -> highlightingCtor node :> _
 
+    let createHighlightingFromMappedExpression mapping highlightingCtor range (error: FSharpDiagnostic): IHighlighting =
+        let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null) |> mapping
+        if isNotNull expr then highlightingCtor(expr, error.Message) :> _ else null
+
     let createHighlighting (error: FSharpDiagnostic) (range: DocumentRange): IHighlighting =
         match error.ErrorNumber with
         | TypeEquation ->
@@ -193,6 +196,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
                 else
                     null
 
+            | Regex matchClauseHasWrongTypeMessage [expectedType; actualType] ->
+                createTypeMismatchHighlighting MatchClauseWrongTypeError expectedType actualType
+            
             | Regex typeMisMatchTupleLengths [expectedType; actualType] ->
                 createTypeMismatchHighlighting TypeMisMatchTuplesHaveDifferingLengthsError expectedType actualType
 
@@ -223,30 +229,20 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             createHighlightingFromNode VarBoundTwiceError range
 
         | UndefinedName ->
-            let message = error.Message
-            let isUndefinedIndexerText =
-                endsWith undefinedIndexerMessageSuffix message || endsWith undefinedGetSliceMessageSuffix message
+            match nodeSelectionProvider.GetExpressionInRange<IFSharpExpression>(fsFile, range, false, null) with
+            | :? IPrefixAppExpr as prefixAppExpr when prefixAppExpr.IsIndexerLike ->
+                UndefinedIndexerLikeExprError(prefixAppExpr, error.Message) :> _
 
-            let tryGetIndexerExpr (range: DocumentRange): ITreeNode option =
-                let indexerExpr = fsFile.GetNode<IItemIndexerExpr>(range)
-                if isNotNull indexerExpr && isNotNull indexerExpr.IndexerArgList then
-                    Some(indexerExpr.IndexerArgList) else
+            | :? IItemIndexerExpr as indexerExpr ->
+                UndefinedIndexerError(indexerExpr, error.Message)
 
-                let appExpr = (fsFile.GetNode<IPrefixAppExpr>(range))
-                if isNotNull appExpr && appExpr.ArgumentExpression :? IListExpr then
-                    Some(appExpr.ArgumentExpression) else
-
-                None
-
-            match isUndefinedIndexerText, tryGetIndexerExpr range with
-            | true, Some(treeNode) -> UndefinedIndexerError(treeNode) :> _
             | _ ->
 
             let identifier = fsFile.GetNode(range)
             let referenceOwner = FSharpReferenceOwnerNavigator.GetByIdentifier(identifier)
-            if isNotNull referenceOwner then UndefinedNameError(referenceOwner.Reference, message) :> _ else
+            if isNotNull referenceOwner then UndefinedNameError(referenceOwner.Reference, error.Message) :> _ else
 
-            UnresolvedHighlighting(message, range) :> _
+            UnresolvedHighlighting(error.Message, range) :> _
 
         | ErrorFromAddingConstraint ->
             createHighlightingFromNodeWithMessage AddingConstraintError range error
@@ -300,9 +296,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             ValueNotMutableError(refExpr) :> _
 
         | UnitTypeExpected ->
-            let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
-            let expr = getResultExpr expr
-            UnitTypeExpectedWarning(expr, error.Message) :> _
+            createHighlightingFromMappedExpression getResultExpr UnitTypeExpectedWarning range error
 
         | UseBindingsIllegalInModules ->
             createHighlightingFromNode UseBindingsIllegalInModulesWarning range
@@ -423,23 +417,18 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | MissingErrorNumber ->
             match error.Message with
             | x when startsWith expressionIsAFunctionMessage x ->
-                let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
-                let expr = getResultExpr expr
-                FunctionValueUnexpectedWarning(expr, error.Message) :> _
+                createHighlightingFromMappedExpression getResultExpr FunctionValueUnexpectedWarning range error
 
             | Regex typeConstraintMismatchMessage [mismatchedType; typeConstraint] ->
                 let highlighting =
                     match typeConstraint with
-                    | "unit" ->
-                        let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
-                        let expr = getResultExpr expr
-                        if isNull expr then null else UnitTypeExpectedError(expr, error.Message)
+                    | "unit" -> createHighlightingFromMappedExpression getResultExpr UnitTypeExpectedError range error
                     | _ -> null
 
-                if isNotNull highlighting then highlighting :> _ else
+                if isNotNull highlighting then highlighting else
 
                 let expr = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
-                TypeConstraintMismatchError(mismatchedType, expr, error.Message)
+                if isNotNull expr then TypeConstraintMismatchError(mismatchedType, expr, error.Message) else null
 
             | _ -> null
 
@@ -454,7 +443,8 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
     abstract ShouldAddDiagnostic: error: FSharpDiagnostic * range: DocumentRange -> bool
     default x.ShouldAddDiagnostic(error: FSharpDiagnostic, _) =
-        error.ErrorNumber <> UnrecognizedOption
+        error.ErrorNumber <> UnrecognizedOption &&
+        error.ErrorNumber <> InvalidXmlDocPosition
 
     member x.Execute(errors: FSharpDiagnostic[], committer: Action<DaemonStageResult>) =
         let daemonProcess = x.DaemonProcess

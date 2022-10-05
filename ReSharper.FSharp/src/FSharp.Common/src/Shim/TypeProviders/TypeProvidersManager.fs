@@ -4,7 +4,7 @@ open System
 open System.Collections.Concurrent
 open System.Collections.Generic
 open System.Threading
-open FSharp.Compiler.ExtensionTyping
+open FSharp.Compiler.TypeProviders
 open FSharp.Compiler.Text
 open FSharp.Core.CompilerServices
 open JetBrains.Diagnostics
@@ -13,7 +13,6 @@ open JetBrains.ProjectModel.Build
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.FSharpProjectModelUtil
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Scripts
-open JetBrains.ReSharper.Plugins.FSharp.Shim.TypeProviders.TcImportsHack
 open JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
 open JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Cache
 open JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Exceptions
@@ -84,15 +83,16 @@ type IProxyTypeProvidersManager =
         compilerToolsPath: string list *
         m: range -> ITypeProvider list
 
+    abstract member Context: TypeProvidersContext
     abstract member HasGenerativeTypeProviders: project: IProject -> bool
     abstract member Dump: unit -> string
 
 type TypeProvidersManager(connection: TypeProvidersConnection, fcsProjectProvider: IFcsProjectProvider,
                           scriptPsiModulesProvider: FSharpScriptPsiModulesProvider,
-                          outputAssemblies: OutputAssemblies) =
+                          outputAssemblies: OutputAssemblies, enableGenerativeTypeProvidersInMemoryAnalysis) =
     let protocol = connection.ProtocolModel.RdTypeProviderProcessModel
     let lifetime = connection.Lifetime
-    let tpContext = TypeProvidersContext(connection)
+    let tpContext = TypeProvidersContext(connection, enableGenerativeTypeProvidersInMemoryAnalysis)
     let typeProviders = TypeProvidersCache()
     let lock = SpinWaitLockRef()
     let projectsWithGenerativeProviders = HashSet<IProject>()
@@ -140,13 +140,14 @@ type TypeProvidersManager(connection: TypeProvidersConnection, fcsProjectProvide
                 systemRuntimeContainsType: string -> bool, systemRuntimeAssemblyVersion: Version,
                 compilerToolsPath: string list, m: range) =
 
-            let envPath =
-                match resolutionEnvironment.outputFile with
-                | Some file -> file
-                | None -> m.FileName
+            let envPath, projectPsiModule =
+                match resolutionEnvironment.OutputFile with
+                | Some file ->
+                    file, fcsProjectProvider.GetPsiModule(VirtualFileSystemPath.Parse(file, InteractionContext.SolutionContext))
+                | None -> m.FileName, None
 
             let result =
-                let fakeTcImports = getFakeTcImports systemRuntimeContainsType
+                let fakeTcImports = TcImportsHack.GetFakeTcImports(systemRuntimeContainsType)
 
                 connection.ExecuteWithCatch(fun () ->
                     protocol.InstantiateTypeProvidersOfAssembly.Sync(
@@ -157,7 +158,7 @@ type TypeProvidersManager(connection: TypeProvidersConnection, fcsProjectProvide
 
             let typeProviderProxies =
                 [ for tp in result.TypeProviders ->
-                     let tp = new ProxyTypeProvider(tp, tpContext)
+                     let tp = new ProxyTypeProvider(tp, tpContext, Option.toObj projectPsiModule)
 
                      if not isInteractive then
                          tp.ContainsGenerativeTypes.Add(fun _ -> addProjectWithGenerativeProvider envPath)
@@ -169,6 +170,8 @@ type TypeProvidersManager(connection: TypeProvidersConnection, fcsProjectProvide
                      typeProviders.Get(id) :> ITypeProvider ]
 
             typeProviderProxies
+        
+        member this.Context = tpContext
 
         member this.HasGenerativeTypeProviders(project) =
             use lock = lock.Push()

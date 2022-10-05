@@ -2,7 +2,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Intentions.Daemon
 
 open System
 open JetBrains.Application.Components
-open JetBrains.Application.changes
 open JetBrains.Diagnostics
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
@@ -10,25 +9,20 @@ open JetBrains.ReSharper.Daemon.Impl
 open JetBrains.ReSharper.Feature.Services.Daemon
 open JetBrains.ReSharper.FeaturesTestFramework.Daemon
 open JetBrains.ReSharper.Plugins.FSharp
-open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Daemon.Stages
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
-open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
-open JetBrains.ReSharper.Plugins.FSharp.Shim.FileSystem
 open JetBrains.ReSharper.Plugins.FSharp.Tests
 open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.Caches
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.Util
 open NUnit.Framework
 
 [<SolutionComponent>]
-type TestAssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager,
-        psiModules: IPsiModules, cache: FcsModuleReaderCommonCache, assemblyInfoShim: AssemblyInfoShim,
-        checkerService: FcsCheckerService, fsOptionsProvider: FSharpOptionsProvider, symbolCache: ISymbolCache) =
+type TestAssemblyReaderShim(lifetime, changeManager, psiModules, cache, assemblyInfoShim, checkerService,
+        fsOptionsProvider, symbolCache, solution, logger) =
     inherit AssemblyReaderShim(lifetime, changeManager, psiModules, cache, assemblyInfoShim, checkerService,
-        fsOptionsProvider, symbolCache)
+        fsOptionsProvider, symbolCache, solution, logger)
 
     let mutable projectPath = VirtualFileSystemPath.GetEmptyPathFor(InteractionContext.SolutionContext)
     let mutable projectPsiModule = null
@@ -42,7 +36,7 @@ type TestAssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager,
     member this.CreateProjectCookie(path: VirtualFileSystemPath, psiModule: IPsiModule) =
         projectPath <- path
         projectPsiModule <- psiModule
-        reader <- new ProjectFcsModuleReader(projectPsiModule, cache, this, path)
+        reader <- new ProjectFcsModuleReader(projectPsiModule, cache, path, this)
 
         { new IDisposable with
             member x.Dispose() =
@@ -73,7 +67,7 @@ type TestModulePathProvider(shim: TestAssemblyReaderShim) =
 
     interface IHideImplementation<ModulePathProvider>
 
-[<FSharpTest>]
+[<FSharpTest; FSharpExperimentalFeature(ExperimentalFeature.AssemblyReaderShim)>]
 type AssemblyReaderTest() =
     inherit TestWithTwoProjectsBase(FSharpProjectFileType.FsExtension, CSharpProjectFileType.CS_EXTENSION)
 
@@ -81,10 +75,27 @@ type AssemblyReaderTest() =
 
      // todo: test InternalsVisibleTo
 
+    [<Test>] member x.``Attribute - Attribute usage 01``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute - Attribute usage 02``() = x.DoNamedTest()
     [<Test>] member x.``Attribute - Obsolete 01``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 01``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 02``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 03``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 04``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 05``() = x.DoNamedTest()
+    [<Test>] member x.``Attribute 06``() = x.DoNamedTest()
 
+    [<Test>] member x.``Event - Same name 01``() = x.DoNamedTest()
+    [<Test>] member x.``Event - Same name 02 - Static``() = x.DoNamedTest()
     [<Test>] member x.``Event 01``() = x.DoNamedTest()
+    [<Test>] member x.``Event 02``() = x.DoNamedTest()
+    [<Test>] member x.``Event 03``() = x.DoNamedTest()
 
+    [<Test>] member x.``Field - Const 01``() = x.DoNamedTest()
+    [<Test>] member x.``Field - Const 02 - Wrong type``() = x.DoNamedTest()
+    [<Test>] member x.``Field - Const 03 - Same name``() = x.DoNamedTest()
+    [<Test>] member x.``Field - Same name 01``() = x.DoNamedTest()
+    [<Test>] member x.``Field - Same name 02 - Static``() = x.DoNamedTest()
     [<Test>] member x.``Field 01``() = x.DoNamedTest()
     [<Test>] member x.``Field 02 - Inherit``() = x.DoNamedTest()
 
@@ -92,6 +103,7 @@ type AssemblyReaderTest() =
     [<Test>] member x.``Method - Ctor 02 - Param array``() = x.DoNamedTest()
     [<Test>] member x.``Method - Ctor 03 - Optional param``() = x.DoNamedTest()
     [<Test>] member x.``Method - Extension 01``() = x.DoNamedTest()
+    [<Test>] member x.``Method - Extern 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Property 01``() = x.DoNamedTest()
     [<Test>] member x.``Property 02 - Accessibility``() = x.DoNamedTest()
@@ -138,7 +150,6 @@ type AssemblyReaderTest() =
     override this.DoTest(lifetime: Lifetime, project: IProject) =
         let path = this.SecondProject.Location / (this.SecondProjectName + ".dll")
         let psiModule = this.SecondProject.GetPsiModules().SingleItem().NotNull()
-        use assemblyReaderCookie = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.AssemblyReaderShim)
         use cookie = this.Solution.GetComponent<TestAssemblyReaderShim>().CreateProjectCookie(path, psiModule)
 
         base.DoTest(lifetime, project)

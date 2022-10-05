@@ -1,28 +1,33 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Host
 
-open System
 open System.Collections.Generic
 open System.Globalization
 open System.Linq
+open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.IO
 open JetBrains.Application.Notifications
 open JetBrains.Diagnostics
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.NuGet.DotNetTools
 open JetBrains.Rd.Tasks
+open JetBrains.RdBackend.Common.Features.ProjectModel.View
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host.ProjectItems.ItemsContainer
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
+open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
 open JetBrains.ReSharper.Plugins.FSharp.Shim.FileSystem
 open JetBrains.ReSharper.Plugins.FSharp.Shim.TypeProviders
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Util
 
 [<SolutionComponent>]
 type FSharpTestHost(solution: ISolution, sourceCache: FSharpSourceCache, itemsContainer: FSharpItemsContainer,
-                    fantomasHost: FantomasHost, dotnetToolsTracker: NuGetDotnetToolsTracker, notifications: UserNotifications) =
+        fantomasHost: FantomasHost, dotnetToolsTracker: NuGetDotnetToolsTracker, notifications: UserNotifications,
+        assemblyReaderShim: IFcsAssemblyReaderShim, projectProvider: IFcsProjectProvider,
+        psiModules: IPsiModules, projectModelViewHost: ProjectModelViewHost) =
 
     let lifetime = solution.GetLifetime()
     
@@ -43,7 +48,7 @@ type FSharpTestHost(solution: ISolution, sourceCache: FSharpSourceCache, itemsCo
             psiModule.SourceFiles
             |> Seq.find (fun sourceFile -> sourceFile.LanguageType.Is<FSharpProjectFileType>())
 
-        solution.GetComponent<IFcsProjectProvider>().GetProjectOptions(sourceFile)
+        projectProvider.GetProjectOptions(sourceFile)
         |> Option.map (fun options ->
             options.OtherOptions
             |> Array.choose (fun o -> if o.StartsWith("-r:") then Some (o.Substring("-r:".Length)) else None)
@@ -52,6 +57,21 @@ type FSharpTestHost(solution: ISolution, sourceCache: FSharpSourceCache, itemsCo
             |> Array.map (fun p -> p.Name)
             |> List)
         |> Option.defaultWith (fun _ -> List())
+
+    let dumpFcsProjectReferences (projectModelId: int) =
+        use cookie = ReadLockCookie.Create()
+
+        let project = projectModelViewHost.GetItemById<IProject>(projectModelId)
+        let psiModule = psiModules.GetPsiModules(project) |> Seq.exactlyOne
+        let projectOptions = projectProvider.GetProjectOptions(psiModule)
+
+        projectOptions.Value.ReferencedProjects
+        |> Array.map (fun project ->
+            let outputPath = VirtualFileSystemPath.Parse(project.OutputFile, InteractionContext.SolutionContext)
+            outputPath.NameWithoutExtension)
+        |> List
+
+    let dumpFcsModuleReader _ = assemblyReaderShim.TestDump
 
     let fantomasVersion _ = fantomasHost.Version()
     let dumpFantomasRunOptions _ = fantomasHost.DumpRunOptions()      
@@ -90,6 +110,8 @@ Actions: {notification.AdditionalCommands
         fsTestHost.GetSourceCache.Set(sourceCache.GetRdFSharpSource)
         fsTestHost.DumpSingleProjectMapping.Set(dumpSingleProjectMapping)
         fsTestHost.DumpSingleProjectLocalReferences.Set(dumpSingleProjectLocalReferences)
+        fsTestHost.DumpFcsRefrencedProjects.Set(dumpFcsProjectReferences)
+        fsTestHost.DumpFcsModuleReader.Set(dumpFcsModuleReader)
         fsTestHost.FantomasVersion.Set(fantomasVersion)
         fsTestHost.TypeProvidersRuntimeVersion.Set(typeProvidersRuntimeVersion)
         fsTestHost.DumpTypeProvidersProcess.Set(dumpTypeProvidersProcess)

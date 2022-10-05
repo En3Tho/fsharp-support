@@ -1,6 +1,8 @@
 ﻿module JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FcsTypeUtil
 
+open System
 open FSharp.Compiler.Symbols
+open JetBrains.ReSharper.Plugins.FSharp.Util
 
 let getFunctionReturnType parametersCount (fcsType: FSharpType) =
     let rec skipInnerTypes remaining (fcsType: FSharpType) =

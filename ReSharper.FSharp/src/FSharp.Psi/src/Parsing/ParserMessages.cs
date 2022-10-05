@@ -33,6 +33,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
     public const string IDS_LITERAL_PAT = "";
     public const string IDS_CONST_PAT = "";
     public const string IDS_F_SHARP_IDENTIFIER = "";
+    public const string IDS_REFERENCE_NAME_OWNER_PAT = "";
     public const string IDS_REFERENCE_PAT = "";
     public const string IDS_AS_PAT = "";
     public const string IDS_NAMED_PAT = "";
@@ -74,6 +75,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
     public const string IDS_ELSE_CLAUSE = "";
     public const string IDS_RECORD_LIKE_EXPR = "";
     public const string IDS_RANGE_LIKE_EXPR = "";
+    public const string IDS_PAREN_OR_BEGIN_END_EXPR = "";
 
     public static string GetString(string id) => id;
     public static string GetExpectedMessage(string s) => string.Empty;

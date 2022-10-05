@@ -81,7 +81,7 @@ let operatorName (binaryApp: IBinaryAppExpr) =
 
     // todo: fix op tokens in references
     let name = refExpr.GetText()
-    PrettyNaming.DecompileOpName(name)
+    PrettyNaming.ConvertValLogicalNameToDisplayNameCore(name)
 
 let operatorPrecedence (binaryApp: IBinaryAppExpr) =
     let name = operatorName binaryApp
@@ -238,12 +238,32 @@ let escapesTupleAppArg (context: IFSharpExpression) (expr: IFSharpExpression) =
         | _ -> false
     | _ -> false
 
+let escapesRefExprAtNamedArgPosition (context: IFSharpExpression) (expr: IFSharpExpression) =
+    let refExpr = expr.As<IReferenceExpr>()
+    isNotNull refExpr && refExpr.IsSimpleName &&
+
+    let binaryAppExpr = BinaryAppExprNavigator.GetByLeftArgument(context)
+    isNotNull binaryAppExpr && FSharpMethodInvocationUtil.isTopLevelArg binaryAppExpr
+
+let escapesAppAtNamedArgPosition (parenExpr: IParenExpr) =
+    match parenExpr.InnerExpression with
+    | :? IParenExpr as innerParenExpr ->
+        match innerParenExpr.InnerExpression with
+        | :? IBinaryAppExpr as binaryAppExpr ->
+            FSharpMethodInvocationUtil.hasNamedArgStructure binaryAppExpr &&
+            isNotNull (FSharpArgumentOwnerNavigator.GetByArgumentExpression(parenExpr.IgnoreParentParens()))
+        | _ -> false
+    | :? IBinaryAppExpr as binaryAppExpr ->
+        FSharpMethodInvocationUtil.hasNamedArgStructure binaryAppExpr &&
+        FSharpMethodInvocationUtil.isTopLevelArg parenExpr
+    | _ -> false
+
 let literalsRequiringParens =
     NodeTypeSet(FSharpTokenType.INT32, FSharpTokenType.IEEE32, FSharpTokenType.IEEE64)
 
 let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: IFSharpExpression) (expr: IFSharpExpression) =
     if escapesTupleAppArg context expr then true else
-    if expr :? IParenExpr then false else
+    if expr :? IParenOrBeginEndExpr then false else
 
     let expr = expr.IgnoreInnerParens()
     if isNull expr|| contextRequiresParens context then true else
@@ -306,15 +326,12 @@ let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: I
         let attribute = AttributeNavigator.GetByExpression(context)
         isNotNull attribute && (isNotNull attribute.Target || isNotNull typeArgumentList || isNotNull qualifier) ||
 
-        isNotNull (AppExprNavigator.GetByArgument(context)) && getFirstQualifier refExpr :? IAppExpr ||
-
-        // todo: tests
-        isNull typeArgumentList && isNull qualifier && PrettyNaming.IsOperatorDisplayName (refExpr.GetText()) ||
+        isNotNull (PrefixAppExprNavigator.GetByArgumentExpression(context)) && getFirstQualifier refExpr :? IAppExpr ||
 
         checkPrecedence context expr
 
     | :? IIndexerExpr as indexerExpr ->
-        isNotNull (AppExprNavigator.GetByArgument(context)) && getFirstQualifier indexerExpr :? IAppExpr ||
+        isNotNull (PrefixAppExprNavigator.GetByArgumentExpression(context)) && getFirstQualifier indexerExpr :? IAppExpr ||
 
         checkPrecedence context expr
     
@@ -347,8 +364,12 @@ let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: I
 
         checkPrecedence context expr
 
-    | :? IPrefixAppExpr ->
+    | :? IPrefixAppExpr as appExpr ->
         isNotNull (PrefixAppExprNavigator.GetByArgumentExpression(getQualifiedExpr context)) ||
+
+        let isQualifier = isNotNull (QualifiedExprNavigator.GetByQualifier(context))
+        isQualifier && isIndexerLikeAppExpr appExpr && isIndexerLikeAppExpr appExpr.FunctionExpression || 
+
         checkPrecedence context expr
 
     | :? ISequentialExpr as seqExpr ->
@@ -416,6 +437,6 @@ let addParens (expr: IFSharpExpression) =
 
 
 let addParensIfNeeded (expr: IFSharpExpression) =
-    let context = expr.IgnoreParentParens()
+    let context = expr.IgnoreParentParens(includingBeginEndExpr = false)
     if context != expr || not (needsParens context expr) then expr else
     addParens expr

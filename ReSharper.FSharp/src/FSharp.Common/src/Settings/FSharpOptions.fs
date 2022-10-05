@@ -80,6 +80,8 @@ module FSharpExperimentalFeatures =
     let [<Literal>] formatter = "Enable F# code formatter"
     let [<Literal>] fsiInteractiveEditor = "Enable analysis of F# Interactive editor"
     let [<Literal>] outOfProcessTypeProviders = "Host type providers out-of-process"
+    let [<Literal>] generativeTypeProvidersInMemoryAnalysis = "Enable generative type providers analysis in C#/VB.NET projects"
+    let [<Literal>] reSharperImportCompletion = "Use ReSharper out of scope completion"
 
 
 [<SettingsKey(typeof<FSharpOptions>, "F# experimental features")>]
@@ -97,7 +99,13 @@ type FSharpExperimentalFeatures =
       mutable FsiInteractiveEditor: bool
 
       [<SettingsEntry(true, FSharpExperimentalFeatures.outOfProcessTypeProviders)>]
-      mutable OutOfProcessTypeProviders: bool }
+      mutable OutOfProcessTypeProviders: bool
+
+      [<SettingsEntry(true, FSharpExperimentalFeatures.generativeTypeProvidersInMemoryAnalysis); DefaultValue>]
+      mutable GenerativeTypeProvidersInMemoryAnalysis: bool
+
+      [<SettingsEntry(false, FSharpExperimentalFeatures.reSharperImportCompletion); DefaultValue>]
+      mutable ReSharperImportCompletion: bool }
 
 
 [<AllowNullLiteral>]
@@ -132,6 +140,8 @@ type FSharpExperimentalFeaturesProvider(lifetime, solution, settings, settingsSc
     member val RedundantParensAnalysis = base.GetValueProperty<bool>("RedundantParensAnalysis")
     member val Formatter = base.GetValueProperty<bool>("Formatter")
     member val OutOfProcessTypeProviders = base.GetValueProperty<bool>("OutOfProcessTypeProviders")
+    member val GenerativeTypeProvidersInMemoryAnalysis = base.GetValueProperty<bool>("GenerativeTypeProvidersInMemoryAnalysis")
+    member val ReSharperImportCompletion = base.GetValueProperty<bool>("ReSharperImportCompletion")
 
 
 [<SolutionInstanceComponent>]
@@ -191,13 +201,21 @@ type FSharpOptionsPage(lifetime: Lifetime, optionsPageContext, settings,
         this.AddHeader("F# Compiler Service")
         this.AddBoolOptionWithComment((fun key -> key.SkipImplementationAnalysis), skipImplementationAnalysis, "Requires restart") |> ignore
         this.AddBoolOptionWithComment((fun key -> key.OutOfProcessTypeProviders), FSharpExperimentalFeatures.outOfProcessTypeProviders, "Solution reload required") |> ignore
-
+        
+        do
+            use indent = this.Indent()
+            [ this.AddBoolOptionWithComment((fun key -> key.GenerativeTypeProvidersInMemoryAnalysis), FSharpExperimentalFeatures.generativeTypeProvidersInMemoryAnalysis, "Solution reload required") ]
+            |> Seq.iter (fun checkbox ->
+                this.AddBinding(checkbox, BindingStyle.IsEnabledProperty, (fun key -> key.OutOfProcessTypeProviders), fun t -> t :> obj))
+            
+        
         if configurations.IsInternalMode() then
             this.AddHeader("Experimental features")
             this.AddBoolOption((fun key -> key.PostfixTemplates), RichText(FSharpExperimentalFeatures.postfixTemplates), null) |> ignore
             this.AddBoolOption((fun key -> key.RedundantParensAnalysis), RichText(FSharpExperimentalFeatures.redundantParenAnalysis), null) |> ignore
             this.AddBoolOption((fun key -> key.Formatter), RichText(FSharpExperimentalFeatures.formatter), null) |> ignore
             this.AddBoolOptionWithComment((fun key -> key.NonFSharpProjectInMemoryAnalysis), nonFSharpProjectInMemoryAnalysis, "Requires restart") |> ignore
+            this.AddBoolOption((fun key -> key.ReSharperImportCompletion), RichText(FSharpExperimentalFeatures.reSharperImportCompletion)) |> ignore
 
 
 [<ShellComponent>]

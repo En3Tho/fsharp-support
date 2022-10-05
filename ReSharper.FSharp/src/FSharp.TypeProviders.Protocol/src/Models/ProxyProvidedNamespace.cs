@@ -5,7 +5,7 @@ using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Cache;
 using JetBrains.Rider.FSharp.TypeProviders.Protocol.Client;
 using JetBrains.Util.Concurrency;
 using Microsoft.FSharp.Core.CompilerServices;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
 {
@@ -28,7 +28,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
         new InterruptibleLazy<ProvidedType[]>(() =>
         {
           var types =
-            typeProvidersContext.ProvidedTypesCache.GetOrCreateBatch(providedNamespace.Types, typeProvider.EntityId);
+            typeProvidersContext.ProvidedTypesCache.GetOrCreateBatch(providedNamespace.Types, typeProvider);
 
           typeProvider.IsGenerative = types.Any(t => !t.IsErased);
 

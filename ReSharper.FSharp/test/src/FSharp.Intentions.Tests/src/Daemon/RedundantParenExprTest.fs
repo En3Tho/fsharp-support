@@ -8,17 +8,13 @@ open JetBrains.ReSharper.Plugins.FSharp.Tests.Intentions.Daemon
 open JetBrains.ReSharper.TestFramework
 open NUnit.Framework
 
-[<FSharpTest>]
+[<FSharpTest; FSharpExperimentalFeature(ExperimentalFeature.RedundantParenAnalysis)>]
 [<TestSettingsKey(typeof<FSharpFormatSettingsKey>)>]
 [<TestSettings("{AllowHighPrecedenceAppParens:All}")>]
 type RedundantParenExprTest() =
     inherit FSharpHighlightingTestBase()
 
     override x.RelativeTestDataPath = "features/daemon/redundantParens/expr"
-
-    override x.DoTest(lifetime, project) =
-        use cookie = FSharpExperimentalFeatureCookie.Create(ExperimentalFeature.RedundantParenAnalysis)
-        base.DoTest(lifetime, project)
 
     override x.HighlightingPredicate(highlighting, _, _) =
         highlighting :? RedundantParenExprWarning
@@ -29,6 +25,7 @@ type RedundantParenExprTest() =
     [<Test>] member x.``Literal 02 - Qualified``() = x.DoNamedTest()
 
     [<Test>] member x.``App - Local 01``() = x.DoNamedTest()
+    [<Test>] member x.``App - Named arg 01``() = x.DoNamedTest()
     [<Test>] member x.``App - Top level 01``() = x.DoNamedTest()
 
     [<Test>] member x.``App - Precedence - High 01``() = x.DoNamedTest()
@@ -56,6 +53,9 @@ type RedundantParenExprTest() =
     [<Test>] member x.``App - Attribute 02 - Type function``() = x.DoNamedTest()
     [<Test>] member x.``App - Attribute 03 - Reference``() = x.DoNamedTest()
     [<Test>] member x.``App - Attribute 04 - Targets``() = x.DoNamedTest()
+
+    [<Test>] member x.``App 01``() = x.DoNamedTest()
+    [<Test>] member x.``App 02 - Indexer``() = x.DoNamedTest()
 
     [<Test>] member x.``Binary - App 01``() = x.DoNamedTest()
     [<Test>] member x.``Binary - App 02 - If``() = x.DoNamedTest()

@@ -2,7 +2,7 @@ namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.EditorServices
-open FSharp.Compiler.Tokenization
+open FSharp.Compiler.Syntax
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems.Impl
 open JetBrains.ReSharper.Feature.Services.Lookup
@@ -32,7 +32,7 @@ type FcsLookupCandidate(fcsTooltip: ToolTipElementData, xmlDocService: FSharpXml
 
     interface ICandidate with
         member x.GetSignature(_, _, _, _, _) = x.Description
-        member x.GetDescription() = xmlDocService.GetXmlDocSummary(x.XmlDoc)
+        member x.GetDescription _ = xmlDocService.GetXmlDocSummary(x.XmlDoc)
         member x.Matches _ = true
 
         member x.GetParametersInfo(_, _) = ()
@@ -89,7 +89,9 @@ type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompleti
         with _ -> null
 
     override x.Text =
-        FSharpKeywords.AddBackticksToIdentifierIfNeeded items.Name
+        let name = x.FcsSymbol.DisplayNameCore
+        let name = if context.IsInAttributeContext then name.DropAttributeSuffix() else name
+        PrettyNaming.AddBackticksToIdentifierIfNeeded name
 
     override x.DisplayTypeName =
         try
@@ -132,7 +134,7 @@ type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompleti
                 let moduleToOpen = getModuleToOpen typeElement
                 ModuleToImport.DeclaredElement(moduleToOpen) else
 
-            let ns = ns |> Array.map FSharpKeywords.AddBackticksToIdentifierIfNeeded |> String.concat "."
+            let ns = ns |> Array.map PrettyNaming.AddBackticksToIdentifierIfNeeded |> String.concat "."
             ModuleToImport.FullName(ns)
 
         let offset = context.Ranges.InsertRange.StartOffset

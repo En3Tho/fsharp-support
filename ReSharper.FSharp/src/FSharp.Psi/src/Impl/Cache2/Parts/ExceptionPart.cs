@@ -19,7 +19,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
     public bool HasFields { get; }
 
     public ExceptionPart([NotNull] IExceptionDeclaration declaration, [NotNull] ICacheBuilder cacheBuilder)
-      : base(declaration, cacheBuilder, ExceptionExtendsListShortNames) =>
+      : base(declaration, cacheBuilder, PartKind.Class, ExceptionExtendsListShortNames) =>
       HasFields = !declaration.Fields.IsEmpty;
 
     public ExceptionPart(IReader reader) : base(reader) =>
@@ -70,7 +70,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts
       new FSharpGeneratedConstructorFromFields(this);
   }
 
-  public interface IExceptionPart : Class.IClassPart, IFieldsOwnerPart
+  public interface IExceptionPart : Class.IClassPart, IFieldsOwnerPart, IFSharpTypePart
   {
     bool HasFields { get; }
   }

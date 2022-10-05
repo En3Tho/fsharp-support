@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.Diagnostics;
@@ -166,32 +167,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static string GetSourceName([CanBeNull] this IIdentifier identifier) =>
       identifier?.Name ?? SharedImplUtil.MISSING_DECLARATION_NAME;
 
-    public static TreeTextRange GetNameRange([CanBeNull] this IFSharpIdentifierLikeNode identifier)
-    {
-      if (identifier == null)
-        return TreeTextRange.InvalidRange;
-
-      var nameRange = identifier.NameRange;
-      var identifierToken = identifier.IdentifierToken;
-      if (identifierToken == null)
-        return nameRange;
-
-      return identifierToken.GetText().IsEscapedWithBackticks()
-        ? nameRange.TrimLeft(2).TrimRight(2)
-        : nameRange;
-    }
+    public static TreeTextRange GetNameRange([CanBeNull] this IFSharpIdentifierLikeNode identifier) =>
+      // todo: fix navigating inside escaped names
+      identifier?.NameRange ?? TreeTextRange.InvalidRange;
 
     public static TreeTextRange GetNameIdentifierRange([CanBeNull] this IFSharpIdentifierLikeNode identifier) =>
-      identifier?.GetTreeTextRange() ?? TreeTextRange.InvalidRange;
-
-    public static TreeTextRange GetMemberNameIdentifierRange([CanBeNull] this IFSharpIdentifierLikeNode identifier)
-    {
-      var range = identifier.GetNameIdentifierRange();
-      return identifier?.GetTokenType() == FSharpTokenType.LPAREN_STAR_RPAREN
-        ? range.TrimLeft(1).TrimRight(1)
-        : range;
-    }
-
+      identifier?.GetNameRange() ?? TreeTextRange.InvalidRange;
 
     [NotNull]
     public static string MakeClrName([NotNull] this IFSharpTypeElementDeclaration declaration)
@@ -303,7 +284,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
     [CanBeNull]
     public static TPart GetPart<TPart>([CanBeNull] this ITypeElement type)
-      where TPart : class, ClassLikeTypeElement.IClassLikePart
+      where TPart : class, IFSharpTypePart
     {
       // todo: check signature first if one is present
 
@@ -316,6 +297,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
       return null;
     }
+
+    [CanBeNull]
+    public static TypePart GetFirstTypePart([CanBeNull] this ITypeElement typeElement) =>
+      typeElement.GetPart<IFSharpTypePart>()?.GetFirstPart();
 
     public static bool IsException(this ITypeElement typeElement) =>
       typeElement switch
@@ -561,7 +546,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     }
 
     public static string DropAttributeSuffix([NotNull] this string attrName) =>
-      attrName.SubstringBeforeLast(AttributeSuffix, StringComparison.Ordinal);
+      attrName.Length > "Attribute".Length && attrName.EndsWith("Attribute", StringComparison.Ordinal)
+        ? attrName.SubstringBeforeLast(AttributeSuffix, StringComparison.Ordinal)
+        : attrName;
 
     public static IAttribute GetAttribute(this TreeNodeCollection<IAttribute> attributes, [NotNull] string shortName)
     {
@@ -721,9 +708,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     }
 
     [CanBeNull]
-    public static IFSharpExpression IgnoreParentParens([CanBeNull] this IFSharpExpression fsExpr, 
-        bool singleLevel = false) =>
-      fsExpr.GetOutermostNode<IFSharpExpression, IParenExpr>(singleLevel);
+    public static IFSharpExpression IgnoreParentParens([CanBeNull] this IFSharpExpression fsExpr,
+      bool singleLevel = false, bool includingBeginEndExpr = true) =>
+      includingBeginEndExpr
+        ? fsExpr.GetOutermostNode<IFSharpExpression, IParenOrBeginEndExpr>(singleLevel)
+        : fsExpr.GetOutermostNode<IFSharpExpression, IParenExpr>(singleLevel);
 
     [CanBeNull]
     public static ITypeUsage IgnoreParentParens([CanBeNull] this ITypeUsage typeUsage, bool singleLevel = false) =>
@@ -735,12 +724,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
         : treeNode.Parent;
 
     [CanBeNull]
-    public static IFSharpExpression IgnoreInnerParens([CanBeNull] this IFSharpExpression fsExpr, bool singleLevel = false)
+    public static IFSharpExpression IgnoreInnerParens([CanBeNull] this IFSharpExpression fsExpr,
+      bool singleLevel = false, bool includingBeginEndExpr = true)
     {
       if (fsExpr == null)
         return null;
 
-      while (fsExpr is IParenExpr { InnerExpression: { } innerExpr })
+      while (fsExpr is IParenOrBeginEndExpr { InnerExpression: { } innerExpr } &&
+             (includingBeginEndExpr || fsExpr is IParenExpr))
       {
         if (singleLevel)
           return innerExpr;
@@ -951,5 +942,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
           return accessor;
       return null;
     }
+
+    public static XmlNode GetXmlDoc(this IFSharpTypeElement typeElement, bool inherit) =>
+      typeElement.GetFirstTypePart()?.GetDeclaration()?.GetXMLDoc(inherit);
   }
 }

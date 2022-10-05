@@ -9,11 +9,11 @@ import org.jetbrains.kotlin.daemon.common.toHexString
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    id ("com.jetbrains.rdgen") version "2022.1.2"
-    id("org.jetbrains.intellij") version "1.6.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
+    id ("com.jetbrains.rdgen") version "2022.3.1"
+    id("org.jetbrains.intellij") version "1.9.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
     id("org.jetbrains.grammarkit") version "2021.2.2"
-    id("me.filippov.gradle.jvm.wrapper") version "0.9.3"
-    kotlin("jvm") version "1.6.10"
+    id("me.filippov.gradle.jvm.wrapper") version "0.11.0"
+    kotlin("jvm") version "1.7.0"
 }
 
 apply {
@@ -26,7 +26,7 @@ repositories {
     maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
-val baseVersion = "2022.2"
+val baseVersion = "2022.3"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
@@ -68,6 +68,9 @@ intellij {
 val repoRoot = projectDir.parentFile!!
 val resharperPluginPath = File(repoRoot, "ReSharper.FSharp")
 
+val rdLibDirectory: () -> File = { file("${tasks.setupDependencies.get().idea.get().classes}/lib/rd") }
+extra["rdLibDirectory"] = rdLibDirectory
+
 val buildConfiguration = ext.properties["BuildConfiguration"] ?: "Debug"
 val primaryTargetFramework = "net472"
 val outputRelativePath = "bin/$buildConfiguration/$primaryTargetFramework"
@@ -94,20 +97,20 @@ val typeProvidersFiles = listOf(
         "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
         "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
         "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.dll",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.pdb",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.win.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.unix.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.win.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.unix.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.win.runtimeconfig.json",
-        "FSharp.TypeProviders.Host/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.unix.runtimeconfig.json")
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.dll",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.pdb",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.netcoreapp31.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net5.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net6.unix.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net7.win.runtimeconfig.json",
+        "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.net7.unix.runtimeconfig.json")
 
 val fantomasFiles = listOf(
-        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/FSharp.Compiler.Service.dll",
-        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.dll")
-
-val fantomasExecutableFiles = listOf(
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.FCS.dll",
+        "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Core.dll",
         "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.dll",
         "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
         "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.win.runtimeconfig.json",
@@ -151,11 +154,8 @@ tasks {
         hashFolder = "build/rdgen"
         logger.info("Configuring rdgen params")
         classpath({
-        logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${setupDependencies.get().idea.get()}")
-            val sdkPath = setupDependencies.get().idea.get().classes
-            val rdLibDirectory = File(sdkPath, "lib/rd").canonicalFile
-
-            "$rdLibDirectory/rider-model.jar"
+            logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${rdLibDirectory().canonicalPath}")
+            rdLibDirectory().resolve("rider-model.jar").canonicalPath
         })
         sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
         packages = "model"
@@ -224,7 +224,6 @@ tasks {
     withType<PrepareSandboxTask> {
         var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
         files = files.map { "$resharperPluginPath/src/$it" }
-        val fantomasExecutableFiles = fantomasExecutableFiles.map { "$resharperPluginPath/src/$it" }
         val fantomasFiles = fantomasFiles.map { "$resharperPluginPath/src/$it" }
         val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
@@ -241,8 +240,7 @@ tasks {
         }
 
         moveToPlugin(files, "dotnet")
-        moveToPlugin(fantomasExecutableFiles, "fantomas")
-        moveToPlugin(fantomasFiles, "fantomas/dll")
+        moveToPlugin(fantomasFiles, "fantomas")
         moveToPlugin(typeProvidersFiles, "typeProviders")
         moveToPlugin(listOf("projectTemplates"), "projectTemplates")
 
@@ -255,7 +253,6 @@ tasks {
                 }
             }
             validateFiles(files, "dotnet")
-            validateFiles(fantomasExecutableFiles, "fantomas")
             validateFiles(fantomasFiles, "fantomas")
             validateFiles(typeProvidersFiles, "typeProviders")
         }
@@ -307,7 +304,7 @@ tasks {
     }
 
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "11"
+        kotlinOptions.jvmTarget = "17"
         dependsOn(generateFSharpLexer, "rdgen")
     }
 

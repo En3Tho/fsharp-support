@@ -14,11 +14,11 @@
     <Compile Include="src\Util\FSharpAutoOpenUtil.fs" />
     <Compile Include="src\Util\OpensUtil.fs" />
     <Compile Include="src\Util\FSharpExpressionUtil.fs" />
+    <Compile Include="src\Util\FSharpMethodInvocationUtil.fs" />
     <Compile Include="src\Util\FSharpParensUtil.fs" />
     <Compile Include="src\Util\TypeUsageParensUtil.fs" />
     <Compile Include="src\Util\FSharpResolveUtil.fs" />
     <Compile Include="src\Util\FSharpPatternUtil.fs" />
-    <Compile Include="src\Util\FSharpMethodInvocationUtil.fs" />
     <Compile Include="src\Util\FSharpNamingService.fs" />
     <Compile Include="src\Util\LetDisposableAnalyzer.fs" />
     <Compile Include="src\Util\UnusedOpensUtil.fs" />
@@ -63,10 +63,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Compiler.Service, Version=41.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Compiler.Service">
       <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
   
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+
+  <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
 </Project>

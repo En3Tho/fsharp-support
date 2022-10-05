@@ -20,6 +20,7 @@ type IdentifierHighlightingTest() =
     [<Test>] member x.``Operators 02 - Custom``() = x.DoNamedTest()
     [<Test>] member x.``Operators 03 - Unary``() = x.DoNamedTest()
     [<Test>] member x.``Operators 04 - op_Multiply decl``() = x.DoNamedTest()
+    [<Test>] member x.``Operators 05 - Qualified``() = x.DoNamedTest()
 
     [<FSharpLanguageLevel(FSharpLanguageLevel.Preview)>]
     [<Test>] member x.``Slice 01``() = x.DoNamedTest()
@@ -40,6 +41,7 @@ type IdentifierHighlightingTest() =
 
     [<Test>] member x.``Struct constructor``() = x.DoNamedTest()
 
+    [<Test>] member x.``op_Range 01``() = x.DoNamedTest()
     [<Test>] member x.op_RangeStep() = x.DoNamedTest()
 
     [<Test>] member x.``Byrefs 01``() = x.DoNamedTest()
@@ -55,6 +57,7 @@ type IdentifierHighlightingTest() =
     [<Test>] member x.``Functions 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Functions 02``() = x.DoNamedTest()
+    [<Test>] member x.``Functions 03 - Type private``() = x.DoNamedTest()
 
     [<Test>] member x.``Expr - CompExpr 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - For 01``() = x.DoNamedTest()

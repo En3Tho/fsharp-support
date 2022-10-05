@@ -1,15 +1,17 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
+using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils;
+using JetBrains.Rider.FSharp.TypeProviders.Protocol.Client;
 using Microsoft.FSharp.Collections;
 using Microsoft.FSharp.Core;
 using Microsoft.FSharp.Core.CompilerServices;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
 {
   [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
-  public class ProxyProvidedPropertyInfoWithContext : ProvidedPropertyInfo
+  public class ProxyProvidedPropertyInfoWithContext : ProvidedPropertyInfo, IRdProvidedCustomAttributesOwner
   {
     private readonly ProvidedPropertyInfo myPropertyInfo;
     private readonly ProvidedTypeContext myContext;
@@ -68,5 +70,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
 
     public override bool GetHasTypeProviderEditorHideMethodsAttribute(ITypeProvider tp) =>
       myPropertyInfo.GetHasTypeProviderEditorHideMethodsAttribute(tp);
+
+    public RdCustomAttributeData[] Attributes => myPropertyInfo.GetRdCustomAttributes();
   }
 }

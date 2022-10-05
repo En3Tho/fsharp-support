@@ -227,7 +227,7 @@ externDeclaration:
 // todo: extract declaring pattern interface
 
 interface fSharpPattern:
-  referencePat |
+  referenceNameOwnerPat |
   asPat |
   typedLikePat |
   attribPat |
@@ -239,14 +239,17 @@ interface fSharpPattern:
   recordPat |
   optionalValPat |
   listConsPat |
-  parametersOwnerPat |
   wildPat |
   constPat |
-  fieldPat |
   nullPat |
   quoteExprPat |
   charRangePat |
   fromErrorPat;
+
+interface referenceNameOwnerPat:
+  referencePat |
+  parametersOwnerPat |
+  fieldPat;
 
 interface referencePat:
   localReferencePat |
@@ -380,7 +383,7 @@ fromErrorPat options { stubBase="FSharpPatternBase"; }:
 
 
 interface fSharpExpression:
-  parenExpr |
+  parenOrBeginEndExpr |
   quoteExpr |
   constExpr |
   typedLikeExpr |
@@ -489,10 +492,19 @@ interface castExpr:
   upcastExpr |
   downcastExpr;
 
+interface parenOrBeginEndExpr:
+  parenExpr |
+  beginEndExpr;
+
 parenExpr options { stubBase="FSharpExpressionBase"; }:
   LPAREN<LPAREN, LeftParen>
   fSharpExpression<EXPR, InnerExpression>
   RPAREN<RPAREN, RightParen>;
+
+beginEndExpr options { stubBase="FSharpExpressionBase"; }:
+  BEGIN<FSHARP_BEGIN, Begin>
+  fSharpExpression<EXPR, InnerExpression>
+  END<FSHARP_END, End>;
 
 quoteExpr options { stubBase="FSharpExpressionBase"; }:
   (
@@ -711,6 +723,11 @@ binaryAppExpr options { stubBase="FSharpExpressionBase"; } extras {
   referenceExpr<OP_REF_EXPR, Operator>
   fSharpExpression<RIGHT_ARG_EXPR, RightArgument>;
 
+dynamicExpr options { stubBase="FSharpExpressionBase"; }:
+  fSharpExpression<FUNC_EXPR, FunctionExpression>
+  QMARK
+  fSharpExpression<ARG_EXPR, ArgumentExpression>;
+
 letOrUseExpr options { stubBase="FSharpExpressionBase"; } extras {
   get { methodName="BoundExpressions" path=<letOrUseExpr:BINDING/localBinding:EXPR> };
 }:
@@ -773,7 +790,9 @@ referenceExpr options { stubBase="FSharpExpressionBase"; } extras {
     fSharpExpression<QUALIFIER_EXPR, Qualifier>
     DOT<FSHARP_DELIMITER, Delimiter>
   )?
+  LPAREN<LPAREN, LParen>?
   fSharpIdentifier<IDENTIFIER, Identifier>
+  RPAREN<RPAREN, RParen>?
   prefixAppTypeArgumentList<TYPE_ARG_LIST, TypeArgumentList>?;
 
 matchClause extras {
@@ -1064,7 +1083,12 @@ unionCaseDeclaration options { stubBase="FSharpTypeElementDeclarationBase"; } ex
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
   identifier<IDENTIFIER, Identifier>
-  unionCaseFieldDeclarationList<FIELD_DECLARATION_LIST, FieldList>?
+  (
+    COLON<FSHARP_COLON, Colon>
+    typeUsage<TYPE, TypeUsage>
+  |
+    unionCaseFieldDeclarationList<FIELD_DECLARATION_LIST, FieldList>
+  )?
   typeBodyMemberDeclaration<TYPE_MEMBER, TypeMembers>*;
 
 unionCaseFieldDeclarationList:
@@ -1301,8 +1325,7 @@ memberSignature  options { stubBase="FSharpProperTypeMemberDeclarationBase"; } e
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
   identOrOpName{IDENTIFIER, Identifier}
   postfixTypeParameterDeclarationList<TYPE_PARAMETER_LIST, TypeParameterList>?
-  COLON
-  typeUsage<TYPE, TypeUsage>
+  returnTypeInfo<RETURN_INFO, ReturnTypeInfo>
   accessorDecls?;
 
 private accessorDecls:
@@ -1323,12 +1346,12 @@ abstractMemberDeclaration options { stubBase="FSharpProperTypeMemberDeclarationB
   get { methodName="Attributes" path=<abstractMemberDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
+  STATIC<STATIC, StaticKeyword>?  
   ABSTRACT<ABSTRACT, AbstractKeyword>
   MEMBER<MEMBER, MemberKeyword>?
   identOrOpName{IDENTIFIER, Identifier}
   postfixTypeParameterDeclarationList<TYPE_PARAMETER_LIST, TypeParameterList>?
-  COLON
-  typeUsage<TYPE, TypeUsage>;
+  returnTypeInfo<RETURN_INFO, ReturnTypeInfo>;
 
 valFieldDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; } extras {
   get { methodName="Attributes" path=<valFieldDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
@@ -1369,6 +1392,7 @@ accessorDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; 
   get { methodName="Expression" path=<accessorDeclaration:CHAMELEON_EXPR/chameleonExpression:EXPR> };
   get { methodName="ParameterPatterns" path=<accessorDeclaration:PARAMETERS_DECL/parametersPatternDeclaration:PATTERN> };
 }:
+  attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
   IDENTIFIER<IDENTIFIER, Identifier>
   (

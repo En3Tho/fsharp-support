@@ -2,6 +2,7 @@ namespace rec JetBrains.ReSharper.Plugins.FSharp.Checker
 
 open System
 open System.Collections.Generic
+open System.IO
 open System.Runtime.InteropServices
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Text
@@ -41,6 +42,23 @@ type FcsProject =
 
     member x.IsKnownFile(sourceFile: IPsiSourceFile) =
         x.FileIndices.ContainsKey(sourceFile.GetLocation())
+
+    member x.TestDump(writer: StreamWriter) =
+        let projectOptions = x.ProjectOptions
+
+        writer.WriteLine($"Project file: {projectOptions.ProjectFileName}")
+        writer.WriteLine($"Stamp: {projectOptions.Stamp}")
+        writer.WriteLine($"Load time: {projectOptions.LoadTime}")
+
+        writer.WriteLine("Other options:")
+        for option in projectOptions.OtherOptions do
+            writer.WriteLine($"  {option}")
+
+        writer.WriteLine("Referenced projects:")
+        for referencedProject in projectOptions.ReferencedProjects do
+            writer.WriteLine($"  {referencedProject.OutputFile}")
+
+        writer.WriteLine()
 
 
 [<ShellComponent; AllowNullLiteral>]
@@ -103,10 +121,14 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
 
         ProhibitTypeCheckCookie.AssertTypeCheckIsAllowed()
 
-        match x.FcsProjectProvider.GetProjectOptions(sourceFile) with
+        let psiModule = sourceFile.PsiModule
+        match x.FcsProjectProvider.GetFcsProject(psiModule) with
         | None -> None
-        | Some(options) ->
+        | Some fcsProject ->
 
+        x.FcsProjectProvider.PrepareAssemblyShim(psiModule)
+
+        let options = fcsProject.ProjectOptions
         let path = sourceFile.GetLocation().FullPath
         let source = FcsCheckerService.getSourceText sourceFile.Document
         logger.Trace("ParseAndCheckFile: start {0}, {1}", path, opName)
@@ -151,6 +173,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
     
     member x.InvalidateFcsProject(fcsProjectOptions: FSharpProjectOptions) =
         if checker.IsValueCreated then
+            logger.Trace("Invalidate FcsProject: {0}", fcsProjectOptions.ProjectFileName)
             checker.Value.InvalidateConfiguration(fcsProjectOptions)
 
     member x.InvalidateFcsProject(project: IProject) =
@@ -194,8 +217,19 @@ type FSharpParseAndCheckResults =
       CheckResults: FSharpCheckFileResults }
 
 
+type ReferencedModule =
+    { ReferencedPath: VirtualFileSystemPath
+      ReferencingModules: HashSet<IPsiModule> }
+
+module ReferencedModule =
+    let create (modulePathProvider: ModulePathProvider) (psiModule: IPsiModule) =
+        { ReferencedPath = modulePathProvider.GetModulePath(psiModule)
+          ReferencingModules = HashSet() }
+
+
 type IFcsProjectProvider =
     abstract GetFcsProject: psiModule: IPsiModule -> FcsProject option
+    abstract GetPsiModule: outputPath: VirtualFileSystemPath -> IPsiModule option
 
     abstract GetProjectOptions: sourceFile: IPsiSourceFile -> FSharpProjectOptions option
     abstract GetProjectOptions: psiModule: IPsiModule -> FSharpProjectOptions option
@@ -212,8 +246,14 @@ type IFcsProjectProvider =
     abstract InvalidateDirty: unit -> unit
     abstract ModuleInvalidated: ISignal<IPsiModule>
 
+    abstract PrepareAssemblyShim: psiModule: IPsiModule -> unit 
+
+    abstract GetReferencedModule: psiModule: IPsiModule -> ReferencedModule option 
+    abstract GetAllReferencedModules: unit -> KeyValuePair<IPsiModule, ReferencedModule> seq
+
     /// True when any F# projects are currently known to project options provider after requesting info from FCS.
     abstract HasFcsProjects: bool
+    abstract GetAllFcsProjects: unit -> FcsProject seq
 
 
 type IScriptFcsProjectProvider =

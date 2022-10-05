@@ -27,7 +27,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     private const string OpName = "FSharpFileResolvedSymbols";
 
     private ResolvedSymbols mySymbols;
-    private readonly object myLock = new object();
+    private readonly object myLock = new();
 
     [NotNull] public IPsiSourceFile SourceFile { get; }
 
@@ -102,6 +102,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       {
         var symbol = symbolUse.Symbol;
         var range = symbolUse.Range;
+        if (range.IsSynthetic)
+          continue;
 
         var startOffset = document.GetOffset(range.Start);
         var endOffset = document.GetOffset(range.End);
@@ -240,7 +242,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
           var isCtor = mfv is { IsConstructor: true };
 
           // workaround for implicit type usages (e.g. in members with optional params), visualfsharp#3933
-          if (nameRange.Length == "op_Range".Length && mfv?.LogicalName == "op_Range" 
+          if (nameRange.Length == "op_Range".Length && mfv?.LogicalName == "op_Range"
            || (CanIgnoreSymbol(symbol, isCtor) || CanIgnoreMfv(mfvLogicalName)) &&
               !(lexer.FindTokenAt(nameRange.EndOffset - 1) && (lexer.TokenType?.IsIdentifier ?? false)))
             continue;
@@ -291,9 +293,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
           if (buffer[i] == '`' && buffer[i + 1] == '`')
             return new TextRange(i, endOffset);
 
-      if (logicalName != null && PrettyNaming.IsMangledOpName(logicalName))
+      if (logicalName != null && PrettyNaming.IsLogicalOpName(logicalName))
       {
-        var sourceName = PrettyNaming.DecompileOpName(logicalName);
+        var sourceName = PrettyNaming.ConvertValLogicalNameToDisplayNameCore(logicalName);
         var isUnary = sourceName.StartsWith("~", StringComparison.Ordinal);
         var sourceLength = isUnary ? sourceName.Length - 1 : sourceName.Length;
 
@@ -306,7 +308,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
           if (tokenType == FSharpTokenType.LPAREN_STAR_RPAREN && sourceName == "*")
             return new TextRange(endOffset - 3, endOffset);
 
-          var opText = tokenType == FSharpTokenType.SYMBOLIC_OP ? sourceName : logicalName;
+          var opText = FSharpTokenType.Operators[tokenType] ? sourceName : logicalName;
           return new TextRange(endOffset - opText.Length, endOffset);
         }
       }
@@ -319,7 +321,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
       for (var i = endOffset - 1; i > startOffset; i--)
       {
         var c = buffer[i];
-        if (c.Equals('.') || c.Equals('(') && i < endOffset - 1 && buffer[i + 1] != '|')
+        if (c.Equals('.') || c.Equals('(') && i < endOffset - 1)
           return new TextRange(i + 1, endOffset);
       }
 
@@ -328,7 +330,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     private class ResolvedSymbols
     {
-      public static readonly ResolvedSymbols Empty = new ResolvedSymbols();
+      public static readonly ResolvedSymbols Empty = new();
 
       [NotNull] internal readonly CompactMap<int, FcsResolvedSymbolUse> Declarations;
       [NotNull] internal readonly CompactMap<int, FcsResolvedSymbolUse> Uses;
@@ -343,7 +345,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
     private class ParenMatcher : BracketMatcher
     {
       private static readonly Pair<TokenNodeType, TokenNodeType>[] Parens =
-        {new Pair<TokenNodeType, TokenNodeType>(FSharpTokenType.LESS, FSharpTokenType.GREATER)};
+        {new(FSharpTokenType.LESS, FSharpTokenType.GREATER)};
 
       public ParenMatcher() : base(Parens)
       {

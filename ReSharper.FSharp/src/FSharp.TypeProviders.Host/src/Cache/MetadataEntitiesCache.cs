@@ -11,7 +11,7 @@ using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils;
 using JetBrains.Util;
 using JetBrains.Util.Collections;
 using JetBrains.Util.dataStructures;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Cache
 {
@@ -21,8 +21,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.Cache
     IBiDirectionalProvidedCache<T, int> where T : class
   {
     // typeProviderId defines the main holder of the entity
-    private readonly Dictionary<int, (T type, int typeProviderId)> myEntities =
-      new Dictionary<int, (T type, int typeProviderId)>();
+    private readonly Dictionary<int, (T type, int typeProviderId)> myEntities = new();
 
     protected readonly Dictionary<T, (int id, HashSet<int> referencingProviders)> IdsCache;
 

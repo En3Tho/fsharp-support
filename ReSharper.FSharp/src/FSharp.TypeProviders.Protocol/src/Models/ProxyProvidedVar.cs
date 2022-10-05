@@ -1,5 +1,5 @@
 ﻿using JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Utils;
-using static FSharp.Compiler.ExtensionTyping;
+using static FSharp.Compiler.TypeProviders;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
 {
@@ -13,8 +13,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.Models
       Type = type;
     }
 
-    public static ProxyProvidedVar Create(string name, bool isMutable, ProvidedType type) =>
-      new ProxyProvidedVar(name, isMutable, type);
+    public static ProxyProvidedVar Create(string name, bool isMutable, ProvidedType type) => new(name, isMutable, type);
 
     public override string Name { get; }
 

@@ -2,7 +2,7 @@
 module JetBrains.ReSharper.Plugins.FSharp.Util.TypeProvidersProtocolConverter
 
 open FSharp.Compiler.AbstractIL.IL
-open FSharp.Compiler.ExtensionTyping
+open FSharp.Compiler.TypeProviders
 open JetBrains.Rider.FSharp.TypeProviders.Protocol.Client
 
 type ILVersionInfo with
@@ -37,17 +37,8 @@ type PublicKey with
 type ResolutionEnvironment with
     [<Extension>]
     member this.toRdResolutionEnvironment() =
-        RdResolutionEnvironment(this.resolutionFolder,
-                                Option.toObj this.outputFile,
-                                this.showResolutionMessages,
-                                this.referencedAssemblies,
-                                this.temporaryFolder)
-
-type JetBrains.Rider.FSharp.TypeProviders.Protocol.Server.RdResolutionEnvironment with
-    [<Extension; CompiledName("ToResolutionEnvironment")>]
-    member this.toResolutionEnvironment() =
-         { resolutionFolder = this.ResolutionFolder;
-           outputFile = Option.ofObj(this.OutputFile);
-           showResolutionMessages = this.ShowResolutionMessages;
-           referencedAssemblies = this.ReferencedAssemblies;
-           temporaryFolder = this.TemporaryFolder }
+        RdResolutionEnvironment(this.ResolutionFolder,
+                                Option.toObj this.OutputFile,
+                                this.ShowResolutionMessages,
+                                this.ReferencedAssemblies,
+                                this.TemporaryFolder)

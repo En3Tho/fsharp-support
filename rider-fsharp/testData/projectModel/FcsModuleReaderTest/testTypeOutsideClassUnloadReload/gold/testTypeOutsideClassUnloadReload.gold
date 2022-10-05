@@ -1,0 +1,44 @@
+===================
+Init
+
+Readers by module: 0
+
+===================
+1. Add reference
+
+Readers by module: 0
+
+===================
+2. Open F# file
+
+Readers by module: 1
+  CSharpProject
+Readers by path count: 1
+Dependencies to referencing modules:
+  CSharpProject
+    FSharpProject
+
+===================
+3. Type inside C# file
+
+Readers by module: 1
+  CSharpProject
+Readers by path count: 1
+Dependencies to referencing modules:
+  CSharpProject
+    FSharpProject
+Dirty types in readers:
+  CSharpProject
+    CSharpClass
+    CSharpClass2
+
+===================
+4. Open F# file
+
+Readers by module: 1
+  CSharpProject
+Readers by path count: 1
+Dependencies to referencing modules:
+  CSharpProject
+    FSharpProject
+

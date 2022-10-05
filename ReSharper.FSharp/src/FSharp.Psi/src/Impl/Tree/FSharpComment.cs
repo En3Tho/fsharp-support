@@ -84,16 +84,19 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
         return string.Empty;
       }
     }
+
+    public static FSharpComment CreateLineComment(string text) =>
+      new(FSharpTokenType.LINE_COMMENT, "//" + text);
   }
 
-  internal class DocComment : FSharpComment
+  public class DocComment : FSharpComment
   {
     public DocComment([NotNull] TokenNodeType nodeType, [NotNull] string text) : base(nodeType, text)
     {
     }
   }
 
-  public class XmlDocBlock : FSharpCompositeElement
+  public partial class XmlDocBlock : FSharpCompositeElement
   {
     public override bool IsFiltered() => true;
     public override NodeType NodeType => FSharpTokenType.XML_DOC_BLOCK;

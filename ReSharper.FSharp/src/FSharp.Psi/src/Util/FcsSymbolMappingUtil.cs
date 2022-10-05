@@ -44,7 +44,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 
         var typeElements = psiModule.GetSymbolScope(false).GetTypeElementsByCLRName(clrTypeName);
         if (typeElements.IsEmpty())
-          return null;
+        {
+          if (entity.IsProvidedAndGenerated &&
+              ProvidedTypesResolveUtil.TryGetProvidedType(psiModule, clrTypeName, out var providedType) &&
+              providedType.DeclaringType != null)
+            return providedType.MapType(psiModule).GetTypeElement();
+          return null; 
+        }
 
         if (typeElements.Length == 1)
           return typeElements[0];
@@ -169,7 +175,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       }
 
       if (symbol is FSharpActivePatternCase patternCase)
-        return GetActivePatternCaseElement(psiModule, referenceExpression, patternCase);
+        return GetActivePatternCaseElement(patternCase, psiModule, referenceExpression);
 
       if (symbol is FSharpGenericParameter genericParameter)
         return GetTypeParameter(genericParameter, referenceExpression);
@@ -278,7 +284,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
       var singleDeclaration = declarations.SingleItem(decl =>
       {
         var range = decl.GetSourceFile().NotNull().Document.GetTreeTextRange(fcsRange);
-        return range.Contains(decl.GetNameIdentifierRange());
+        var nameIdentifierRange = decl.GetNameIdentifierRange();
+        return range.Contains(nameIdentifierRange);
       });
 
       var singleSourceElement = singleDeclaration?.GetOrCreateDeclaredElement(mfv);
@@ -338,8 +345,8 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
         : null;
     }
 
-    public static IDeclaredElement GetActivePatternCaseElement(IPsiModule psiModule,
-      IFSharpReferenceOwner referenceOwner, FSharpActivePatternCase patternCase)
+    public static IDeclaredElement GetActivePatternCaseElement([NotNull] this FSharpActivePatternCase patternCase,
+      IPsiModule psiModule, IFSharpReferenceOwner referenceOwner)
     {
       var pattern = patternCase.Group;
       var entity = pattern.DeclaringEntity?.Value;
@@ -383,7 +390,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
     }
 
     private static IFSharpDeclaration GetActivePatternDeclaration([NotNull] FSharpActivePatternCase fcsActivePatternCase,
-      [NotNull] IPsiModule psiModule, IFSharpReferenceOwner referenceOwnerToken)
+      [NotNull] IPsiModule psiModule, [CanBeNull] IFSharpReferenceOwner referenceOwnerToken)
     {
       var activePattern = fcsActivePatternCase.Group;
       var declaringEntity = activePattern.DeclaringEntity?.Value;
@@ -455,7 +462,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 
       var paramGroups = mfv.CurriedParameterGroups;
       var isFsExtension = mfv.IsExtensionMember;
-      var isVoidReturn = paramGroups.Count == 1 && paramGroups[0].Count == 1 && paramGroups[0][0].Type.IsUnit;
+      var isVoidReturn = paramGroups.Count == 1 && paramGroups[0].Count == 1 && paramGroups[0][0].Type.IsUnit();
 
       if (!isFsExtension && isVoidReturn)
         return EmptyArray<IParameter>.Instance;

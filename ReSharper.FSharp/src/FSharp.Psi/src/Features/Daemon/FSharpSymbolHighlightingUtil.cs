@@ -101,7 +101,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
       if (declaringEntity is { })
       {
-        if (mfv.IsModuleValueOrMember && (!declaringEntity.IsFSharpModule || mfv.IsExtensionMember))
+        if (mfv.IsMember && (!declaringEntity.IsFSharpModule || mfv.IsExtensionMember))
           if (mfv.IsProperty || mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
             return mfv.IsExtensionMember
               ? FSharpHighlightingAttributeIdsModule.ExtensionProperty
@@ -122,7 +122,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
       var fsType = mfv.FullType;
 
-      if (IsMangledOpName(mfv.LogicalName) && fsType.IsFunctionType)
+      if (IsLogicalOpName(mfv.LogicalName) && fsType.IsFunctionType)
       {
         return !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
             && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline)

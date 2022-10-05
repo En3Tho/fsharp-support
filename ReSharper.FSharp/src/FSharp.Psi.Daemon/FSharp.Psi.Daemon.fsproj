@@ -10,9 +10,8 @@
     <Compile Include="src\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
     <Compile Include="src\Tooltips\FSharpIdentifierTooltipProvider.fs" />
-    <Compile Include="src\Tooltips\FSharpSyntaxHighlightingQuickDocTooltipRequest.fs" />
-    <Compile Include="src\Tooltips\FSharpQuickDocSuppressor.fs" />
     <Compile Include="src\Tooltips\ZoneMarker.fs" />
+    <Compile Include="src\QuickDoc\FSharpQuickDocProvider.fs" />
     <Compile Include="src\Stages\FcsErrorsStageProcessBase.fs" />
     <Compile Include="src\Stages\FSharpCompilerWarningProcessor.fs" />
     <Compile Include="src\Stages\FSharpDaemonBehaviour.fs" />
@@ -52,6 +51,7 @@
     <Compile Include="src\Analyzers\IfExpressionAnalyzer.fs" />
     <Compile Include="src\Analyzers\AsPatAnalyzer.fs" />
     <Compile Include="src\Analyzers\IndexerExprAnalyzer.fs" />
+    <Compile Include="src\Analyzers\XmlDocAnalzyer.fs" />
     <Compile Include="src\Analyzers\OperatorUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\ILoggerLikeUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\SuspiciousAliasUsageAnalyzer.fs" />
@@ -64,10 +64,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Compiler.Service, Version=41.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Compiler.Service">
       <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>
   </ItemGroup>
-  
+
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+
+  <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
 </Project>
