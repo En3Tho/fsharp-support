@@ -213,7 +213,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                     let referencedModule = referencedModules.GetOrCreateValue(referencedPsiModule, createReferencedModule)
                     referencedModule.ReferencingModules.Add(psiModule) |> ignore
 
-                let referencedFcsProjects =
+                let referencedFcsProjects = 
                     referencedProjectPsiModules
                     |> Seq.choose (fun psiModule ->
                         if isFSharpProjectModule psiModule then

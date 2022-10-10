@@ -448,7 +448,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
             if constantValue.IsString() then ILAttribElem.String(Some constantValue.StringValue) else
 
-            let valueType =
+            let valueType = 
                 if constantValue.IsEnum() then
                     constantValue.Type.GetEnumUnderlying()
                 else
@@ -461,7 +461,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             | true -> cache.AttributeValues.Intern(literalType constantValue)
             | _ -> ILAttribElem.Null
 
-        let positionalArgs =
+        let positionalArgs = 
             attrInstance.PositionParameters()
             |> List.ofSeq
             |> List.map mkAttribElement
@@ -686,7 +686,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             | _ -> []
 
         let customAttrs =
-            let isExtension =
+            let isExtension = 
                 match method with
                 | :? IMethod as method -> method.IsExtensionMethod
                 | _ -> false
@@ -695,7 +695,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             [ yield! customAttributes
               if isExtension then
                   extensionAttribute () ]
-            |> mkILCustomAttrs
+            |> mkILCustomAttrs 
 
         let implAttributes = MethodImplAttributes.Managed
         let body = methodBodyUnavailable
@@ -884,7 +884,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         actual.AsArray() = attrs.AsArray()
 
     let isUpToDateTypeDefCustomAttributes (typeElement: ITypeElement) (typeDef: ILTypeDef) =
-        let actual = mkTypeDefCustomAttrs typeElement
+        let actual = mkTypeDefCustomAttrs typeElement 
         actual.AsArray() = typeDef.CustomAttrs.AsArray()
 
     let isUpToDateParameterDef (param: IParameter) (paramDef: ILParameter) =
@@ -910,7 +910,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         isUpToDateReturn method methodDef &&
 
         isUpToDateCustomAttributes method methodDef.CustomAttrs &&
-
+        
         let method = method.As<IMethod>()
         isNull method || isUpToDateTypeParamDefs method.TypeParameters methodDef.GenericParams
 
@@ -971,7 +971,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         extends = typeDef.Extends &&
 
         let implements = mkTypeDefImplements typeElement
-        implements = typeDef.Implements &&
+        implements = typeDef.Implements && 
 
         isUpToDateTypeParamDefs typeElement.TypeParameters typeDef.GenericParams &&
         isUpToDateTypeDefCustomAttributes typeElement typeDef &&

@@ -165,7 +165,7 @@ type FcsParameterInfoCandidateBase<'TSymbol, 'TParameter when 'TSymbol :> FSharp
             paramArrayIndex <- -1
 
             let paramGroups = this.ParameterGroups
-            let paramGroups =
+            let paramGroups = 
                 if this.SkipLastGroupDescription then
                     let paramGroups = List(paramGroups)
                     paramGroups.RemoveAt(paramGroups.Count - 1)
@@ -443,7 +443,7 @@ type FcsActivePatternMfvParameterInfoCandidate(apc: FSharpActivePatternCase, mfv
         parameterGroups.RemoveAt(parameterGroups.Count - 1)
 
         returnType |> Option.iter (fun returnType ->
-            let returnGroup =
+            let returnGroup = 
                 if returnType.IsTupleType then
                     returnType.GenericArguments |> Seq.map (fun t -> None, t)
                 else
@@ -732,7 +732,7 @@ type FSharpPatternParameterInfoContext(caretOffset, pat: IFSharpPattern, referen
         | :? IParametersOwnerPat as parameterOwnerPat ->
             parameterOwnerPat.ParametersEnumerable
             |> List.ofSeq
-            |> List.map ParameterInfoArgument.Pattern
+            |> List.map ParameterInfoArgument.Pattern 
         | _ -> []
 
 
@@ -814,7 +814,7 @@ type FSharpParameterInfoContextFactory() =
         caretOffset.Offset >= contextRange.StartOffset.Offset &&
         caretOffset.ToDocumentCoords().Column > contextRange.StartOffset.ToDocumentCoords().Column
 
-    let rec tryCreateContext isAutoPopup (caretOffset: DocumentOffset) (expr: IFSharpExpression) =
+    let rec tryCreateContext isAutoPopup (caretOffset: DocumentOffset) (expr: IFSharpExpression) = 
         let range = expr.GetDocumentRange()
         let expr =
             match expr with
@@ -938,7 +938,7 @@ type FSharpParameterInfoContextFactory() =
 
         match pat with
         | :? IParametersOwnerPat as parametersOwnerPat ->
-            createFromPattern isAutoPopup caretOffset parametersOwnerPat
+            createFromPattern isAutoPopup caretOffset parametersOwnerPat 
 
         | :? IReferencePat as refPat ->
             match ParametersOwnerPatNavigator.GetByParameter(refPat) with

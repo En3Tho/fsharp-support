@@ -168,7 +168,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         for SynIdentWithTriviaRange idRange as (id, _) in lid do
             let isLastId = marks.Count = 1
-            if isLastId && IsActivePatternName id.idText then
+            if isLastId && IsActivePatternName id.idText then 
                 x.ProcessActivePatternId(idRange, ElementType.ACTIVE_PATTERN_NAMED_CASE_REFERENCE_NAME) // todo
             x.Done(idRange, marks.Pop(), ElementType.EXPRESSION_REFERENCE_NAME)
 
