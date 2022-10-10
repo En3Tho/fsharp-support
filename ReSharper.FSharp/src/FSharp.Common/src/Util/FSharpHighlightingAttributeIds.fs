@@ -199,7 +199,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Exception",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -240,7 +239,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Disposable local value",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -249,7 +247,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable struct",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -258,7 +255,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable class",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -267,7 +263,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable union",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -276,7 +271,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable record",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -285,7 +279,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable interface",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -334,7 +327,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable union case",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -343,7 +335,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Struct union case",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -352,7 +343,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable struct union case",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -369,7 +359,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Struct Record",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -378,7 +367,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Disposable struct record",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
@@ -412,7 +400,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Members//Mutable field",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
 
   RegisterHighlighter(
@@ -429,7 +416,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Members//Mutable property",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "Purple", DarkForegroundColor = "Violet");
 
   RegisterHighlighter(
@@ -446,7 +432,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Static module value",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
 
   RegisterHighlighter(
@@ -464,7 +449,6 @@ type FSharpSettingsNamesProvider() =
      GroupId = FSharpHighlightingAttributeIds.GroupId,
      RiderPresentableName = "Values//Parameter",
      Layer = HighlighterLayer.SYNTAX,
-     VSPriority = VSPriority.IDENTIFIERS,
      EffectType = EffectType.TEXT);
 
   RegisterHighlighter(
@@ -473,7 +457,6 @@ type FSharpSettingsNamesProvider() =
      GroupId = FSharpHighlightingAttributeIds.GroupId,
      RiderPresentableName = "Values//FSharpParameter",
      Layer = HighlighterLayer.SYNTAX,
-     VSPriority = VSPriority.IDENTIFIERS,
      EffectType = EffectType.TEXT);
   
   RegisterHighlighter(
@@ -482,7 +465,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Nested scope parameter",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
   
   RegisterHighlighter(
@@ -499,7 +481,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//InlineFunction",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT);
   
   RegisterHighlighter(
@@ -541,7 +522,6 @@ type FSharpSettingsNamesProvider() =
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Operator",
       Layer = HighlighterLayer.SYNTAX,
-      VSPriority = VSPriority.IDENTIFIERS,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Blue", DarkForegroundColor = "Cyan");
 
   RegisterHighlighter(

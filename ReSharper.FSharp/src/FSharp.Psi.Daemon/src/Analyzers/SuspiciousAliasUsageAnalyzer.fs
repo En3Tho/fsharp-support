@@ -99,13 +99,13 @@ module ProperAliasUsageAnalyzerUtil =
         leftType.Equals(rightType)
     
     let abbreviationsAreChildrenOfEachOther leftName rightName (left: FSharpType) (right: FSharpType) =
-        match right.AbbreviatedType.TryQualifiedBaseName with
+        match right.AbbreviatedType.TryBasicQualifiedName with
         | Some rightAbbreviationName ->
             leftName.Equals(rightAbbreviationName)
 
         | _ -> false
         ||
-        match left.AbbreviatedType.TryQualifiedBaseName with
+        match left.AbbreviatedType.TryBasicQualifiedName with
         | Some leftAbbreviationName ->
             rightName.Equals(leftAbbreviationName)
 
@@ -130,7 +130,7 @@ module ProperAliasUsageAnalyzerUtil =
 
         bothTypesAreAbbreviations left right
         && abbreviatedTypesAreEqual left right
-        &&  match left.TryQualifiedBaseName, right.TryQualifiedBaseName with
+        &&  match left.TryBasicQualifiedName, right.TryBasicQualifiedName with
             | Some leftName, Some rightName ->
                 not (abbreviationsAreChildrenOfEachOther leftName rightName left right)
                 && abbreviationsAreDifferent leftName rightName

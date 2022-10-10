@@ -67,7 +67,7 @@ module OperatorUsageAnalyzerUtil =
     /// Is type of an element optimized out of the box with native "=" operator
     let isCoreEqualityIntrinsic (value: FSharpType) =
         let typeOfValue = getAbbreviatedType value
-        match typeOfValue.TryQualifiedBaseName with
+        match typeOfValue.TryBasicQualifiedName with
         | Some name ->
             // GenericEqualityFast
             match name with
@@ -96,7 +96,7 @@ module OperatorUsageAnalyzerUtil =
 
     let isCoreComparisonIntrinsic (value: FSharpType) =
         let typeOfValue = getAbbreviatedType value
-        match typeOfValue.TryQualifiedBaseName with
+        match typeOfValue.TryBasicQualifiedName with
         // GenericGreaterThanFast
         // Note String is not here
         | Some name ->
@@ -134,7 +134,7 @@ module OperatorUsageAnalyzerUtil =
                 false
             else
                 let possibleEquatable = getAbbreviatedType interfaces[index]
-                match possibleEquatable.TryQualifiedBaseName with
+                match possibleEquatable.TryBasicQualifiedName with
                 | Some qualifiedBaseName when qualifiedBaseName.Equals interfaceName ->
                     fsType.Equals(possibleEquatable.GenericArguments[0])
                 | _ ->
@@ -149,7 +149,7 @@ module OperatorUsageAnalyzerUtil =
         fsType |> implementsInterfaceOfSelfType "System.IComparable`1"
 
     let isSpecialCaseForCustomEquality (fsType: FSharpType) =
-        match fsType.TryQualifiedBaseName with
+        match fsType.TryBasicQualifiedName with
         | Some name ->
             match name with
             | "Microsoft.FSharp.Collections.FSharpList`1"

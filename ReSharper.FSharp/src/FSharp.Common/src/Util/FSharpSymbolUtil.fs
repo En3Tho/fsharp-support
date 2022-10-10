@@ -216,7 +216,7 @@ let hasMeasureParameter(entity: FSharpEntity) =
 [<Extension; CompiledName("IsDisposable")>]
 let isDisposableEntity (entity: FSharpEntity) =
     entity.AllInterfaces |> Seq.exists (fun x ->
-        match x.QualifiedBaseName with
+        match x.BasicQualifiedName with
         | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
         | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
         | _ -> false)
@@ -224,19 +224,19 @@ let isDisposableEntity (entity: FSharpEntity) =
 [<Extension; CompiledName("IsDisposable")>]
 let isDisposableType (type': FSharpType) =
     type'.AllInterfaces |> Seq.exists (fun x ->
-        match x.QualifiedBaseName with
+        match x.BasicQualifiedName with
         | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
         | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
         | _ -> false)
 
 [<Extension; CompiledName("IsException")>]
 let isExceptionEntity (entity: FSharpEntity) =
-    match entity.TryQualifiedBaseName with
+    match entity.TryBasicQualifiedName with
     | Some nm when nm.Equals(typeof<Exception>.FullName, StringComparison.Ordinal) ->
         true
     | _ ->
         let rec isException (fcsType: FSharpType) =
-            match fcsType.TryQualifiedBaseName with
+            match fcsType.TryBasicQualifiedName with
             | Some nm when nm.Equals(typeof<Exception>.FullName, StringComparison.Ordinal) ->
                 true
             | _ ->

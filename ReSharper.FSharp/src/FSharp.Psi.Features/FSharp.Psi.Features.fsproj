@@ -82,15 +82,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\FSharp.Fantomas.Protocol\FSharp.Fantomas.Protocol.csproj" />
     <ProjectReference Include="..\FSharp.Psi.Services\FSharp.Psi.Services.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.Compiler.Service">
       <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
     </Reference>

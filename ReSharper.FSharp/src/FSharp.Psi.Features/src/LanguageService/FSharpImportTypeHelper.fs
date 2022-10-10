@@ -111,7 +111,7 @@ type FSharpImportTypeHelper() =
 
                         let refName = reference.GetName()
                         let typeOfQualifiedRef = typeOfQualifiedRef |> FSharpSymbolUtil.getAbbreviatedType
-                        let typeRefName = typeOfQualifiedRef.QualifiedBaseName.Split('.') |> Array.last
+                        let typeRefName = typeOfQualifiedRef.BasicQualifiedName.Split('.') |> Array.last
 
                         let isExtensionMemberForQualifiedType (mfv: FSharpMemberOrFunctionOrValue) =
                             if mfv.IsInstanceMember || mfv.Attributes |> containsExtensionAttribute then
