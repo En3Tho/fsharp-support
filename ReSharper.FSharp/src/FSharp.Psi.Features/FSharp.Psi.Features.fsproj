@@ -87,15 +87,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Compiler.Service">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Web" />
     <Reference Include="WindowsBase" />
@@ -107,6 +98,8 @@
       <_Parameter1>$(FantomasBundledVersion)</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
+
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
 
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
 

@@ -73,16 +73,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Compiler.Service">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
-    </Reference>    
     <Reference Include="WindowsBase" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
   </ItemGroup>
+
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
 
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
 

@@ -31,14 +31,7 @@
     <CsLex Include="src\Parsing\Lexing\fsharpLexer.lex" References="src\Parsing\Lexing\FSharpRules.lex" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Compiler.Service">
-      <HintPath>..\..\..\..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Debug\netstandard2.0\FSharp.Compiler.Service.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
 
   <Import Project="$(PsiFeaturesSubplatform)" Condition="Exists('$(PsiFeaturesSubplatform)')" />
 
