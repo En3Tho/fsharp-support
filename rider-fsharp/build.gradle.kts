@@ -54,7 +54,7 @@ intellij {
         logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
         version.set("$baseVersion-SNAPSHOT")
     }
-    version.set("2022.3-EAP2-SNAPSHOT")
+    version.set("2022.3-EAP3-SNAPSHOT")
     instrumentCode.set(false)
     downloadSources.set(false)
 
