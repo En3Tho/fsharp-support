@@ -1,47 +1,43 @@
-Copy-Item "ReSharper.FSharp\src\FSharp.Common\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Common.dll" -Destination "ReSharper.FSharp\src\FSharp.Common\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase.dll" -Destination "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Psi\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Psi.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Psi.Features.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Psi.Services.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.TypeProviders.Protocol\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol.dll" -Destination "ReSharper.FSharp\src\FSharp.TypeProviders.Protocol\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.TypeProviders.Host\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe" -Destination "ReSharper.FSharp\src\FSharp.TypeProviders.Host\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Fantomas.Protocol\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol.dll" -Destination "ReSharper.FSharp\src\FSharp.Fantomas.Protocol\bin\Debug\net472\"
-Copy-Item "ReSharper.FSharp\src\FSharp.Fantomas.Host\bin\Release\net472\JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.exe" -Destination "ReSharper.FSharp\src\FSharp.Fantomas.Host\bin\Debug\net472\"
+$projects = 
+    "FSharp.Common",
+    "FSharp.ProjectModelBase",
+    "FSharp.Psi",
+    "FSharp.Psi.Daemon",
+    "FSharp.Psi.Features",
+    "FSharp.Psi.Intentions",
+    "FSharp.Psi.Services",
+    "FSharp.TypeProviders.Protocol",    
+    "FSharp.Fantomas.Protocol"    
 
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Common\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.TypeProviders.Host\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.Compiler.Service.dll" -Destination "ReSharper.FSharp\src\FSharp.TypeProviders.Protocol\bin\Debug\net472\"
+$hosts =
+    "FSharp.TypeProviders.Host",
+    "FSharp.Fantomas.Host"
 
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Common\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Debug\net472\"             
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Debug\net472\"             
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Debug\net472\"             
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Interactive.Settings\Release\netstandard2.0\FSharp.Compiler.Interactive.Settings.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Debug\net472\"             
+$dlls =
+    "FSharp.Compiler.Service",
+    "FSharp.Compiler.Interactive.Settings",
+    "FSharp.DependencyManager.Nuget",
+    "FSharp.Core"
 
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Common\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Compiler.Service\Release\netstandard2.0\FSharp.DependencyManager.Nuget.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Debug\net472\"
+function CopyReSharperDlls {
+    $projects | foreach {
+        Copy-Item "ReSharper.FSharp\src\$_\bin\Release\net472\JetBrains.ReSharper.Plugins.$_.dll" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
+    }
+    $hosts | foreach {
+        Copy-Item "ReSharper.FSharp\src\$_\bin\Release\net472\JetBrains.ReSharper.Plugins.$_.exe" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
+    }
+}
 
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Common\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.ProjectModelBase\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Daemon\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Features\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Intentions\bin\Debug\net472\"
-Copy-Item "..\visualfsharp\artifacts\bin\FSharp.Core\Release\netstandard2.0\FSharp.Core.dll" -Destination "ReSharper.FSharp\src\FSharp.Psi.Services\bin\Debug\net472\"
+function CopyFSharpDlls {
+    $dlls | foreach {
+        $dll = $_
+        ($projects + $hosts) | foreach {
+            Copy-Item "..\visualfsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
+        }
+    }
+}
+
+CopyReSharperDlls
+CopyFSharpDlls
 
 Write-Host "0"
