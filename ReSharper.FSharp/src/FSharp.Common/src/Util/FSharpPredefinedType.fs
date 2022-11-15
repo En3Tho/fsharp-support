@@ -149,3 +149,10 @@ let isUnit (fcsType: FSharpType) =
 let isNativePtr (fcsType: FSharpType) =
     try fcsType.StrippedType.BasicQualifiedName = StandardTypeNames.IntPtr
     with _ -> false
+
+let isReadOnly (fcsType: FSharpType) =
+    if fcsType.HasTypeDefinition && fcsType.TypeDefinition.IsArrayType then false else
+
+    let name = fcsType.StrippedType.BasicQualifiedName
+    startsWith "Microsoft.FSharp.Collections.FSharpList`" name ||
+    startsWith "System.String" name

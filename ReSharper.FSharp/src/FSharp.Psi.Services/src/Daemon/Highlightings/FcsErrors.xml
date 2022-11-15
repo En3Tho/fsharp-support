@@ -585,4 +585,88 @@
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>UpdateParameterNameInSignatureFix</QuickFix>
   </Warning>
+
+  <Error staticGroup="FSharpErrors" name="DefinitionsInSigAndImplNotCompatibleFieldWasPresent" ID="FS0311: The type definitions for type in the signature and implementation are not compatible because the field was present in the implementation but not in the signature">
+    <Parameter type="IFSharpTypeDeclaration" name="typeDeclaration"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>typeDeclaration.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>UpdateRecordFieldsInSignatureFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="DefinitionsInSigAndImplNotCompatibleFieldOrderDiffer" ID="FS0312: The type definitions for type in the signature and implementation are not compatible because the order of the fields is different in the signature and implementation">
+    <Parameter type="IFSharpTypeDeclaration" name="typeDeclaration"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>typeDeclaration.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>UpdateRecordFieldsInSignatureFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="DefinitionsInSigAndImplNotCompatibleFieldRequiredButNotSpecified" ID="FS0313: The type definitions for type in the signature and implementation are not compatible because the field Field2 was required by the signature but was not specified by the implementation">
+    <Parameter type="IFSharpTypeDeclaration" name="typeDeclaration"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>typeDeclaration.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>UpdateRecordFieldsInSignatureFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="FieldNotContainedTypesDiffer" ID="FS0193: The module contains the field but its signature specifies The types differ">
+    <Parameter type="IRecordFieldDeclaration" name="recordFieldDeclaration"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message value="{0}">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>recordFieldDeclaration.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>UpdateRecordFieldTypeInSignatureFix</QuickFix>
+  </Error>
+
+  <Warning compilerGroup="FSharpErrors" name="XmlDocCommentSyntax" ID="FS3390: This XML comment is invalid">
+    <Parameter type="IHighlighting" name="baseHighlighting" />
+    <Parameter type="DocumentRange" name="documentRange" />
+    <Message value="{0}">
+      <Argument>baseHighlighting.ToolTip</Argument>
+    </Message>
+    <Range>documentRange</Range>
+    <IsValid>baseHighlighting.IsValid()</IsValid>
+    <Behavour overlapResolvePolicy="WARNING" />
+  </Warning>
+
+  <Warning compilerGroup="FSharpErrors" name="XmlDocMissingParameter" ID="FS3390: This XML comment is incomplete: no documentation for parameter">
+    <Parameter type="ITreeNode" name="parameter"/>
+    <Message value="No documentation for parameter"/>
+    <Range>parameter.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+  </Warning>
+
+  <Warning compilerGroup="FSharpErrors" name="XmlDocDuplicateParameter" ID="FS3390: This XML comment is invalid: multiple documentation entries for parameter">
+    <Parameter type="ITreeNode" name="paramEntry"/>
+    <Message value="Multiple documentation entries for parameter"/>
+    <Range>paramEntry.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+  </Warning>
+
+  <Warning compilerGroup="FSharpErrors" name="XmlDocUnresolvedParameter" ID="FS3390: This XML comment is invalid: unknown parameter">
+    <Parameter type="ITreeNode" name="paramEntry"/>
+    <Message value="Unknown parameter name"/>
+    <Range>paramEntry.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+  </Warning>
+
+  <Warning compilerGroup="FSharpErrors" name="XmlDocMissingParameterName" ID="FS3390: This XML comment is invalid: missing 'name' attribute for parameter or parameter reference">
+    <Parameter type="ITreeNode" name="paramTag"/>
+    <Message value="Missing 'name' attribute for parameter or parameter reference"/>
+    <Range>paramTag.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+  </Warning>
+
 </Errors>

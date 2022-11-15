@@ -256,6 +256,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
           {
             if (resolvedSymbols.Uses.TryGetValue(startOffset, out var existingSymbol)
                 && existingSymbol.SymbolUse.Symbol is FSharpEntity fsEntity
+                && symbol is not FSharpEntity
                 && !isCtor
                 && symbolUse.Symbol is FSharpEntity fsSymbol
                 && !(fsEntity.IsNamespace && (fsSymbol.IsClass || fsSymbol.IsFSharpModule)))

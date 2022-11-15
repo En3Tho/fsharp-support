@@ -51,7 +51,7 @@
     <Compile Include="src\Analyzers\IfExpressionAnalyzer.fs" />
     <Compile Include="src\Analyzers\AsPatAnalyzer.fs" />
     <Compile Include="src\Analyzers\IndexerExprAnalyzer.fs" />
-    <Compile Include="src\Analyzers\XmlDocAnalzyer.fs" />
+    <Compile Include="src\Analyzers\XmlDocAnalyzer.fs" />
     <Compile Include="src\Analyzers\OperatorUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\ILoggerLikeUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\SuspiciousAliasUsageAnalyzer.fs" />
@@ -62,7 +62,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FSharp.Psi.Services\FSharp.Psi.Services.fsproj" />
   </ItemGroup>
-
+  
   <Import Project="$(SolutionDir)/CustomFSharp.targets" />
 
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />

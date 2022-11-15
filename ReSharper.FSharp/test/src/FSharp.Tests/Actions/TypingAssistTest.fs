@@ -19,6 +19,26 @@ type FSharpTypingAssistTest() =
 
     override x.RelativeTestDataPath = "features/service/typingAssist"
 
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "false")>]
+    [<Test>] member x.``Enter - Empty lambda 01``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "false")>]
+    [<Test>] member x.``Enter - Empty lambda 02``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Enter - Empty lambda 03``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Enter - Empty lambda 04``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Enter - Empty lambda 05``() = x.DoNamedTest()
+
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "false")>]
+    [<Test>] member x.``Enter - Lambda 01``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "false")>]
+    [<Test>] member x.``Enter - Lambda 02``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Enter - Lambda 03``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Enter - Lambda 04``() = x.DoNamedTest()
+
     [<Test>] member x.``Enter 00 - File beginning``() = x.DoNamedTest()
     [<Test>] member x.``Enter 01 - No indent``() = x.DoNamedTest()
     [<Test>] member x.``Enter 02 - Dumb indent``() = x.DoNamedTest()
@@ -105,6 +125,10 @@ type FSharpTypingAssistTest() =
     [<Test>] member x.``Enter 72 - Semicolon inside attribute list``() = x.DoNamedTest()
     [<Test>] member x.``Enter 73 - Enter in parens``() = x.DoNamedTest()
     [<Test>] member x.``Enter 74 - Enter in parens``() = x.DoNamedTest()
+    [<Test>] member x.``Enter 75 - After equals``() = x.DoNamedTest()
+    [<Test>] member x.``Enter 76 - After equals``() = x.DoNamedTest()
+    [<Test>] member x.``Enter 77 - After equals``() = x.DoNamedTest() // todo: use indent from below
+    [<Test>] member x.``Enter 78 - After equals``() = x.DoNamedTest()
 
     [<Test>] member x.``Enter - After comment - Indent 01``() = x.DoNamedTest()
     [<Test>] member x.``Enter - After comment - Indent 02``() = x.DoNamedTest()

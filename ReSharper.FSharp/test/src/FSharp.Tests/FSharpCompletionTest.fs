@@ -250,6 +250,13 @@ type FSharpKeywordCompletionTest() =
     [<Test>] member x.``Anon module - Expr 02 - Attributes``() = x.DoNamedTest()
     [<Test>] member x.``Anon module - Expr 03 - After another``() = x.DoNamedTest()
 
+    [<Test>] member x.``Const 01``() = x.DoNamedTest()
+    [<Test>] member x.``Const 02``() = x.DoNamedTest()
+    [<Test>] member x.``Const 03``() = x.DoNamedTest()
+    [<Test>] member x.``Const 04``() = x.DoNamedTest()
+    [<Test>] member x.``Const 05``() = x.DoNamedTest()
+    [<Test>] member x.``Const 06``() = x.DoNamedTest()
+
     [<Test>] member x.``Constraint 01``() = x.DoNamedTest()
     [<Test>] member x.``Constraint 02``() = x.DoNamedTest()
 
@@ -264,6 +271,8 @@ type FSharpKeywordCompletionTest() =
     [<Test>] member x.``Expr - Comp - Let - In expr 02 - App``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Comp - List ctor 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Comp - Ref 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Comp - Ref 02 - Qualifier``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Comp - Ref 03 - Qualifier``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Comp - Seq 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Do - Ref 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record 01``() = x.DoNamedTest()
@@ -337,12 +346,36 @@ type FSharpFilteredCompletionTest() =
     member val CompleteItem = null with get, set
 
     override this.ItemSelector =
-        Func<_, _>(function :? FcsLookupItem as item -> item.Text = this.CompleteItem | _ -> false)
+        Func<_, _>(fun lookupItem ->
+            isNull this.CompleteItem ||
+
+            match lookupItem with
+            | :? FcsLookupItem as item -> item.Text = this.CompleteItem
+            | _ -> lookupItem.DisplayName.Text = this.CompleteItem)
 
     [<Test>] member x.``Expr - Base 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Base 02 - Local``() = x.DoNamedTest()
 
+    [<Test>] member x.``Expr - Record - Field - Empty 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Empty 02``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Empty 03``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Empty 04``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Empty 05 - Another ns``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 02``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 03``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 04``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 05 - Another ns``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 02 - Other type``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 03``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 04``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 05``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 06``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field 07``() = x.DoNamedTest()
+
     [<Test>] member x.``Pattern - No reparse ident 01``() = x.DoNamedTest()
+    [<Test>] member x.``To recursive - Active pattern 01``() = x.DoNamedTest()
 
     override this.BeforeTestStart(_, _, documentText) =
         this.CompleteItem <- FSharpFilteredCompletionTest.GetSetting(documentText, "COMPLETE_ITEM")

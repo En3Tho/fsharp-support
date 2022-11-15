@@ -75,6 +75,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
             settingsStoreLive.GetValueProperty(lifetime, setting, null)
 
         let skipImpl = getSettingProperty "SkipImplementationAnalysis"
+        let analyzerProjectReferencesInParallel: IProperty<bool> = getSettingProperty "ParallelProjectReferencesAnalysis"
 
         lazy
             let checker =

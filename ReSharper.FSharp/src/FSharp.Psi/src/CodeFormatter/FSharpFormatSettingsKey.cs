@@ -1,4 +1,6 @@
+using JetBrains.Application.BuildScript.Application.Zones;
 using JetBrains.Application.Settings;
+using JetBrains.ProjectModel;
 using JetBrains.ReSharper.Psi.CodeStyle;
 using JetBrains.ReSharper.Psi.EditorConfig;
 using JetBrains.ReSharper.Psi.Format;
@@ -94,11 +96,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
     [EditorConfigEntryAlias("space_around_delimiter", EditorConfigAliasType.LanguageSpecific)]
     public bool SpaceAroundDelimiter;
 
-    [SettingsEntry(40, "Maximum width of longer (non multiline) if/then/else expressions")]
+    [SettingsEntry(60, "Maximum width of longer (non multiline) if/then/else expressions")]
     [EditorConfigEntryAlias("max_if_then_else_short_width", EditorConfigAliasType.LanguageSpecific)]
     public int MaxIfThenElseShortWidth;
 
-    [SettingsEntry(50, "Maximum width of single line infix expressions")]
+    [SettingsEntry(80, "Maximum width of single line infix expressions")]
     [EditorConfigEntryAlias("max_infix_operator_expression", EditorConfigAliasType.LanguageSpecific)]
     public int MaxInfixOperatorExpression;
 
@@ -106,11 +108,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
     [EditorConfigEntryAlias("max_record_width", EditorConfigAliasType.LanguageSpecific)]
     public int MaxRecordWidth;
 
-    [SettingsEntry(40, "Maximum width of single line array expressions")]
+    [SettingsEntry(80, "Maximum width of single line array expressions")]
     [EditorConfigEntryAlias("max_array_or_list_width", EditorConfigAliasType.LanguageSpecific)]
     public int MaxArrayOrListWidth;
 
-    [SettingsEntry(40, "Maximum width of value binding expressions")]
+    [SettingsEntry(80, "Maximum width of value binding expressions")]
     [EditorConfigEntryAlias("max_value_binding_width", EditorConfigAliasType.LanguageSpecific)]
     public int MaxValueBindingWidth;
 
@@ -122,7 +124,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
     [EditorConfigEntryAlias("multiline_block_brackets_on_same_column", EditorConfigAliasType.LanguageSpecific)]
     public bool MultilineBlockBracketsOnSameColumn;
 
-    [SettingsEntry(false, "Newline between type definition and members")]
+    [SettingsEntry(true, "Newline between type definition and members")]
     [EditorConfigEntryAlias("newline_between_type_definition_and_members", EditorConfigAliasType.LanguageSpecific)]
     public bool NewlineBetweenTypeDefinitionAndMembers;
 
@@ -161,7 +163,16 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
     [SettingsEntry(true, "Never outdent pipe operators")]
     public bool NeverOutdentPipeOperators;
 
+    [SettingsEntry(false, "Places the closing parenthesis of a multiline lambda argument on the next line")]
+    [EditorConfigEntryAlias("multi_line_lambda_closing_newline", EditorConfigAliasType.LanguageSpecific)]
+    public bool MultiLineLambdaClosingNewline;
+
     [SettingsIndexedEntry("Fantomas settings")]
     public readonly IIndexedEntry<string, string> FantomasSettings;
+  }
+
+  [ZoneMarker]
+  public class ZoneMarker : IRequire<IProjectModelZone>, IRequire<ILanguageFSharpZone>
+  {
   }
 }

@@ -12,7 +12,7 @@ plugins {
     id ("com.jetbrains.rdgen") version "2022.3.1"
     id("org.jetbrains.intellij") version "1.9.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
     id("org.jetbrains.grammarkit") version "2021.2.2"
-    id("me.filippov.gradle.jvm.wrapper") version "0.11.0"
+    id("me.filippov.gradle.jvm.wrapper") version "0.14.0"
     kotlin("jvm") version "1.7.0"
 }
 
@@ -54,7 +54,7 @@ intellij {
         logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
         version.set("$baseVersion-SNAPSHOT")
     }
-    version.set("2022.3-EAP4-SNAPSHOT")
+    version.set("2022.3-EAP7-SNAPSHOT")
     instrumentCode.set(false)
     downloadSources.set(false)
 
@@ -233,9 +233,9 @@ tasks {
             files = files + listOf("$testHostName.dll", "$testHostName.pdb")
         }
 
-        fun moveToPlugin(files: List<String>, destFolder: String) {
+        fun moveToPlugin(files: List<String>, destinationFolder: String) {
             files.forEach {
-                from(it) { into("${intellij.pluginName.get()}/$destFolder") }
+                from(it) { into("${intellij.pluginName.get()}/$destinationFolder") }
             }
         }
 
@@ -245,11 +245,11 @@ tasks {
         moveToPlugin(listOf("projectTemplates"), "projectTemplates")
 
         doLast {
-            fun validateFiles(files: List<String>, destFolder: String) {
+            fun validateFiles(files: List<String>, destinationFolder: String) {
                 files.forEach {
                     val file = file(it)
                     if (!file.exists()) throw RuntimeException("File $file does not exist")
-                    logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName.get()}/$destFolder")
+                    logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName.get()}/$destinationFolder")
                 }
             }
             validateFiles(files, "dotnet")
@@ -263,9 +263,6 @@ tasks {
     withType<RunIdeTask> {
         // Match Rider's default heap size of 1.5Gb (default for runIde is 512Mb)
         maxHeapSize = "1500m"
-        jvmArgs = listOf(
-                "-Drider.backend.netcore=false"
-        )
     }
 
     val resetLexerDirectory = create("resetLexerDirectory") {
@@ -305,7 +302,7 @@ tasks {
 
     withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "17"
-        dependsOn(generateFSharpLexer, "rdgen")
+        dependsOn(generateFSharpLexer, rdgen)
     }
 
     withType<Test> {
@@ -366,15 +363,17 @@ tasks {
         ignoreFailures = true
     }
 
-    create("writeDotNetSdkPathProps") {
+    val writeDotNetSdkPathProps = create("writeDotNetSdkPathProps") {
         group = riderFSharpTargetsGroup
         doLast {
-            dotNetSdkPathPropsPath.writeTextIfChanged("""<Project>
+            dotNetSdkPathPropsPath.writeTextIfChanged(
+                """<Project>
   <PropertyGroup>
     <DotNetSdkPath>$dotNetSdkPath</DotNetSdkPath>
   </PropertyGroup>
 </Project>
-""")
+"""
+            )
         }
 
         getByName("buildSearchableOptions") {
@@ -382,34 +381,36 @@ tasks {
         }
     }
 
-    create("writeNuGetConfig") {
+    val writeNuGetConfig = create("writeNuGetConfig") {
         group = riderFSharpTargetsGroup
         doLast {
-            nugetConfigPath.writeTextIfChanged("""<?xml version="1.0" encoding="utf-8"?>
+            nugetConfigPath.writeTextIfChanged(
+                """<?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
     <add key="resharper-sdk" value="$dotNetSdkPath" />
   </packageSources>
 </configuration>
-""")
+"""
+            )
         }
     }
 
-    getByName("assemble") {
+    named("assemble") {
         doLast {
             logger.lifecycle("Plugin version: $version")
             logger.lifecycle("##teamcity[buildNumber '$version']")
         }
     }
 
-    create("prepare") {
+    val prepare = create("prepare") {
         group = riderFSharpTargetsGroup
-        dependsOn("rdgen", "writeNuGetConfig", "writeDotNetSdkPathProps")
+        dependsOn(rdgen, writeNuGetConfig, writeDotNetSdkPathProps)
     }
 
     create("buildReSharperPlugin") {
         group = riderFSharpTargetsGroup
-        dependsOn("prepare")
+        dependsOn(prepare)
         doLast {
             exec {
                 executable = "msbuild"
@@ -417,6 +418,5 @@ tasks {
             }
         }
     }
+    defaultTasks(prepare)
 }
-
-defaultTasks("prepare")
