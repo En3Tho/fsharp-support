@@ -61,7 +61,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
               continue;
           }
 
-          if (documentRange.Length == 3 && mfv.LogicalName == "op_Multiply" &&
+          if (documentRange.Length == 3 && mfv.LogicalName == "op_Multiply" && 
               myDocument.Buffer.GetText(resolvedSymbolUse.Range) == "(*)")
             documentRange = documentRange.TrimLeft(1).TrimRight(1);
         }
