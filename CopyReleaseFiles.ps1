@@ -10,8 +10,8 @@ $projects =
     "FSharp.Fantomas.Protocol"    
 
 $hosts =
-    "FSharp.TypeProviders.Host",
-    "FSharp.Fantomas.Host"
+    "FSharp.Fantomas.Host",
+    "FSharp.TypeProviders.Host"    
 
 $dlls =
     "FSharp.Compiler.Service",
@@ -19,12 +19,31 @@ $dlls =
     "FSharp.DependencyManager.Nuget",
     "FSharp.Core"
 
+$tfms =
+    "net472",
+    "net6.0"
+
 function CopyReSharperDlls {
     $projects | foreach {
-        Copy-Item "ReSharper.FSharp\src\$_\bin\Release\net472\JetBrains.ReSharper.Plugins.$_.dll" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
-    }
+        $current = $_
+        $tfms | foreach {
+            $tfm = $_
+            $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+            if ((Test-Path -Path $path) -eq $True) {
+                Copy-Item "ReSharper.FSharp\src\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.dll" -Destination $path
+            }
+        }
+    }    
     $hosts | foreach {
-        Copy-Item "ReSharper.FSharp\src\$_\bin\Release\net472\JetBrains.ReSharper.Plugins.$_.exe" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
+        $current = $_
+        $tfms | foreach {
+            $tfm = $_
+            $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+            if ((Test-Path -Path $path) -eq $True) {
+                Copy-Item "ReSharper.FSharp\src\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.exe" -Destination $path
+            }
+        }
+        
     }
 }
 
@@ -32,7 +51,14 @@ function CopyFSharpDlls {
     $dlls | foreach {
         $dll = $_
         ($projects + $hosts) | foreach {
-            Copy-Item "..\visualfsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination "ReSharper.FSharp\src\$_\bin\Debug\net472\"
+            $current = $_
+            $tfms | foreach {
+                $tfm = $_
+                $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+                if ((Test-Path -Path $path)-eq $True) {
+                    Copy-Item "..\visualfsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
+                }
+            }
         }
     }
 }

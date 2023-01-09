@@ -53,7 +53,7 @@ intellij {
         logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
         version.set("$baseVersion-SNAPSHOT")
     }
-    //version.set("2022.3-EAP7-SNAPSHOT")
+    version.set("2022.3.1")
     instrumentCode.set(false)
     downloadSources.set(false)
 
@@ -79,7 +79,10 @@ val libFiles = listOf(
         "FSharp.Common/$outputRelativePath/FSharp.Core.xml",
         "FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
         "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
-        "FSharp.Common/$outputRelativePath/FSharp.Compiler.Interactive.Settings.dll")
+//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Framework.dll",
+//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Tasks.Core.dll",
+//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Utilities.Core.dll"
+)
 
 val pluginFiles = listOf(
         "FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
