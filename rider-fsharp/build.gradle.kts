@@ -78,11 +78,7 @@ val libFiles = listOf(
         "FSharp.Common/$outputRelativePath/FSharp.Core.dll",
         "FSharp.Common/$outputRelativePath/FSharp.Core.xml",
         "FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
-        "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
-//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Framework.dll",
-//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Tasks.Core.dll",
-//        "FSharp.Common/$outputRelativePath/Microsoft.Build.Utilities.Core.dll"
-)
+        "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll")
 
 val pluginFiles = listOf(
         "FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
