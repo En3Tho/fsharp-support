@@ -41,6 +41,13 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Intentions.Tests", "
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Tests.Common", "test\src\FSharp.Tests.Common\FSharp.Tests.Common.fsproj", "{B5A9B84B-B69B-4DCD-863A-989023EAEF8C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C106A040-5C2C-4F67-9EF6-4CF195B9E2B9}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		CustomFSharp.targets = CustomFSharp.targets
+		global.json = global.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

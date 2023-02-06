@@ -163,6 +163,22 @@ let rec getAbbreviatedEntity (entity: FSharpEntity) =
     else
         entity
 
+let containsAttribute (attributeName: string) (attributeFullName: string) (attributes: IList<FSharpAttribute>) =
+    if attributes = null || attributes.Count = 0 then false else
+        let mutable i = 0
+        let mutable found = false
+        while not found && i < attributes.Count do
+            let attribute = attributes[i].AttributeType
+            i <- i + 1
+
+            if attributeName.Equals(attribute.CompiledName, StringComparison.Ordinal) then
+                match attribute.TryFullName with
+                | Some fullName ->
+                    found <- attributeFullName.Equals(fullName, StringComparison.Ordinal)
+                | _ ->
+                    ()
+        found
+
 [<Extension; CompiledName("ContainsMatchingSetterProperty")>]
 let rec containsMatchingSetterProperty (entity: FSharpEntity, mfv: FSharpMemberOrFunctionOrValue) =
     let members = entity.MembersFunctionsAndValues
@@ -170,12 +186,16 @@ let rec containsMatchingSetterProperty (entity: FSharpEntity, mfv: FSharpMemberO
     let mutable i = 0
     let mutable contains = false
     while not contains && i < count do
-        let memberMfv = members.[i]
-        if memberMfv.DisplayName.Equals(mfv.DisplayName, StringComparison.Ordinal)
-        && (memberMfv.IsProperty && memberMfv.HasSetterMethod || memberMfv.IsPropertySetterMethod) then
+        let memberMfv = members[i]
+        if (memberMfv.IsProperty && memberMfv.HasSetterMethod || memberMfv.IsPropertySetterMethod)
+            && memberMfv.DisplayName.Equals(mfv.DisplayName, StringComparison.Ordinal) then
             contains <- true
         i <- i + 1
     contains
+
+[<Extension; CompiledName("ContainsIsExternalInitAttribute")>]
+let containsInitOnlyAttribute (attributes: IList<FSharpAttribute>) =
+    containsAttribute (nameof(System.Runtime.CompilerServices.IsExternalInit)) "System.Runtime.CompilerServices.IsExternalInit" attributes
 
 [<Extension; CompiledName("IsPropertyConstraint")>]
 let isPropertyConstraintFSharpParameter (fsParam: FSharpParameter) =
@@ -251,20 +271,7 @@ let isExceptionEntity (entity: FSharpEntity) =
 
 [<Extension; CompiledName("ContainsExtensionAttribute")>]
 let containsExtensionAttribute (attributes: IList<FSharpAttribute>) =
-    if attributes = null || attributes.Count = 0 then false else
-        let mutable i = 0
-        let mutable found = false
-        while not found && i < attributes.Count do
-            let attribute = attributes[i].AttributeType
-            i <- i + 1
-
-            if "ExtensionAttribute".Equals(attribute.CompiledName, StringComparison.Ordinal) then
-                match attribute.TryFullName with
-                | Some fullName ->
-                    found <- "System.Runtime.CompilerServices.ExtensionAttribute".Equals(fullName, StringComparison.Ordinal)
-                | _ ->
-                    ()
-        found
+    containsAttribute (nameof(System.Runtime.CompilerServices.ExtensionAttribute)) "System.Runtime.CompilerServices.ExtensionAttribute" attributes
 
 [<Extension; CompiledName("IsExtensionMemberMfv")>]
 let isExtensionMemberMfv (mfv: FSharpMemberOrFunctionOrValue) =

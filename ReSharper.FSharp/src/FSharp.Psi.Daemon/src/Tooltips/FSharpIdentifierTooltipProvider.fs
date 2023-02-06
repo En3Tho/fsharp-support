@@ -2,8 +2,6 @@ module JetBrains.ReSharper.Plugins.FSharp.Daemon.Tooltips
 
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.EditorServices
-open FSharp.Compiler.Symbols
-open FSharp.Compiler.Text
 open FSharp.Compiler.Tokenization
 open JetBrains.DocumentModel
 open JetBrains.ProjectModel
@@ -19,7 +17,7 @@ open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.UI.RichText
 open JetBrains.Util
-open JetBrains.ReSharper.Plugins.FSharp.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.FSharpIdentifierTooltipProviderExtensions
 
 [<SolutionComponent>]
 type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocService: FSharpXmlDocService,
@@ -89,109 +87,6 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
         match fsFile.GetParseAndCheckResults(true, opName) with
         | None -> emptyPresentation
         | Some results ->
-
-            let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDisplayContext, includeEntityType) =
-                let entities = [
-                    let entities = List.rev [
-
-                        if includeEntityType then
-                            fsEntity
-
-                        let mutable declaringEntityOpt = fsEntity.DeclaringEntity
-                        while declaringEntityOpt.IsSome do
-                            let declaringEntity = declaringEntityOpt.Value
-                            declaringEntityOpt <- declaringEntity.DeclaringEntity
-                            declaringEntity
-                    ]
-
-                    for entity in entities do
-                        let layout = entity.AsType().FormatLayout(displayContext)
-                        yield! layout
-                        TaggedText(TextTag.Punctuation, ".")
-                ]
-                entities |> List.filter (fun text -> text.Tag <> TextTag.UnknownEntity)
-
-
-            let getDeclaringEntityHeaderIfExtensionMember() = [
-                match x.GetFSharpEntityByToken(results.CheckResults, token) with
-                | Some symbolUse ->
-                    match symbolUse.Symbol with
-                    | :? FSharpMemberOrFunctionOrValue as mfv ->
-                        if mfv.IsExtensionMember && mfv.DeclaringEntity.IsSome then
-                            let entity = mfv.DeclaringEntity.Value
-                            let displayContext = symbolUse.DisplayContext
-                            let typeText = [|
-                                TaggedText(TextTag.Text, "Extension from: ")
-                                yield! getToolTipTextForEntity(entity, displayContext, true)
-                            |]
-                            richText typeText
-                    | _ ->
-                        ()
-                | None ->
-                    ()
-            ]
-
-            let getAbbreviatedEntityHeaderIfAbbreviation() = [
-                match x.GetFSharpEntityByToken(results.CheckResults, token) with
-                | Some symbolUse ->
-                    match symbolUse.Symbol with
-                    | :? FSharpEntity as entity ->
-                        if entity.IsFSharpAbbreviation then
-                            let originalEntity = getAbbreviatedEntity(entity)
-                            let originalType = getAbbreviatedType(entity.AsType())
-                            let displayContext = symbolUse.DisplayContext
-                            let typeText = [|
-                                TaggedText(TextTag.Text, "Abbreviated type: ")
-                                yield! getToolTipTextForEntity(originalEntity, displayContext, false)
-                                yield! originalType.FormatLayout(displayContext)
-                            |]
-                            richText typeText
-                    | _ ->
-                        ()
-                | None ->
-                    ()
-            ]
-
-            let getHexRepresentationIfIntConstant() = [
-                let literal =
-                    match x.GetFSharpEntityByToken(results.CheckResults, token) with
-                    | Some symbolUse ->
-                        match symbolUse.Symbol with
-                        | :? FSharpMemberOrFunctionOrValue as mfv ->
-                            mfv.LiteralValue
-                        | :? FSharpField as field ->
-                            field.LiteralValue
-                        | _ ->
-                            None
-                    | _ ->
-                        None
-
-                match literal with
-                | Some literal ->
-                    match literal with
-                    | :? int8
-                    | :? int16
-                    | :? int32
-                    | :? int64
-                    | :? uint8
-                    | :? uint16
-                    | :? uint32
-                    | :? uint64
-                    | :? char ->
-                        let hexString = $"{literal:X}"
-                        let hexString = $"0x{hexString.PadLeft(hexString.Length + (hexString.Length &&& 1), '0')}"
-                        let typeText = [|
-                            TaggedText(TextTag.Text, "(")
-                            TaggedText(TextTag.NumericLiteral, hexString)
-                            TaggedText(TextTag.Text, ")")
-                        |]
-                        richText typeText
-                    | _ ->
-                        ()
-                | _ ->
-                    ()
-            ]
-
             let (ToolTipText layouts) = FSharpIdentifierTooltipProvider.GetFSharpToolTipText(results.CheckResults, token)
 
             layouts |> List.collect (function
@@ -207,9 +102,14 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
                             if not overload.TypeMapping.IsEmpty then
                               yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
 
-                            yield! getDeclaringEntityHeaderIfExtensionMember()
-                            yield! getAbbreviatedEntityHeaderIfAbbreviation()
-                            yield! getHexRepresentationIfIntConstant()
+                            match x.GetFSharpEntityByToken(results.CheckResults, token) with
+                            | Some symbolUse ->
+                                yield! getDeclaringEntityHeaderIfExtensionMember symbolUse
+                                yield! getAbbreviatedEntityHeaderIfAbbreviation symbolUse
+                                yield! getHexRepresentationIfIntConstant symbolUse
+                                yield! getLengthIfStringConstant symbolUse
+                            | _ ->
+                                ()
                         ]
 
                         let body = richTextJoin "\n\n" [

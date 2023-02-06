@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="src\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
+    <Compile Include="src\Tooltips\FSharpIdentifierTooltipProviderExtensions.fs" />
     <Compile Include="src\Tooltips\FSharpIdentifierTooltipProvider.fs" />
     <Compile Include="src\Tooltips\ZoneMarker.fs" />
     <Compile Include="src\QuickDoc\FSharpQuickDocProvider.fs" />

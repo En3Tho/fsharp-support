@@ -261,6 +261,10 @@ tasks {
     withType<RunIdeTask> {
         // Match Rider's default heap size of 1.5Gb (default for runIde is 512Mb)
         maxHeapSize = "1500m"
+        systemProperties = mapOf(
+                "jna.nounpack" to "false",
+                "jna.boot.library.path" to "G:\\source\\repos\\En3Tho\\fsharp-support\\rider-fsharp\\build\\riderRD-2022.3-SNAPSHOT\\lib\\jna\\amd64"
+        )
     }
 
     val resetLexerDirectory = create("resetLexerDirectory") {
