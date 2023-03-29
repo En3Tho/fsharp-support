@@ -59,6 +59,7 @@
     <Compile Include="src\QuickFixes\RemoveRedundantAttributeSuffixFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithAssignmentExpressionFix.fs" />
     <Compile Include="src\QuickFixes\AddMatchAllClauseFix.fs" />
+    <Compile Include="src\QuickFixes\AddMissingInnerPatternsFix.fs" />
     <Compile Include="src\QuickFixes\ToAbstractFix.fs" />
     <Compile Include="src\QuickFixes\RemoveYieldFix.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantQualifierFix.fs" />
@@ -80,6 +81,7 @@
     <Compile Include="src\QuickFixes\UseWildSelfIdFix.fs" />
     <Compile Include="src\QuickFixes\AddParensToTypedLikeExprFix.fs" />
     <Compile Include="src\QuickFixes\SpecifyParameterTypeFix.fs" />
+    <Compile Include="src\QuickFixes\SpecifyParameterBaseTypeFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithInterpolatedStringFix.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithPredefinedOperatorFix.fs" />
     <Compile Include="src\QuickFixes\RemoveConstructorFix.fs" />
@@ -99,6 +101,8 @@
     <Compile Include="src\QuickFixes\SignatureFixUtil.fs" />
     <Compile Include="src\QuickFixes\UpdateRecordFieldsInSignatureFix.fs" />
     <Compile Include="src\QuickFixes\UpdateRecordFieldTypeInSignatureFix.fs" />
+    <Compile Include="src\QuickFixes\RemovePatternArgumentFix.fs" />
+    <Compile Include="src\QuickFixes\AddSetterFix.fs" />
     <ErrorsGen Include="..\FSharp.Psi.Services\src\Daemon\Highlightings\Errors.xml">
       <Mode>QUICKFIX</Mode>
       <Namespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes</Namespace>

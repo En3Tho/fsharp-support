@@ -1,0 +1,14 @@
+﻿module Say
+
+type U =
+    | A
+    | B
+    | C
+
+do
+    match A with
+    | A ->
+        ()
+
+    | B -> {selstart}failwith "todo"{selend}
+    | C -> failwith "todo"

@@ -1,0 +1,9 @@
+﻿module Say
+
+type U =
+    | A
+    | B of ``type``: int
+
+match A with
+| A -> ()
+| B ``type`` -> {selstart}failwith "todo"{selend}

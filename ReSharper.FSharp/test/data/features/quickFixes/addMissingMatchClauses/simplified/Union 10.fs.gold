@@ -1,0 +1,9 @@
+﻿module Say
+
+type U =
+    | A of bool * bool
+
+match None with
+| Some (A (x, true)) -> ()
+| None -> {selstart}failwith "todo"{selend}
+| Some value -> failwith "todo"

@@ -1,0 +1,8 @@
+﻿module Say
+
+do
+    match Some() with
+    | None -> () // todo
+    | Some value -> {selstart}failwith "todo"{selend}
+
+    ()

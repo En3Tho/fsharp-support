@@ -1,0 +1,11 @@
+﻿module Say
+
+type U =
+    | A of bool * bool
+    | B of bool
+
+match None with
+| Some (A (x, y)) -> ()
+| Some (B true) -> ()
+| Some (B false) -> ()
+| None -> {selstart}failwith "todo"{selend}

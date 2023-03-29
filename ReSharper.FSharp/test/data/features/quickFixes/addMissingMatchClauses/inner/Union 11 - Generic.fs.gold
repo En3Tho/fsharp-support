@@ -1,0 +1,9 @@
+﻿module Say
+
+type U<'T> =
+    | A
+    | B of 'T
+
+match B 1 with
+| A -> ()
+| B i -> {selstart}failwith "todo"{selend}

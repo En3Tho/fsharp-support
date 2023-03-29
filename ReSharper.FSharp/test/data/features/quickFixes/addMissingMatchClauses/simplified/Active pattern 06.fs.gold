@@ -1,0 +1,10 @@
+﻿module Say
+
+let (|Pair|) x = x, x
+
+match true, true{caret} with
+| false, Pair (_, _) -> ()
+| true, true -> failwith "todo"
+| true, false -> failwith "todo"
+| false, true -> failwith "todo"
+| false, false -> failwith "todo"

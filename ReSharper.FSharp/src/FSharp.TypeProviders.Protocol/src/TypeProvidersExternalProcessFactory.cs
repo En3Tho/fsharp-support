@@ -4,16 +4,12 @@ using JetBrains.Application.Threading;
 using JetBrains.Lifetimes;
 using JetBrains.Platform.MsBuildHost;
 using JetBrains.ProjectModel;
+using JetBrains.ProjectModel.Build;
+using JetBrains.ProjectModel.Properties;
 using JetBrains.Util;
 
 namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
 {
-  public interface IFSharpProjectsRequiringFrameworkCache
-  {
-    bool Contains(string projectOutputPath);
-  }
-
-
   [SolutionComponent]
   public class TypeProvidersExternalProcessFactory
   {
@@ -21,46 +17,58 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
     [NotNull] private readonly ILogger myLogger;
     [NotNull] private readonly IShellLocks myShellLocks;
     [NotNull] private readonly ISolutionToolset myToolset;
-    [NotNull] private readonly IFSharpProjectsRequiringFrameworkCache myProjectsRequiringFrameworkCache;
+    [NotNull] private readonly OutputAssemblies myOutputAssemblies;
+    [NotNull] private readonly IShellLocks myLocks;
 
     public TypeProvidersExternalProcessFactory(
       [NotNull] ISolutionProcessStartInfoPatcher solutionProcessStartInfoPatcher,
       [NotNull] ILogger logger,
       [NotNull] IShellLocks shellLocks,
       [NotNull] ISolutionToolset toolset,
-      [NotNull] IFSharpProjectsRequiringFrameworkCache projectsRequiringFrameworkCache)
+      [NotNull] OutputAssemblies outputAssemblies,
+      [NotNull] IShellLocks locks)
     {
       mySolutionProcessStartInfoPatcher = solutionProcessStartInfoPatcher;
       myLogger = logger;
       myShellLocks = shellLocks;
       myToolset = toolset;
-      myProjectsRequiringFrameworkCache = projectsRequiringFrameworkCache;
+      myOutputAssemblies = outputAssemblies;
+      myLocks = locks;
     }
 
+    [CanBeNull]
     public TypeProvidersExternalProcess Create(Lifetime lifetime,
       [CanBeNull] string requestingProjectOutputPath, bool isInternalMode)
     {
-      var sdkVersion = myToolset.GetDotNetCoreToolset()?.Sdk?.Version;
-
-      return new TypeProvidersExternalProcess(lifetime,
-        myLogger,
-        myShellLocks,
-        mySolutionProcessStartInfoPatcher,
-        GetProcessRuntime(requestingProjectOutputPath),
-        sdkVersion,
-        isInternalMode);
-    }
-
-    private JetProcessRuntimeRequest GetProcessRuntime([CanBeNull] string requestingProjectOutputPath)
-    {
+      var toolset = myToolset.GetDotNetCoreToolset();
       var buildTool = myToolset.GetBuildTool();
 
       var runtimeType = buildTool!.UseDotNetCoreForLaunch
         ? JetProcessRuntimeType.DotNetCore
         : JetProcessRuntimeType.FullFramework;
 
-      if (requestingProjectOutputPath != null && myProjectsRequiringFrameworkCache.Contains(requestingProjectOutputPath))
-        runtimeType = JetProcessRuntimeType.FullFramework;
+      if (requestingProjectOutputPath != null)
+      {
+        var path = VirtualFileSystemPath.Parse(requestingProjectOutputPath, InteractionContext.SolutionContext);
+        var isCanceled = false;
+
+        FSharpAsyncUtil.UsingReadLockInsideFcs(myLocks, () =>
+        {
+          var project = myOutputAssemblies.TryGetProjectByOutputAssemblyLocation(path);
+          if (project == null)
+          {
+            isCanceled = true;
+            return;
+          }
+
+          foreach (var configuration in project.ProjectProperties.GetActiveConfigurations<IProjectConfiguration>())
+            if (configuration.PropertiesCollection.TryGetValue("FscToolExe", out var fscTool) &&
+                fscTool is "fsc.exe" or "fsharpc")
+              runtimeType = JetProcessRuntimeType.FullFramework;
+        });
+
+        if (isCanceled) return null;
+      }
 
       var mutator = MsBuildConnectionFactory.GetEnvironmentVariablesMutator(buildTool);
 
@@ -68,7 +76,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol
         ? JetProcessRuntimeRequest.CreateCore(mutator, true)
         : JetProcessRuntimeRequest.CreateFramework(mutator: mutator);
 
-      return runtimeRequest;
+      return new TypeProvidersExternalProcess(lifetime,
+        myLogger,
+        myShellLocks,
+        mySolutionProcessStartInfoPatcher,
+        runtimeRequest,
+        toolset,
+        isInternalMode);
     }
   }
 }

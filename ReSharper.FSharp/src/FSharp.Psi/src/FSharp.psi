@@ -236,7 +236,7 @@ interface fSharpPattern:
   tuplePat |
   arrayOrListPat |
   parenPat |
-  recordPat |
+  namedPatternsListPat|
   optionalValPat |
   listConsPat |
   wildPat |
@@ -250,6 +250,10 @@ interface referenceNameOwnerPat:
   referencePat |
   parametersOwnerPat |
   fieldPat;
+
+interface namedPatternsListPat:
+  recordPat |
+  namedUnionCaseFieldsPat;
 
 interface referencePat:
   localReferencePat |
@@ -298,7 +302,7 @@ attribPat options { stubBase="FSharpPatternBase"; } extras {
 
 orPat options { stubBase="FSharpPatternBase"; }:
   fSharpPattern<PATTERN1, Pattern1>
-  BAR
+  BAR<BAR, Bar>
   fSharpPattern<PATTERN2, Pattern2>;
 
 andsPat options { stubBase="FSharpPatternBase"; }:
@@ -324,9 +328,14 @@ parenPat options { stubBase="FSharpPatternBase"; }:
   RPAREN<RPAREN, RightParen>;
 
 recordPat options { stubBase="FSharpPatternBase"; }:
-  LBRACE
+  LBRACE<LEFT_BRACE, LeftBrace>
   fieldPat<FIELD_PAT, FieldPatterns>*
-  RBRACE;
+  RBRACE<RIGHT_BRACE, RightBrace>;
+
+namedUnionCaseFieldsPat options { stubBase="FSharpPatternBase"; }:
+  LPAREN<LPAREN, LeftParen>
+  fieldPat<FIELD_PAT, FieldPatterns>*
+  RPAREN<RPAREN, RightParen>;
 
 fieldPat options { stubBase="FSharpPatternBase"; }:
   expressionReferenceName<REFERENCE_NAME, ReferenceName>
@@ -355,11 +364,7 @@ interface constPat:
   literalPat;
 
 literalPat options { stubBase="FSharpPatternBase"; }:
-  (
-    TRUE |
-    FALSE |
-    STRING // todo: add more
-  );
+  literalToken;
 
 unitPat options { stubBase="FSharpPatternBase"; }:
   LPAREN<LPAREN, LParen>
@@ -411,6 +416,7 @@ interface fSharpExpression:
   joinInExpr |
   implicitZeroExpr |
   yieldOrReturnExpr |
+  dynamicExpr |
 
   // todo: cover cases
   interpolatedStringExpr |
@@ -527,30 +533,7 @@ unitExpr options { stubBase="UnitExpressionBase"; }:
   RPAREN<RPAREN, RParen>;
 
 literalExpr options { stubBase="FSharpExpressionBase"; }:
-  TRUE<LITERAL, Literal> |
-  FALSE<LITERAL, Literal> |
-  NULL<LITERAL, Literal> |
-  SBYTE<LITERAL, Literal> |
-  BYTE<LITERAL, Literal> |
-  INT16<LITERAL, Literal> |
-  UINT16<LITERAL, Literal> |
-  INT32<LITERAL, Literal> |
-  UINT32<LITERAL, Literal> |
-  INT64<LITERAL, Literal> |
-  UINT64<LITERAL, Literal> |
-  IEEE32<LITERAL, Literal> |
-  IEEE64<LITERAL, Literal> |
-  DECIMAL<LITERAL, Literal> |
-  BIGNUM<LITERAL, Literal> |
-  NATIVEINT<LITERAL, Literal> |
-  UNATIVEINT<LITERAL, Literal> |
-  CHARACTER_LITERAL<LITERAL, Literal> |
-  STRING<LITERAL, Literal> |
-  VERBATIM_STRING<LITERAL, Literal> |
-  TRIPLE_QUOTED_STRING<LITERAL, Literal> |
-  BYTEARRAY<LITERAL, Literal> |
-  VERBATIM_BYTEARRAY<LITERAL, Literal> |
-  BYTECHAR<LITERAL, Literal>;
+  literalToken;
 
 typedExpr options { stubBase="FSharpExpressionBase"; }:
   fSharpExpression<EXPR, Expression>
@@ -692,7 +675,7 @@ interface matchLikeExpr:
 matchLambdaExpr options { stubBase="FSharpExpressionBase"; } extras {
   get { methodName="ClauseExpressions" path=<matchLambdaExpr:MATCH_CLAUSE/matchClause:EXPR> };
 }:
-  FUNCTION
+  FUNCTION<FUNCTION, FunctionKeyword>
   matchClause<MATCH_CLAUSE, Clauses>*;
 
 // todo: separate nodes for bang exprs?
@@ -744,13 +727,13 @@ tryWithExpr options { stubBase="FSharpExpressionBase"; } extras {
 }:
   TRY<TRY_KEYWORD, TryKeyword>
   fSharpExpression<TRY_EXPR, TryExpression>
-  WITH
+  WITH<WITH_KEYWORD, WithKeyword>
   matchClause<MATCH_CLAUSE, Clauses>*;
 
 tryFinallyExpr options { stubBase="FSharpExpressionBase"; }:
   TRY<TRY_KEYWORD, TryKeyword>
   fSharpExpression<TRY_EXPR, TryExpression>
-  FINALLY
+  FINALLY<FINALLY_KEYWORD, FinallyKeyword>
   fSharpExpression<FINALLY_EXPR, FinallyExpression>;
 
 lazyExpr options { stubBase="FSharpExpressionBase"; }:
@@ -1036,12 +1019,13 @@ enumRepresentation options { stubBase="TypeRepresentationBase"; }:
 
 enumCaseDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; } extras {
   get { methodName="Attributes" path=<enumCaseDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
+  get { methodName="Expression" path=<enumCaseDeclaration:CHAMELEON_EXPR/chameleonExpression:EXPR> };
 }:
   BAR<BAR, Bar>?
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   identifier<IDENTIFIER, Identifier>
   EQUALS<FSHARP_EQUALS, EqualsToken>
-  fSharpExpression<EXPR, Expression>;
+  chameleonExpression<CHAMELEON_EXPR, ChameleonExpression>;
 
 
 recordRepresentation options { stubBase="TypeRepresentationBase"; } extras {
@@ -1192,6 +1176,7 @@ interface typeBodyMemberDeclaration:
   valFieldDeclaration |
   letBindingsDeclaration |
   overridableMemberDeclaration |
+  externDeclaration |
   doStatement;
 
 interface overridableMemberDeclaration:
@@ -1244,6 +1229,7 @@ otherTypeMember: fakeSeparator;
 
 primaryConstructorDeclaration options { stubBase="ConstructorDeclarationBase"; } extras {
   get { methodName="ParameterPatterns" path=<primaryConstructorDeclaration:PARAMETERS_DECL/parametersPatternDeclaration:PATTERN> };
+  get { methodName="Attributes" path=<primaryConstructorDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
@@ -1268,7 +1254,9 @@ namedSelfId options { stubBase="LocalDeclarationBase"; }:
 wildSelfId options { stubBase="LocalDeclarationBase"; }:
   UNDERSCORE<UNDERSCORE, Underscore>;
 
-constructorSignature options { stubBase="ConstructorDeclarationBase"; }:
+constructorSignature options { stubBase="ConstructorDeclarationBase"; } extras {
+  get { methodName="Attributes" path=<constructorSignature:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
+}:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
   NEW<NEW, NewKeyword>
@@ -1277,6 +1265,7 @@ constructorSignature options { stubBase="ConstructorDeclarationBase"; }:
 secondaryConstructorDeclaration options { stubBase="ConstructorDeclarationBase"; } extras {
   get { methodName="Expression" path=<secondaryConstructorDeclaration:CHAMELEON_EXPR/chameleonExpression:EXPR> };
   get { methodName="ParameterPatterns" path=<secondaryConstructorDeclaration:PARAMETERS_DECL/parametersPatternDeclaration:PATTERN> };
+  get { methodName="Attributes" path=<secondaryConstructorDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
 }:
   attributeList<ATTRIBUTE_LIST, AttributeLists>*
   accessModifier{ACCESS_MODIFIER, AccessModifier}?
@@ -1351,7 +1340,8 @@ abstractMemberDeclaration options { stubBase="FSharpProperTypeMemberDeclarationB
   MEMBER<MEMBER, MemberKeyword>?
   identOrOpName{IDENTIFIER, Identifier}
   postfixTypeParameterDeclarationList<TYPE_PARAMETER_LIST, TypeParameterList>?
-  returnTypeInfo<RETURN_INFO, ReturnTypeInfo>;
+  returnTypeInfo<RETURN_INFO, ReturnTypeInfo>
+  accessorsNamesClause<ACESSORS_CLAUSE, AccessorsClause>?;
 
 valFieldDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; } extras {
   get { methodName="Attributes" path=<valFieldDeclaration:ATTRIBUTE_LIST/attributeList:ATTRIBUTE> };
@@ -1583,7 +1573,8 @@ interface typeConstraint:
   subtypeConstraint |
   memberConstraint |
   enumConstraint |
-  delegateConstraint;
+  delegateConstraint |
+  selfConstraint;
 
 valueTypeConstraint:
   typeReferenceName<TYPE_REFERENCE, ReferenceNames>
@@ -1620,6 +1611,9 @@ defaultsToConstraint:
 subtypeConstraint:
   typeReferenceName<TYPE_REFERENCE, ReferenceNames>
   COLON;
+
+selfConstraint:
+  typeReferenceName<TYPE_REFERENCE, ReferenceNames>;
 
 memberConstraint:
   (
@@ -1744,6 +1738,7 @@ interface typeUsage:
   exprStaticConstantTypeUsage |
   namedStaticConstantTypeUsage |
   constrainedTypeUsage |
+  orTypeUsage |
   unsupportedTypeUsage;
 
 
@@ -1762,6 +1757,7 @@ tupleTypeUsage:
 
 anonRecordTypeUsage:
   topLevelTypeParameterDecl
+  STRUCT<STRUCT, StructKeyword>?
   LBRACE_BAR
   anonRecordField<FIELD, Fields>*
   BAR_RBRACE;
@@ -1817,6 +1813,11 @@ constrainedTypeUsage:
   typeUsage<TYPE, TypeUsage>
   typeConstraintsClause<TYPE_CONSTRAINTS_CLAUSE, TypeConstraintsClause>;
 
+orTypeUsage:
+  typeUsage
+  OR
+  typeUsage;
+
 unsupportedTypeUsage:
   fakeSeparator;
 
@@ -1832,3 +1833,41 @@ private topLevelTypeAttribute:
 private topLevelTypeParameterName:
   IDENTIFIER
   COLON;
+
+private literalToken:
+  TRUE<LITERAL, Literal> |
+  FALSE<LITERAL, Literal> |
+  NULL<LITERAL, Literal> |
+  SBYTE<LITERAL, Literal> |
+  BYTE<LITERAL, Literal> |
+  INT16<LITERAL, Literal> |
+  UINT16<LITERAL, Literal> |
+  INT32<LITERAL, Literal> |
+  UINT32<LITERAL, Literal> |
+  INT64<LITERAL, Literal> |
+  UINT64<LITERAL, Literal> |
+  IEEE32<LITERAL, Literal> |
+  IEEE64<LITERAL, Literal> |
+  DECIMAL<LITERAL, Literal> |
+  BIGNUM<LITERAL, Literal> |
+  NATIVEINT<LITERAL, Literal> |
+  UNATIVEINT<LITERAL, Literal> |
+  CHARACTER_LITERAL<LITERAL, Literal> |
+  STRING<LITERAL, Literal> |
+  VERBATIM_STRING<LITERAL, Literal> |
+  TRIPLE_QUOTED_STRING<LITERAL, Literal> |
+  BYTEARRAY<LITERAL, Literal> |
+  VERBATIM_BYTEARRAY<LITERAL, Literal> |
+  BYTECHAR<LITERAL, Literal>;
+
+interface attributesOwnerDeclaration:
+  constructorSignatureOrDeclaration
+  memberSignatureLikeDeclaration
+  overridableMemberDeclaration
+  declaredModuleDeclaration
+  fSharpTypeOldDeclaration
+  fSharpTypeDeclaration
+  valFieldDeclaration
+  bindingSignature
+  topBinding
+  attribPat;

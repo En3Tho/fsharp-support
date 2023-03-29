@@ -1,0 +1,7 @@
+﻿ParameterInfo is available
+--- All invocables: ----
+(int -> string)
+Parameter: 0 'int -> string'
+
+--- Accepted invocables: ---
+(int -> string)

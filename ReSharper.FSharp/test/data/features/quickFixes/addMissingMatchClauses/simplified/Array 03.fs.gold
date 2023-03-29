@@ -1,0 +1,9 @@
+﻿module Say
+
+type U =
+    | A
+    | B of string[]
+
+match A with
+| A -> ()
+| B strings -> {selstart}failwith "todo"{selend}

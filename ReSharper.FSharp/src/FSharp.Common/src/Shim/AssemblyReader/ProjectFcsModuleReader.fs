@@ -17,12 +17,14 @@ open JetBrains.ProjectModel.Properties.Managed
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.CSharp.Impl
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Caches2
 open JetBrains.ReSharper.Psi.Impl.Special
 open JetBrains.ReSharper.Psi.Impl.Types
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Resolve
 open JetBrains.ReSharper.Psi.Util
+open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Threading
 open JetBrains.Util
 open JetBrains.Util.DataStructures
@@ -92,14 +94,38 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
     let typeDefs = ConcurrentDictionary<IClrTypeName, FcsTypeDef>() // todo: use non-concurrent, add locks
     let clrNamesByShortNames = CompactOneToSetMap<string, IClrTypeName>()
 
-    let mutable currentTypeName: IClrTypeName = null
-    let mutable currentTypeUnresolvedUsedNames: ISet<string> = null
+    let readData f =
+        FSharpAsyncUtil.UsingReadLockInsideFcs(locks, fun _ ->
+            use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+
+            if not (psiModule.GetPsiServices().CachesState.IsIdle.Value) then
+                shim.MarkTypesDirty(psiModule)
+
+            f ()
+        )
 
     let isDll (project: IProject) (targetFrameworkId: TargetFrameworkId) =
         let projectProperties = project.ProjectProperties
         match projectProperties.ActiveConfigurations.TryGetConfiguration(targetFrameworkId) with
         | :? IManagedProjectConfiguration as cfg -> cfg.OutputType = ProjectOutputType.LIBRARY
         | _ -> false
+
+    let mkDummyModuleDef () : ILModuleDef =
+        // Should only be used as a recovery when the module is already invalid (e.g. the project is unloaded, etc)
+        assert not (psiModule.IsValid())
+
+        let name = psiModule.Name
+        let typeDefs = mkILTypeDefs []
+        let flags = 0
+        let exportedTypes = mkILExportedTypes []
+
+        mkILSimpleModule
+            name name true
+            ProjectFcsModuleReader.DummyValues.subsystemVersion
+            ProjectFcsModuleReader.DummyValues.useHighEntropyVA
+            typeDefs
+            None None flags exportedTypes
+            ProjectFcsModuleReader.DummyValues.metadataVersion
 
     let mkDummyTypeDef (name: string) =
         let attributes = enum 0
@@ -200,7 +226,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
         getAssemblyScopeRef assemblyName
 
-    
+
     let internTypeRef (typeRefCache: IDictionary<_, _>) scopeRef (clrTypeName: IClrTypeName) enclosing name =
         let typeRef = ILTypeRef.Create(scopeRef, enclosing, name)
         typeRefCache[clrTypeName.GetPersistent()] <- typeRef
@@ -227,7 +253,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             if ns.IsEmpty() then enclosingTypeNames else
 
             match enclosingTypeNames with
-            | hd :: tl -> String.Concat(ns, ".", hd) :: tl
+            | hd :: tl -> $"{ns}.{hd}" :: tl
             | [] -> failwithf $"mkTypeRef: {clrTypeName}"
 
         let name =
@@ -279,10 +305,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             match declaredType.Resolve() with
             | :? EmptyResolveResult ->
                 match declaredType with
-                | :? ISimplifiedIdTypeInfo as simpleTypeInfo ->
-                    let shortName = simpleTypeInfo.GetShortName()
-                    if isNotNull shortName then
-                        currentTypeUnresolvedUsedNames.Add(shortName) |> ignore
+                | :? ISimplifiedIdTypeInfo -> () // todo: record unresolved names
                 | _ -> ()
 
                 // todo: add per-module singletons for predefines types
@@ -348,6 +371,35 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
     let mkCallingThisConv (func: IModifiersOwner): ILThisConvention =
         if func.IsStatic then ILThisConvention.Static else ILThisConvention.Instance
 
+    let rec mkExplicitImplTypeName (declaredType: IDeclaredType) =
+        let typeElement = declaredType.GetTypeElement()
+        if isNull typeElement then "" else
+
+        let clrTypeName = typeElement.GetClrName()
+
+        let typeNames = 
+            clrTypeName.TypeNames
+            |> Seq.map (fun n -> n.TypeName)
+            |> String.concat "."
+
+        let name = 
+            match clrTypeName.GetNamespaceName() with
+            | "" -> typeNames
+            | ns -> $"{ns}.{typeNames}"
+
+        let typeParameters = typeElement.TypeParameters
+        if typeParameters.Count = 0 then name else
+
+        let substitution = declaredType.GetSubstitution()
+        let typeArgs = 
+            typeParameters
+            |> Seq.map (fun tp ->
+                let declaredType = substitution[tp].As<IDeclaredType>()
+                mkExplicitImplTypeName declaredType
+            )
+            |> String.concat ","
+
+        $"{name}<{typeArgs}>"
 
     let mkMethodRef (method: IFunction): ILMethodRef =
         let typeRef =
@@ -359,7 +411,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             mkTypeRef typeElement
 
         let callingConv = mkCallingConv method
-        let name = method.ShortName // todo: type parameter suffix?
+        let name = method.ShortName
 
         let typeParamsCount =
             match method with
@@ -698,7 +750,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         mkType returnType |> mkILReturn
 
     let mkMethodDef (method: IFunction): ILMethodDef =
-        let name = method.ShortName // todo: type parameter suffix?
+        let name = method.ShortName
         let methodAttrs = mkMethodAttributes method
         let callingConv = mkCallingConv method
         let parameters = mkParams method
@@ -793,16 +845,18 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         ILPropertyDef(name, attrs, setter, getter, callConv, propertyType, init, args, customAttrs)
 
     let usingTypeElement (typeName: IClrTypeName) defaultValue f =
-        use cookie = FSharpLocks.CreateReadLock(locks)
-        use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+        let mutable result = Unchecked.defaultof<_>
+        readData (fun _ ->
+            if not (psiModule.IsValid()) then
+                result <- defaultValue else
 
-        let typeElement = symbolScope.GetTypeElementByCLRName(typeName)
-        if isNull typeElement then defaultValue else
+            let typeElement = symbolScope.GetTypeElementByCLRName(typeName)
+            if isNull typeElement then
+                result <- defaultValue else
 
-        currentTypeName <- typeName
-        currentTypeUnresolvedUsedNames <- HashSet()
-
-        f typeElement
+            result <- f typeElement
+        )
+        result
 
     let getOrCreateMembers (typeName: IClrTypeName) defaultValue (getMemberTable: FcsTypeDefMembers -> 'Table) createTable =
         use _ = locker.UsingWriteLock()
@@ -827,10 +881,19 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
             usingTypeElement typeName defaultValue (createTable members))
 
+    let isExplicitImpl (typeMember: ITypeMember) =
+        let overridableMember = typeMember.As<IOverridableMember>()
+        isNotNull overridableMember && overridableMember.IsExplicitImplementation
+
+    let getSignature (parametersOwner: IParametersOwner) =
+        parametersOwner.GetSignature(parametersOwner.IdSubstitution)
+
     let mkMethods (table: FcsTypeDefMembers) (typeElement: ITypeElement) =
         let methods =
+            let seenMethods = HashSet(CSharpInvocableSignatureComparer.Overload)
             [| for method in typeElement.GetMembers().OfType<IFunction>() do
-                 yield mkMethodDef method |]
+                if not (isExplicitImpl method) && seenMethods.Add(getSignature method) then
+                    yield mkMethodDef method |]
 
         table.Methods <- methods
         methods
@@ -849,14 +912,16 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
             match typeElement with
             | :? IEnum as enum -> mkEnumInstanceValue enum :: fields
             | _ -> fields
-        
+
         table.Fields <- fields
         fields
 
     let mkProperties (table: FcsTypeDefMembers) (typeElement: ITypeElement) =
-        let properties = 
+        let properties =
+            let seenProperties = HashSet(CSharpInvocableSignatureComparer.Overload)
             [ for property in typeElement.Properties do
-                yield mkPropertyDef property ]
+                if not (isExplicitImpl property) && seenProperties.Add(getSignature property) then
+                    yield mkPropertyDef property ]
 
         table.Properties <- properties
         properties
@@ -1042,7 +1107,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         if isNull upToDateChecked then
             upToDateChecked <- HashSet()
 
-        use cookie = FSharpLocks.CreateReadLock(locks)
+        use cookie = ReadLockCookie.Create()
         use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
 
         let mutable isUpToDate = true
@@ -1058,6 +1123,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
             upToDateChecked.Add(clrTypeName) |> ignore
 
+        isDirty <- false
         isUpToDate
 
     member this.CreateTypeDef(clrTypeName: IClrTypeName) =
@@ -1067,48 +1133,46 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
         | NotNull typeDef -> typeDef.TypeDef
         | _ ->
 
-        currentTypeName <- clrTypeName
-        currentTypeUnresolvedUsedNames <- HashSet()
+        readData (fun _ ->
+            if not (psiModule.IsValid()) then () else
 
-        use cookie = FSharpLocks.CreateReadLock(locks)
-        use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+            match symbolScope.GetTypeElementByCLRName(clrTypeName) with
+            | null ->
+                // The type doesn't exist in the module anymore.
+                // The project has likely changed and FCS will invalidate cache for this module.
+                ()
 
-        match symbolScope.GetTypeElementByCLRName(clrTypeName) with
-        | null ->
-            // The type doesn't exist in the module anymore.
-            // The project has likely changed and FCS will invalidate cache for this module.
-            mkDummyTypeDef clrTypeName.ShortName
+            // For multiple types with the same name we'll get some random/first one here.
+            // todo: add a test case
+            | typeElement ->
+                let name = mkTypeDefName typeElement clrTypeName
+                let typeAttributes = mkTypeAttributes typeElement
+                let extends = mkTypeDefExtends typeElement
+                let implements = mkTypeDefImplements typeElement
+                let nestedTypes = mkILTypeDefsComputed (fun _ -> getOrCreateNestedTypes this clrTypeName)
+                let genericParams = mkGenericParamDefs typeElement
+                let methods = mkILMethodsComputed (fun _ -> getOrCreateMethods clrTypeName)
+                let fields = mkILFieldsLazy (lazy getOrCreateFields clrTypeName)
+                let properties = mkILPropertiesLazy (lazy getOrCreateProperties clrTypeName)
+                let events = mkILEventsLazy (lazy getOrCreateEvents clrTypeName)
+                let customAttrs = mkTypeDefCustomAttrs typeElement
 
-        // For multiple types with the same name we'll get some random/first one here.
-        // todo: add a test case
-        | typeElement ->
-            let name = mkTypeDefName typeElement clrTypeName
-            let typeAttributes = mkTypeAttributes typeElement
-            let extends = mkTypeDefExtends typeElement
-            let implements = mkTypeDefImplements typeElement
-            let nestedTypes = mkILTypeDefsComputed (fun _ -> getOrCreateNestedTypes this clrTypeName)
-            let genericParams = mkGenericParamDefs typeElement
-            let methods = mkILMethodsComputed (fun _ -> getOrCreateMethods clrTypeName)
-            let fields = mkILFieldsLazy (lazy getOrCreateFields clrTypeName)
-            let properties = mkILPropertiesLazy (lazy getOrCreateProperties clrTypeName)
-            let events = mkILEventsLazy (lazy getOrCreateEvents clrTypeName)
-            let customAttrs = mkTypeDefCustomAttrs typeElement
+                let typeDef =
+                    ILTypeDef(name, typeAttributes, ILTypeDefLayout.Auto, implements, genericParams,
+                        extends, methods, nestedTypes, fields, emptyILMethodImpls, events, properties, false,
+                        emptyILSecurityDecls, customAttrs)
 
-            let typeDef =
-                ILTypeDef(name, typeAttributes, ILTypeDefLayout.Auto, implements, genericParams,
-                    extends, methods, nestedTypes, fields, emptyILMethodImpls, events, properties, false,
-                    emptyILSecurityDecls, customAttrs)
+                let fcsTypeDef = 
+                    { TypeDef = typeDef
+                      Members = Unchecked.defaultof<_> }
 
-            let fcsTypeDef = 
-                { TypeDef = typeDef
-                  Members = Unchecked.defaultof<_> }
+                clrNamesByShortNames.Add(typeElement.ShortName, clrTypeName)
+                typeDefs[clrTypeName] <- fcsTypeDef
+            )
 
-            currentTypeName <- null
-            currentTypeUnresolvedUsedNames <- null
-
-            clrNamesByShortNames.Add(typeElement.ShortName, clrTypeName)
-            typeDefs[clrTypeName] <- fcsTypeDef
-            typeDef
+        match typeDefs.TryGetValue(clrTypeName) with
+        | NotNull typeDef -> typeDef.TypeDef
+        | _ -> mkDummyTypeDef clrTypeName.ShortName
 
     member this.InvalidateTypeDef(clrTypeName: IClrTypeName) =
         use lock = locker.UsingWriteLock()
@@ -1123,70 +1187,76 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
     interface IProjectFcsModuleReader with
         member this.ILModuleDef =
+            use lock = locker.UsingWriteLock()
+
             match moduleDef with
             | Some(moduleDef) -> moduleDef
             | None ->
 
-            use cookie = FSharpLocks.CreateReadLock(locks)
-            use compilationCookie = CompilationContextCookie.GetOrCreate(psiModule.GetContextFromModule())
+            readData (fun _ ->
+                if not (psiModule.IsValid()) then () else
 
-            let project = psiModule.ContainingProjectModule :?> IProject
-            let moduleName = project.Name
-            let assemblyName = project.GetOutputAssemblyName(psiModule.TargetFrameworkId)
-            let isDll = isDll project psiModule.TargetFrameworkId
+                let project = psiModule.ContainingProjectModule :?> IProject
+                let moduleName = project.Name
+                let assemblyName = project.GetOutputAssemblyName(psiModule.TargetFrameworkId)
+                let isDll = isDll project psiModule.TargetFrameworkId
 
-            let typeDefs =
-                // todo: make inner types computed on demand, needs an Fcs patch
-                let result = List<ILPreTypeDef>()
+                let typeDefs =
+                    // todo: make inner types computed on demand, needs an Fcs patch
+                    let result = List<ILPreTypeDef>()
 
-                let rec addTypes (ns: INamespace) =
-                    for typeElement in ns.GetNestedTypeElements(symbolScope) do
-                        result.Add(PreTypeDef(typeElement, this))
-                    for nestedNs in ns.GetNestedNamespaces(symbolScope) do
-                        addTypes nestedNs
+                    let rec addTypes (ns: INamespace) =
+                        for typeElement in ns.GetNestedTypeElements(symbolScope) do
+                            result.Add(PreTypeDef(typeElement, this))
+                        for nestedNs in ns.GetNestedNamespaces(symbolScope) do
+                            addTypes nestedNs
 
-                addTypes symbolScope.GlobalNamespace
+                    addTypes symbolScope.GlobalNamespace
 
-                let preTypeDefs = result.ToArray()
-                mkILTypeDefsComputed (fun _ -> preTypeDefs)
+                    let preTypeDefs = result.ToArray()
+                    mkILTypeDefsComputed (fun _ -> preTypeDefs)
 
-            let flags = 0 // todo
-            let exportedTypes = mkILExportedTypes []
+                let flags = 0 // todo
+                let exportedTypes = mkILExportedTypes []
 
-            let newModuleDef =
-                mkILSimpleModule
-                    assemblyName moduleName isDll
-                    ProjectFcsModuleReader.DummyValues.subsystemVersion
-                    ProjectFcsModuleReader.DummyValues.useHighEntropyVA
-                    typeDefs
-                    None None flags exportedTypes
-                    ProjectFcsModuleReader.DummyValues.metadataVersion
+                let newModuleDef =
+                    mkILSimpleModule
+                        assemblyName moduleName isDll
+                        ProjectFcsModuleReader.DummyValues.subsystemVersion
+                        ProjectFcsModuleReader.DummyValues.useHighEntropyVA
+                        typeDefs
+                        None None flags exportedTypes
+                        ProjectFcsModuleReader.DummyValues.metadataVersion
 
-            let ivtAttributes =
-                let psiServices = psiModule.GetPsiServices()
-                let attributeInstances =
-                    psiServices.Symbols
-                        .GetModuleAttributes(psiModule)
-                        .GetAttributeInstances(PredefinedType.INTERNALS_VISIBLE_TO_ATTRIBUTE_CLASS, false)
+                let ivtAttributes =
+                    let psiServices = psiModule.GetPsiServices()
+                    let attributeInstances =
+                        psiServices.Symbols
+                            .GetModuleAttributes(psiModule)
+                            .GetAttributeInstances(PredefinedType.INTERNALS_VISIBLE_TO_ATTRIBUTE_CLASS, false)
 
-                [| for instance in attributeInstances do
-                     match instance.PositionParameter(0).ConstantValue.AsString() with
-                     | null -> ()
-                     | s ->
+                    [| for instance in attributeInstances do
+                         match instance.PositionParameter(0).ConstantValue.AsString() with
+                         | null -> ()
+                         | s ->
 
-                     match internalsVisibleToAttribute s with
-                     | Some attribute -> attribute
-                     | _ -> () |]
+                         match internalsVisibleToAttribute s with
+                         | Some attribute -> attribute
+                         | _ -> () |]
 
-            let newModuleDef =
-                if ivtAttributes.IsEmpty() then newModuleDef else
+                let newModuleDef =
+                    if ivtAttributes.IsEmpty() then newModuleDef else
 
-                let attrs = mkILCustomAttrsFromArray ivtAttributes |> storeILCustomAttrs
-                let manifest = { newModuleDef.Manifest.Value with CustomAttrsStored = attrs }
-                { newModuleDef with Manifest = Some(manifest) }
+                    let attrs = mkILCustomAttrsFromArray ivtAttributes |> storeILCustomAttrs
+                    let manifest = { newModuleDef.Manifest.Value with CustomAttrsStored = attrs }
+                    { newModuleDef with Manifest = Some(manifest) }
 
-            moduleDef <- Some(newModuleDef)
-            newModuleDef
+                moduleDef <- Some(newModuleDef)
+            )
+
+            match moduleDef with
+            | None -> mkDummyModuleDef ()
+            | Some value -> value
 
         member this.Dispose() =
             match realModuleReader with

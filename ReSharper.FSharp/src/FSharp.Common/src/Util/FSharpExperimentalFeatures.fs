@@ -12,7 +12,7 @@ type ExperimentalFeature =
     | PostfixTemplates = 2
     | RedundantParenAnalysis = 3
     | AssemblyReaderShim = 4
-    | ReSharperImportCompletion = 5
+    | TryRecoverFcsProjects = 5
 
 type FSharpExperimentalFeatureCookie(feature: ExperimentalFeature) =
     static let cookies = OneToListMap<ExperimentalFeature, IDisposable>()
@@ -44,7 +44,7 @@ type FSharpExperimentalFeatures() =
         | ExperimentalFeature.Formatter -> experimentalFeatures.RedundantParensAnalysis.Value
         | ExperimentalFeature.PostfixTemplates -> experimentalFeatures.EnablePostfixTemplates.Value
         | ExperimentalFeature.RedundantParenAnalysis -> experimentalFeatures.RedundantParensAnalysis.Value
-        | ExperimentalFeature.ReSharperImportCompletion -> experimentalFeatures.ReSharperImportCompletion.Value
+        | ExperimentalFeature.TryRecoverFcsProjects -> experimentalFeatures.TryRecoverFcsProjects.Value
         | _ -> failwith $"Unexpected feature: {feature}"
 
     [<Extension>]

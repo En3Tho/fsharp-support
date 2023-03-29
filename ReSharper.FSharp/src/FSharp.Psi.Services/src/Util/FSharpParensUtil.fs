@@ -65,11 +65,15 @@ let rec deindentsBody blockIndent (expr: IFSharpExpression) =
     | _ -> false
 
 
-let contextRequiresParens (context: IFSharpExpression) =
+let contextRequiresParens (expr: IFSharpExpression) (context: IFSharpExpression) =
     isNotNull (ObjExprNavigator.GetByArgExpression(context)) ||
     isNotNull (NewExprNavigator.GetByArgumentExpression(context)) ||
     isNotNull (RecordExprNavigator.GetByInheritCtorArgExpression(context)) ||
-    isNotNull (TypeInheritNavigator.GetByCtorArgExpression(context))
+    isNotNull (TypeInheritNavigator.GetByCtorArgExpression(context)) ||
+
+    let dynamicExpr = DynamicExprNavigator.GetByArgumentExpression(context)
+    let refExpr = expr.As<IReferenceExpr>()
+    isNotNull dynamicExpr && (isNull refExpr || not refExpr.IsSimpleName)
 
 
 let (|Prefix|_|) (other: string) (str: string) =
@@ -117,8 +121,10 @@ let precedence (expr: ITreeNode) =
     // todo: type test, cast, typed
     | :? ITypedLikeExpr -> 5
     | :? ILambdaExpr -> 6
-    | :? ISequentialExpr -> 7
-    
+
+    | :? ISequentialExpr
+    | :? ISetExpr -> 7
+
     | :? ITupleExpr -> 8
 
     | :? IBinaryAppExpr as binaryAppExpr ->
@@ -266,7 +272,7 @@ let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: I
     if expr :? IParenOrBeginEndExpr then false else
 
     let expr = expr.IgnoreInnerParens()
-    if isNull expr|| contextRequiresParens context then true else
+    if isNull expr|| contextRequiresParens expr context then true else
 
     let parentPrefixAppExpr = PrefixAppExprNavigator.GetByArgumentExpression(context)
     if isNotNull parentPrefixAppExpr && parentPrefixAppExpr.IsHighPrecedence &&
@@ -368,7 +374,7 @@ let rec needsParensImpl (allowHighPrecedenceAppParens: unit -> bool) (context: I
         isNotNull (PrefixAppExprNavigator.GetByArgumentExpression(getQualifiedExpr context)) ||
 
         let isQualifier = isNotNull (QualifiedExprNavigator.GetByQualifier(context))
-        isQualifier && isIndexerLikeAppExpr appExpr && isIndexerLikeAppExpr appExpr.FunctionExpression || 
+        isQualifier && isIndexerLikeAppExpr appExpr || 
 
         checkPrecedence context expr
 

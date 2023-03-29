@@ -1,7 +1,10 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 
 open System
+open System.Linq.Expressions
+open JetBrains.ReSharper.Feature.Services.CSharp.CodeCompletion.Settings
 open JetBrains.ReSharper.FeaturesTestFramework.Completion
+open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Plugins.FSharp.Settings
@@ -32,12 +35,14 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Basic 05 - Attribute suffix``() = x.DoNamedTest()
     [<Test>] member x.``Basic 06 - Attribute suffix``() = x.DoNamedTest()
 
-    [<Test>] member x.``Bind - Rqa module 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Bind - Rqa module 01``() = x.DoNamedTest()
     [<Test>] member x.``Bind - Rqa module 02``() = x.DoNamedTest()
     [<Test>] member x.``Bind - Rqa module 03``() = x.DoNamedTest()
     [<Test>] member x.``Bind - Rqa module 04``() = x.DoNamedTest()
-    [<Test>] member x.``Bind - Qualifier - Enum case 01``() = x.DoNamedTest()
-    [<Test>] member x.``Bind - Qualifier - Enum case 02 - Escape``() = x.DoNamedTest()
+    [<Test>] member x.``Bind - Rqa module 05``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Bind - Qualifier - Enum case 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Bind - Qualifier - Enum case 02 - Escape``() = x.DoNamedTest()
+    [<Test>] member x.``Bind - Qualifier - Enum case 03``() = x.DoNamedTest()
 
     [<Test>] member x.``Local val - Binary op 01``() = x.DoNamedTest()
     [<Test>] member x.``Local val - Binary op 02``() = x.DoNamedTest()
@@ -54,6 +59,15 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Lambda - Pipe 01``() = x.DoNamedTest()
     [<Test>] member x.``Lambda - Pipe 02``() = x.DoNamedTest()
     [<Test>] member x.``Lambda - Pipe 03 - Parens``() = x.DoNamedTest()
+
+    [<Test>] member x.``Match - Enum 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Enum 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Bool 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Bool 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Bool 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Tuple 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Not available 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Not available 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Pattern - Enum - Matched type 01``() = x.DoNamedTest()
     [<Test>] member x.``Pattern - Enum - Rqa 01``() = x.DoNamedTest()
@@ -101,6 +115,10 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Pattern - Union case 08 - Module Rqa``() = x.DoNamedTest()
     [<TestSetting(typeof<FSharpFormatSettingsKey>, "SpaceBeforeUppercaseInvocation", "true")>]
     [<Test>] member x.``Pattern - Union case 09 - Space``() = x.DoNamedTest()
+
+    [<Test>] member x.``Record Field 01``() = x.DoNamedTest()
+    [<Test>] member x.``Record Field 02``() = x.DoNamedTest()
+    [<Test>] member x.``Record Field 03``() = x.DoNamedTest()
 
     [<Test>] member x.``To recursive - Escape 01``() = x.DoNamedTest()
     [<Test>] member x.``To recursive - Local 01``() = x.DoNamedTest()
@@ -163,7 +181,14 @@ type FSharpCompletionTest() =
 
     [<Test>] member x.``XmlDoc - tags``() = x.DoNamedTest()
 
-[<FSharpTest>]
+    [<Test>] member x.``Interpolated string 01``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string 02 - Before``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string 02 - After``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string 03 - Start``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string 03 - Middle``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string 03 - End``() = x.DoNamedTest()
+
+[<FSharpTest; FSharpExperimentalFeature(ExperimentalFeature.PostfixTemplates)>]
 type FSharpPostfixCompletionTest() =
     inherit CodeCompletionTestBase()
 
@@ -171,40 +196,65 @@ type FSharpPostfixCompletionTest() =
 
     override x.TestType = CodeCompletionTestType.Action
 
-    [<Test; Explicit>] member x.``For - Array - Literal 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Array - Literal 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Array 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - List - Literal 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - List - Literal 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - List 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Not available - Bool 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Not available - Bool 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Not available - Int 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Not available - Int 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Arg 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Arg 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Function return 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Function return 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Function return 03``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Active pattern 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Active pattern 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Constraints 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Constraints 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 03``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 04``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param - Tuple 05``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type context - Param 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type parameter 01``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type parameter 02``() = x.DoNamedTest()
-    [<Test; Explicit>] member x.``For - Type parameter 03``() = x.DoNamedTest()
+    override this.ExecuteCodeCompletion(suffix, textControl, intellisenseManager, automatic, settingsStore) =
+        let occurrenceName = BaseTestWithTextControl.GetSetting(textControl, FSharpTestPopup.OccurrenceName)
+        FSharpTestPopup.setOccurrence occurrenceName false this.Solution this.TestLifetime
+        base.ExecuteCodeCompletion(suffix, textControl, intellisenseManager, automatic, settingsStore)
+
+    [<Test>] member x.``For - App 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``For - App 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - App 03``() = x.DoNamedTest()
+    [<Test>] member x.``For - App 04``() = x.DoNamedTest()
+    [<Test>] member x.``For - App 05``() = x.DoNamedTest()
+    [<Test>] member x.``For - App 06``() = x.DoNamedTest()
+    [<Test>] member x.``For - App 07``() = x.DoNamedTest()
+    [<Test>] member x.``For - Array - Literal 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Array - Literal 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Array 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Array 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Dictionary 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - List - Literal 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - List - Literal 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - List 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - List 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Name 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Not available - Bool 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Not available - Bool 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Not available - Int 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Not available - Int 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Seq 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Tuple 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Arg 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Arg 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Function return 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Function return 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Function return 03``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Active pattern 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Active pattern 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Constraints 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Constraints 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Constraints 03``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Tuple 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Tuple 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Tuple 03``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Tuple 04``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type context - Param - Tuple 05``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type parameter 01``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type parameter 02``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type parameter 03``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type parameter 04``() = x.DoNamedTest()
+    [<Test>] member x.``For - Type parameter 05 - Eof``() = x.DoNamedTest()
 
     [<Test>] member x.``Let - Decl 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Decl 02``() = x.DoNamedTest()
     [<Test>] member x.``Let - Decl 03``() = x.DoNamedTest()
 
+    [<Test>] member x.``Let - Expr - App 01``() = x.DoNamedTest()
+    [<Test>] member x.``Let - Expr - App 02``() = x.DoNamedTest()
+    [<Test>] member x.``Let - Expr - App 03``() = x.DoNamedTest()
+    [<Test>] member x.``Let - Expr - App 04``() = x.DoNamedTest()
     [<Test>] member x.``Let - Expr - Op - Pipe 01``() = x.DoNamedTest()
+    [<Test>] member x.``Let - Expr - Op - Pipe 02``() = x.DoNamedTest()
     [<Test>] member x.``Let - Expr - Ref 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Expr - Ref 02 - Ctor``() = x.DoNamedTest()
     [<Test>] member x.``Let - Expr 01``() = x.DoNamedTest()
@@ -216,14 +266,57 @@ type FSharpPostfixCompletionTest() =
 
     [<Test>] member x.``Let - Type - Function 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type - Function 02``() = x.DoNamedTest()
+    [<Test>] member x.``Let - Type - KeyValuePair 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type - Named 01``() = x.DoNamedTest()
     [<Test>] member x.``Let - Type - Tuple 01``() = x.DoNamedTest()
 
     [<TestDefines("DEFINE")>]
     [<Test>] member x.``Let - Preprocessor 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Match - Context - App 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - App 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Binary 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Binary 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Binary 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Binary 04``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Eof 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Eof 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - If 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - If 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - If 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Lambda 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Lambda 02``() = x.DoNamedTest()
+    [<TestSetting(typeof<FSharpFormatSettingsKey>, "MultiLineLambdaClosingNewline", "true")>]
+    [<Test>] member x.``Match - Context - Lambda 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Let 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Let 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Let 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Let 04``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - List 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - List 02 - For``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Match 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Match 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Match 03``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Try 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Context - Try 02``() = x.DoNamedTest()
+
+    [<Test>] member x.``Match - Bool 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Bool 02``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Tuple 01``() = x.DoNamedTest()
+    [<Test>] member x.``Match - Tuple 02``() = x.DoNamedTest()
+
     [<Test>] member x.``Not available - Let - Open 01``() = x.DoNamedTest()
     [<Test>] member x.``Not available - Let - Namespace 01``() = x.DoNamedTest()
+    [<Test>] member x.``Not available - Match 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``With 01``() = x.DoNamedTest()
+    [<Test>] member x.``With 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``With 03``() = x.DoNamedTest()
+    [<Test>] member x.``With 04``() = x.DoNamedTest()
+    [<Test>] member x.``With 05``() = x.DoNamedTest()
+    [<Test>] member x.``With 06``() = x.DoNamedTest()
+    [<Test>] member x.``With 07``() = x.DoNamedTest()
+    [<Test>] member x.``With 08``() = x.DoNamedTest()
 
 
 [<AbstractClass; FSharpTest>]
@@ -361,6 +454,7 @@ type FSharpFilteredCompletionTest() =
     [<Test>] member x.``Expr - Record - Field - Empty 03``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Empty 04``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Empty 05 - Another ns``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Empty 06``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Unfinished 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Unfinished 02``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Unfinished 03``() = x.DoNamedTest()
@@ -379,3 +473,51 @@ type FSharpFilteredCompletionTest() =
 
     override this.BeforeTestStart(_, _, documentText) =
         this.CompleteItem <- FSharpFilteredCompletionTest.GetSetting(documentText, "COMPLETE_ITEM")
+
+
+[<FSharpTest>]
+[<TestReferences("System")>]
+type FSharpRegexCompletionTest() =
+    inherit CodeCompletionTestBase()
+
+    override x.RelativeTestDataPath = "features/completion/regex"
+    override x.TestType = CodeCompletionTestType.Action
+
+    [<Test>] member x.``Non-verbatim string completion 01``() = x.DoNamedTest()
+    [<Test>] member x.``Non-verbatim string completion 02``() = x.DoNamedTest()
+    [<Test>] member x.``Non-verbatim string completion 03``() = x.DoNamedTest()
+    [<Test>] member x.``Non-verbatim string completion 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Verbatim string completion 01``() = x.DoNamedTest()
+    [<Test>] member x.``Verbatim string completion 02``() = x.DoNamedTest()
+    [<Test>] member x.``Verbatim string completion 03``() = x.DoNamedTest()
+    [<Test>] member x.``Verbatim string completion 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Brackets 01``() = x.DoNamedTest()
+    [<Test>] member x.``Brackets 02 - Interpolation``() = x.DoNamedTest()
+
+    [<Test>] member x.``Active pattern 01``() = x.DoNamedTest()
+    [<Test>] member x.``Type provider 01``() = x.DoNamedTest()
+
+
+[<FSharpTest>]
+type FSharpCodeCompletionTypingTest() =
+    inherit CodeCompletionTypingTestBase<CSharpCompletingCharactersSettingsKey, CSharpAutopopupEnabledSettingsKey>()
+
+    override x.RelativeTestDataPath = "features/completion/typing"
+
+    member this.Quote(e:Expression<System.Func<_, _>>) = e
+
+    override this.GetCompleteOnSpaceSetting() = this.Quote(fun key -> key.CompleteOnSpace)
+    override this.GetDoNotCompleteOnSetting() = this.Quote(fun key -> key.NonCompletingCharacters)
+    override this.GetAutopopupTypeSetting() = this.Quote(fun key -> key.OnIdent)
+
+    [<Test>] member x.``Space - Pattern 01``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Pattern 02``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Pattern 03``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Pattern 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Space - Record 01``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Record 02``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Record 03``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Record 04``() = x.DoNamedTest()

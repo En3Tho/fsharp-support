@@ -1,0 +1,8 @@
+﻿module Say
+
+let (|String|) x = string x
+
+match true with
+| String "" -> ()
+| true -> {selstart}failwith "todo"{selend}
+| false -> failwith "todo"

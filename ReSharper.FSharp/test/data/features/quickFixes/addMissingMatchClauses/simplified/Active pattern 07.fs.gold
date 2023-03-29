@@ -1,0 +1,8 @@
+﻿module Say
+
+let (|Pair|) x = x, x
+
+match true, true with
+| false, Pair _ -> ()
+| true, true -> {selstart}failwith "todo"{selend}
+| true, false -> failwith "todo"

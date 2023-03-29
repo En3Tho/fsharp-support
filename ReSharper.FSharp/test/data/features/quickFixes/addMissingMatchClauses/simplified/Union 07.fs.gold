@@ -1,0 +1,11 @@
+﻿module Say
+
+type U =
+    | A
+    | B
+
+match None with
+//| None -> ()
+| Some A -> ()
+| Some B -> ()
+| None -> {selstart}failwith "todo"{selend}

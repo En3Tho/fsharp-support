@@ -1,0 +1,11 @@
+﻿module Say
+
+type E =
+    | A = 1
+    | B = 2
+
+let [<Literal>] A = E.A
+
+match E.A with
+| A -> ()
+| E.B -> {selstart}failwith "todo"{selend}

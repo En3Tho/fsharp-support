@@ -5,11 +5,16 @@ open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.TextControl
+
+open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
+
 
 [<RequireQualifiedAccess>]
 type GeneratedClauseExpr =
@@ -17,7 +22,7 @@ type GeneratedClauseExpr =
     | ArgumentOutOfRange
 
 
-type AddMatchAllClauseFix(expr: IMatchExpr, generatedExpr: GeneratedClauseExpr) =
+type AddMatchAllClauseFix(expr: IMatchLikeExpr, generatedExpr: GeneratedClauseExpr) =
     inherit FSharpQuickFixBase()
 
     new (warning: MatchIncompleteWarning) =
@@ -41,6 +46,15 @@ type AddMatchAllClauseFix(expr: IMatchExpr, generatedExpr: GeneratedClauseExpr) 
 
         let addToNewLine = not isSingleLineMatch // todo: cover more cases
 
+        let singleClause = expr.Clauses.SingleItem
+        if isNotNull singleClause && isNull singleClause.Bar && singleClause.StartLine <> expr.StartLine then
+            addNodesBefore singleClause.FirstChild [
+                FSharpTokenType.BAR.CreateLeafElement()
+                Whitespace()
+            ] |> ignore
+
+        let lastClause = expr.ClausesEnumerable |> Seq.tryLast
+
         let clause =
             addNodesAfter expr.LastChild [
                 if addToNewLine then
@@ -51,7 +65,10 @@ type AddMatchAllClauseFix(expr: IMatchExpr, generatedExpr: GeneratedClauseExpr) 
                         NewLine(lineEnding)
 
                     NewLine(lineEnding)
-                    Whitespace(lastClause.Indent) // may be wrong in some cases
+
+                    let indent = lastClause.Indent
+                    if indent > 0 then
+                        Whitespace(indent) // may be wrong in some cases
                 else
                     Whitespace()
                 factory.CreateMatchClause()
@@ -65,6 +82,8 @@ type AddMatchAllClauseFix(expr: IMatchExpr, generatedExpr: GeneratedClauseExpr) 
                 | Some _ -> typeName
 
             clause.SetExpression(factory.CreateExpr($"{typeName}() |> raise")) |> ignore
+
+        lastClause |> Option.iter (MatchTree.moveSubsequentCommentToMatchClause expr)
 
         Action<_>(fun textControl ->
             let range = clause.Expression.GetNavigationRange()

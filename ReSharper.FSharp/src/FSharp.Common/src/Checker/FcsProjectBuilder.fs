@@ -126,8 +126,6 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
         sourceFiles.ToArray(), implsWithSigs, resources
 
     member x.BuildFcsProject(psiModule: IPsiModule, project: IProject): FcsProject =
-        logger.Verbose("Creating FcsProject: {0}", psiModule)
-
         let targetFrameworkId = psiModule.TargetFrameworkId
         let projectProperties = project.ProjectProperties
 
@@ -177,7 +175,9 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
             |> List.choose (getOption id)
             |> otherOptions.AddRange
 
-            [ FSharpProperties.NoWarn, None; MSBuildProjectUtil.WarningsAsErrorsProperty, Some("warnaserror") ]
+            [ FSharpProperties.NoWarn, None
+              MSBuildProjectUtil.WarningsAsErrorsProperty, Some("warnaserror")
+              MSBuildProjectUtil.WarningsNotAsErrorsProperty, Some("warnaserror-") ]
             |> List.choose (getOption (fun v -> (FcsProjectBuilder.splitAndTrim FcsProjectBuilder.itemsDelimiters v).Join(",")))
             |> otherOptions.AddRange
 
@@ -204,7 +204,7 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
               LoadTime = DateTime.Now
               OriginalLoadReferences = List.empty
               UnresolvedReferences = None
-              Stamp = Some(getNextStamp ()) }
+              Stamp = None }
 
         let parsingOptions, errors =
             checkerService.Checker.GetParsingOptionsFromCommandLineArgs(List.ofArray projectOptions.OtherOptions)
@@ -238,6 +238,9 @@ type FcsProjectBuilder(lifetime: Lifetime, checkerService: FcsCheckerService, it
                 path)
             |> Array.map (fun r -> "-r:" + r.FullPath)
 
-        let otherOptions = Array.append fcsProject.ProjectOptions.OtherOptions paths
-        let projectOptions = { fcsProject.ProjectOptions with OtherOptions = otherOptions}
+        let projectOptions =
+            { fcsProject.ProjectOptions with
+                OtherOptions = Array.append fcsProject.ProjectOptions.OtherOptions paths
+                Stamp = Some(getNextStamp ()) }
+
         { fcsProject with ProjectOptions = projectOptions }

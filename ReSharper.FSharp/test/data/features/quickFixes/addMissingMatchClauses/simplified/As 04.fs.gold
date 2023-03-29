@@ -1,0 +1,6 @@
+﻿module Say
+
+match true, true with
+| true, ((_ as true) | false) -> ()
+| false, true -> {selstart}failwith "todo"{selend}
+| false, false -> failwith "todo"

@@ -2,5 +2,5 @@
 module Module
 
 let l = []
-for _ in l do
-  (){caret}
+for o in l do
+  {caret}

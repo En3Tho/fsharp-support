@@ -3,7 +3,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open System
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Text
+open JetBrains.Application.Settings
 open JetBrains.Core
+open JetBrains.DocumentModel
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.Rd.Tasks
@@ -21,7 +23,8 @@ module internal Reflection =
 
 
 [<SolutionComponent>]
-type FantomasHost(solution: ISolution, fantomasFactory: FantomasProcessFactory, fantomasDetector: FantomasDetector) =
+type FantomasHost(solution: ISolution, fantomasFactory: FantomasProcessFactory, fantomasDetector: FantomasDetector,
+                  schema: SettingsSchema) =
     let solutionLifetime = solution.GetSolutionLifetimes().UntilSolutionCloseLifetime
     let mutable connection: FantomasConnection = null
     let mutable formatConfigFields: string[] = [||]
@@ -47,6 +50,11 @@ type FantomasHost(solution: ISolution, fantomasFactory: FantomasProcessFactory, 
     let toRdFcsRange (range: range) =
         RdFcsRange(range.FileName, range.StartLine, range.StartColumn, range.EndLine, range.EndColumn)
 
+    let toRdFcsPos (caretPosition: DocumentCoords option) =
+        match caretPosition with
+        | Some caretPosition -> RdFcsPos(int caretPosition.Line, int caretPosition.Column)
+        | None -> null
+
     let toRdFormatSettings (settings: FSharpFormatSettingsKey) =
         [| for field in formatConfigFields ->
             let fieldName =
@@ -54,7 +62,13 @@ type FantomasHost(solution: ISolution, fantomasFactory: FantomasProcessFactory, 
                     | "IndentSize" -> "INDENT_SIZE"
                     | "MaxLineLength" -> "WRAP_LIMIT"
                     | x -> x
-            let value = Reflection.getFieldValue settings fieldName
+            let value =
+                match Reflection.getFieldValue settings fieldName with
+                | null -> null
+                | x ->
+                match schema.GetEntry(typeof<FSharpFormatSettingsKey>, fieldName) with
+                | :? SettingsScalarEntry as entry when entry.RawDefaultValue <> x -> x
+                | _ -> ""
             let value =
                 if isNull value then settings.FantomasSettings.TryGet(toEditorConfigName fieldName)
                 else value.ToString()
@@ -71,15 +85,15 @@ type FantomasHost(solution: ISolution, fantomasFactory: FantomasProcessFactory, 
         connect()
         let args =
             RdFantomasFormatSelectionArgs(toRdFcsRange range, filePath, source, toRdFormatSettings settings,
-                toRdFcsParsingOptions options, newLineText)
+                toRdFcsParsingOptions options, newLineText, null)
 
         connection.Execute(fun () -> connection.ProtocolModel.FormatSelection.Sync(args, RpcTimeouts.Maximal))
 
-    member x.FormatDocument(filePath, source, settings, options, newLineText) =
+    member x.FormatDocument(filePath, source, settings, options, newLineText, cursorPosition: DocumentCoords option) =
         connect()
         let args =
             RdFantomasFormatDocumentArgs(filePath, source, toRdFormatSettings settings, toRdFcsParsingOptions options,
-                newLineText)
+                newLineText, toRdFcsPos cursorPosition)
 
         connection.Execute(fun () -> connection.ProtocolModel.FormatDocument.Sync(args, RpcTimeouts.Maximal))
 

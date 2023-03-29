@@ -1,0 +1,7 @@
+﻿// ${COMPLETE_ITEM:for}
+module Module
+
+let f (x: #seq<string>) =
+    for s in x do
+      {caret}
+    ()

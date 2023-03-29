@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Diagnostics;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Util;
@@ -26,6 +27,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     public override IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
     public FSharpSymbolReference Reference => ReferenceName?.Reference;
+    public override ConstantValue ConstantValue => this.GetConstantValue();
   }
 
   internal partial class LocalReferencePat
@@ -52,6 +54,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 
     public IBindingLikeDeclaration Binding => this.GetBindingFromHeadPattern();
     public FSharpSymbolReference Reference => ReferenceName?.Reference;
+    public override ConstantValue ConstantValue => this.GetConstantValue();
   }
 
   internal partial class ParametersOwnerPat
@@ -84,6 +87,34 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
         var pattern1Decls = Pattern1?.NestedPatterns ?? EmptyList<IFSharpPattern>.Instance;
         var pattern2Decls = Pattern2?.NestedPatterns ?? EmptyList<IFSharpPattern>.Instance;
         return pattern2Decls.Prepend(pattern1Decls);
+      }
+    }
+
+    public IList<IFSharpPattern> Patterns
+    {
+      get
+      {
+        var result = new List<IFSharpPattern>();
+
+        var pat = this;
+        while (pat != null)
+        {
+          var pat2 = pat.Pattern2;
+          if (pat2 != null)
+            result.Add(pat2);
+
+          if (pat.Pattern1 is OrPat orPat)
+          {
+            pat = orPat;
+          }
+          else
+          {
+            result.Add(pat.Pattern1);
+            pat = null;
+          }
+        }
+
+        return result;
       }
     }
   }
@@ -130,6 +161,30 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
   {
     public override IEnumerable<IFSharpPattern> NestedPatterns =>
       FieldPatterns.SelectMany(pat => pat.Pattern?.NestedPatterns).WhereNotNull();
+  }
+
+  internal partial class LiteralPat
+  {
+    public override ConstantValue ConstantValue
+    {
+      get
+      {
+        var tokenType = Literal?.GetTokenType();
+        if (tokenType == null)
+          return ConstantValue.NOT_COMPILE_TIME_CONSTANT;
+
+        var psiModule = GetPsiModule();
+
+        if (tokenType == FSharpTokenType.TRUE)
+          return ConstantValue.Bool(true, psiModule);
+
+        if (tokenType == FSharpTokenType.FALSE)
+          return ConstantValue.Bool(false, psiModule);
+        
+        // todo: other token types
+        return ConstantValue.NOT_COMPILE_TIME_CONSTANT;
+      }
+    }
   }
 
   internal partial class OptionalValPat

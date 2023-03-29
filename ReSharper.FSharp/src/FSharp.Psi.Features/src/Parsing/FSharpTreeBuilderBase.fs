@@ -172,7 +172,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                 x.ProcessActivePatternId(idRange, ElementType.ACTIVE_PATTERN_NAMED_CASE_REFERENCE_NAME) // todo
             x.Done(idRange, marks.Pop(), ElementType.EXPRESSION_REFERENCE_NAME)
 
-    member x.ProcessReferenceNameSkipLast(lid: Ident list) =
+    member x.ProcessTypeReferenceNameSkipLast(lid: Ident list) =
         match lid with
         | [] -> ()
         | [IdentRange idRange] -> x.AdvanceToEnd(idRange)
@@ -189,7 +189,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         for IdentRange idRange in lid do
             if marks.Count > 0 then
-                x.Done(idRange, marks.Pop().Mark, ElementType.EXPRESSION_REFERENCE_NAME)
+                x.Done(idRange, marks.Pop().Mark, ElementType.TYPE_REFERENCE_NAME)
 
         x.AdvanceToEnd(lastIdRangeAndMark.Range)
 
@@ -260,7 +260,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                 x.MarkAndProcessIntro(attrs, xmlDoc, null, range)
 
         if moduleKind <> SynModuleOrNamespaceKind.AnonModule then
-            x.ProcessReferenceNameSkipLast(lid)
+            x.ProcessTypeReferenceNameSkipLast(lid)
 
         let elementType =
             match moduleKind with
@@ -287,7 +287,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
         | SynOpenDeclTarget.ModuleOrNamespace(lid, _) ->
             x.ProcessNamedTypeReference(lid.LongIdent)
         | SynOpenDeclTarget.Type(typeName, _) ->
-            x.ProcessType(typeName)
+            x.ProcessTypeAsTypeReferenceName(typeName)
         x.Done(range, mark, ElementType.OPEN_STATEMENT)
 
     member x.StartException(SynExceptionDefnRepr(attributeLists, unionCase, _, XmlDoc xmlDoc, _, _), exnRange) =
@@ -475,13 +475,13 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
 
         x.Done(attr.Range, mark, ElementType.ATTRIBUTE)
 
-    member x.ProcessEnumCase(SynEnumCase(attrs, _, _, valueRange, XmlDoc xmlDoc, range, _)) =
+    member x.ProcessEnumCase(SynEnumCase(attrs, _, expr, XmlDoc xmlDoc, range, _)) =
         let mark = x.MarkXmlDocOwner(xmlDoc, FSharpTokenType.BAR, range)
         x.ProcessAttributeLists(attrs)
-        x.MarkAndDone(valueRange, ElementType.LITERAL_EXPR)
+        x.MarkChameleonExpression(expr)
         x.Done(range, mark, ElementType.ENUM_CASE_DECLARATION)
 
-    member x.ProcessField(SynField(attrs, _, _, synType, _, XmlDoc xmlDoc, _, range)) elementType =
+    member x.ProcessField(SynField(attrs, _, _, synType, _, XmlDoc xmlDoc, _, range, _)) elementType =
         let mark = x.MarkAndProcessIntro(attrs, xmlDoc, null, range)
         x.ProcessType(synType)
         x.Done(range, mark, elementType)
@@ -650,7 +650,6 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                 match typeName with
                 | SynType.LongIdent(lid) -> lid.LongIdent
                 | SynType.MeasurePower(SynType.LongIdent(lid), _, _) -> lid.LongIdent
-                | SynType.MeasureDivide(SynType.LongIdent(lid), _, _) -> lid.LongIdent
                 | _ -> failwithf "unexpected type: %A" typeName
 
             let mark = x.Mark(range)
@@ -770,11 +769,13 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                 x.Done(range, mark, ElementType.ANON_RECORD_FIELD)
             x.Done(range, mark, ElementType.ANON_RECORD_TYPE_USAGE)
 
+        // StaticConstantNamed can be dummy, if the corresponding type parameter is empty
+        // i.e. T<int, {caret}>
+        | SynType.StaticConstantNamed(ident = SynType.LongIdent(SynLongIdent([ident], [], _))) when ident.idText = "" ->
+            ()
+
         | SynType.StaticConstantNamed(synType1, synType2, _) ->
             x.MarkTypes(synType1, synType2, range, ElementType.NAMED_STATIC_CONSTANT_TYPE_USAGE)
-
-        | SynType.MeasureDivide(synType1, synType2, _) ->
-            x.MarkTypes(synType1, synType2, range, ElementType.UNSUPPORTED_TYPE_USAGE)
 
         | SynType.Fun(synType1, synType2, _, _) ->
             x.MarkTypes(synType1, synType2, range, ElementType.FUNCTION_TYPE_USAGE)
@@ -806,8 +807,10 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
             x.MarkChameleonExpression(expr)
             x.Done(range, mark, ElementType.EXPR_STATIC_CONSTANT_TYPE_USAGE)
 
-        | SynType.StaticConstant(synConst, _) ->
-            x.MarkAndDone(range, ElementType.EXPR_STATIC_CONSTANT_TYPE_USAGE, x.GetConstElementType(synConst))
+        | SynType.StaticConstant(synConst, constRange) ->
+            let mark = x.Mark(range)
+            x.MarkChameleonExpression(SynExpr.Const(synConst, constRange))
+            x.Done(range, mark, ElementType.EXPR_STATIC_CONSTANT_TYPE_USAGE)
 
         | SynType.Anon _ ->
             x.MarkAndDone(range, ElementType.ANON_TYPE_USAGE)
@@ -816,6 +819,15 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
             let mark = x.Mark(range)
             x.ProcessType(innerType)
             x.Done(range, mark, ElementType.PAREN_TYPE_USAGE)
+
+        | SynType.SignatureParameter(_, _, _, synType, _) ->
+            x.ProcessType(synType)
+
+        | SynType.Or(lhsType, rhsType, range, _) ->
+            let mark = x.Mark(range)
+            x.ProcessTypeAsTypeReferenceName(lhsType)
+            x.ProcessTypeAsTypeReferenceName(rhsType)
+            x.Done(range, mark, ElementType.OR_TYPE_USAGE)
 
     member x.MarkTypes(synType1, synType2, range: range, elementType) =
         let mark = x.Mark(range)
@@ -862,9 +874,17 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
             x.ProcessType(synType)
             x.Done(range, mark, ElementType.SUBTYPE_CONSTRAINT)
 
-        | SynTypeConstraint.WhereTyparSupportsMember(typeParameterTypes, memberSig, _) ->
-            for synType in typeParameterTypes do
-                x.ProcessTypeAsTypeReferenceName(synType)
+        | SynTypeConstraint.WhereTyparSupportsMember(synType, memberSig, _) ->
+            let rec (|OrTypes|) t =
+                match t with
+                | SynType.Or(lhsType, OrTypes types, _, _) -> lhsType :: types
+                | _ -> [t]
+
+            match synType with
+            | SynType.Paren(OrTypes types, _) ->
+                for synType in types do
+                    x.ProcessTypeAsTypeReferenceName(synType)
+            | _ -> x.ProcessTypeAsTypeReferenceName(synType)
 
             match memberSig with
             | SynMemberSig.Member _ ->
@@ -885,18 +905,31 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                 x.ProcessType(synType)
             x.Done(range, mark, ElementType.DELEGATE_CONSTRAINT)
 
+        | SynTypeConstraint.WhereSelfConstrained(synType, range) ->
+            x.ProcessTypeAsTypeReferenceName(synType)
+            x.Done(range, mark, ElementType.SELF_CONSTRAINT)
+
     member x.ProcessTypeParameter(SynTypar(IdentRange range, _, _)) =
         let mark = x.Mark(range)
         x.MarkAndDone(range, ElementType.TYPE_PARAMETER_ID)
         x.Done(range, mark, ElementType.TYPE_REFERENCE_NAME)
 
+    member x.ProcessAccessorsNamesClause(trivia: SynValSigTrivia, memberRange) =
+        match trivia.WithKeyword with
+        | None -> ()
+        | Some withRange ->
+
+        let accessorsMark = x.Mark(withRange)
+        x.Done(memberRange, accessorsMark, ElementType.ACCESSORS_NAMES_CLAUSE)
+
     member x.ProcessTypeMemberSignature(memberSig) =
         match memberSig with
-        | SynMemberSig.Member(SynValSig(attrs, _, _, synType, arity, _, _, XmlDoc xmlDoc, _, _, _, _), flags, range) ->
+        | SynMemberSig.Member(SynValSig(attrs, _, _, synType, arity, _, _, XmlDoc xmlDoc, _, _, _, trivia), flags, range, _) ->
             let mark = x.MarkAndProcessIntro(attrs, xmlDoc, null, range)
             x.ProcessReturnTypeInfo(arity, synType)
             let elementType =
                 if flags.IsDispatchSlot then
+                    x.ProcessAccessorsNamesClause(trivia, range)
                     ElementType.ABSTRACT_MEMBER_DECLARATION
                 else
                     match flags.MemberKind with
@@ -904,7 +937,7 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
                     | _ -> ElementType.MEMBER_SIGNATURE
             x.Done(range, mark, elementType)
 
-        | SynMemberSig.ValField(SynField(attrs, _, id, synType, _, XmlDoc xmlDoc, _, _), range) ->
+        | SynMemberSig.ValField(SynField(attrs, _, id, synType, _, XmlDoc xmlDoc, _, _, _), range) ->
             if id.IsSome then
                 let mark = x.MarkAndProcessIntro(attrs, xmlDoc, null, range)
                 x.ProcessType(synType)
@@ -980,12 +1013,12 @@ type FSharpTreeBuilderBase(lexer, document: IDocument, lifetime, path: VirtualFi
         match typeParams with
         | Some(SynTyparDecls.PrefixList _ | SynTyparDecls.SinglePrefix _ as typeParams) ->
             x.ProcessTypeParameters(typeParams, true)
-            x.ProcessReferenceNameSkipLast(lid)
+            x.ProcessTypeReferenceNameSkipLast(lid)
         | Some(typeParams) ->
-            x.ProcessReferenceNameSkipLast(lid)
+            x.ProcessTypeReferenceNameSkipLast(lid)
             x.ProcessTypeParameters(typeParams, true)
         | _ ->
-            x.ProcessReferenceNameSkipLast(lid)
+            x.ProcessTypeReferenceNameSkipLast(lid)
 
         for typeConstraint in constraints do
             x.ProcessTypeConstraint(typeConstraint)

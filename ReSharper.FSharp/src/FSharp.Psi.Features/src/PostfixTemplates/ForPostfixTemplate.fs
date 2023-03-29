@@ -1,117 +1,139 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.PostfixTemplates
 
 open System.Collections.Generic
+open System.Linq
 open FSharp.Compiler.Symbols
-open JetBrains.Application.Environment
-open JetBrains.Application.Environment.Helpers
-open JetBrains.Application.Progress
+open JetBrains.Application.Threading
 open JetBrains.ProjectModel
-open JetBrains.ReSharper.Feature.Services.LiveTemplates.LiveTemplates
+open JetBrains.ReSharper.Feature.Services.Bulbs
 open JetBrains.ReSharper.Feature.Services.LiveTemplates.Hotspots
-open JetBrains.ReSharper.Feature.Services.LiveTemplates.Templates
+open JetBrains.ReSharper.Feature.Services.Navigation.CustomHighlighting
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates.Contexts
+open JetBrains.ReSharper.Feature.Services.Refactorings.WorkflowOccurrences
 open JetBrains.ReSharper.Plugins.FSharp.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions.Deconstruction
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Refactorings
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
+open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
-open JetBrains.ReSharper.Psi.Search
+open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Transactions
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Resources.Shell
+open JetBrains.TextControl
+open JetBrains.UI.RichText
+open JetBrains.Util
+
+module ForPostfixTemplate =
+    let tryGetEnumerableTypeArg (contextExpr: IFSharpExpression) (fcsType: FSharpType) : FSharpType option =
+        let seenTypes = HashSet()
+
+        let rec loop (fcsType: FSharpType) =
+            let fcsType = FSharpSymbolUtil.getAbbreviatedType fcsType
+
+            let exprType = fcsType.MapType(contextExpr)
+            if exprType.IsGenericIEnumerable() then
+                Some fcsType.GenericArguments[0] else
+
+            if not fcsType.HasTypeDefinition then None else
+
+            let entity = fcsType.TypeDefinition
+            if entity.IsArrayType then Some fcsType.GenericArguments[0] else
+
+            if not (seenTypes.Add(entity.BasicQualifiedName)) then None else
+
+            fcsType.BaseType
+            |> Option.bind loop
+            |> Option.orElseWith (fun _ ->
+                fcsType.AllInterfaces
+                |> Seq.tryPick loop
+            )
+
+        loop fcsType
+
+    let getEnumeratedType (contextExpr: IFSharpExpression) (fcsType: FSharpType) : FSharpType option =
+        if isNull fcsType then None else
+
+        if fcsType.IsGenericParameter then
+            fcsType.AllInterfaces |> Seq.tryPick (tryGetEnumerableTypeArg contextExpr)
+        else
+            tryGetEnumerableTypeArg contextExpr fcsType
+
+    let getExpressionType (wholeExpr: IFSharpExpression) (initialExpr: IFSharpExpression) =
+        let getRefExprQualifierType (refExpr: IReferenceExpr) =
+            let expr = refExpr.Qualifier
+            if isNull expr then Unchecked.defaultof<_>, Unchecked.defaultof<_> else
+
+            expr.TryGetFcsType(), expr.TryGetFcsDisplayContext()
+
+        let wholeRefExpr = wholeExpr.As<IReferenceExpr>()
+        if isNotNull wholeRefExpr then
+            getRefExprQualifierType wholeRefExpr else
+
+        let initialRefExpr = initialExpr.As<IReferenceExpr>()
+        if isNull initialRefExpr then Unchecked.defaultof<_>, Unchecked.defaultof<_> else
+
+        let originalNode = initialRefExpr.TryGetOriginalNodeThroughSandBox(wholeExpr)
+        if isNotNull originalNode then
+            originalNode.TryGetFcsType(), originalNode.TryGetFcsDisplayContext() else
+
+        Unchecked.defaultof<_>, Unchecked.defaultof<_>
 
 
 [<PostfixTemplate("for", "Iterates over enumerable collection", "for _ in expr do ()")>]
 type ForPostfixTemplate() =
     inherit FSharpPostfixTemplateBase()
 
-    let isApplicableType (fcsType: FSharpType) (contextExpr: IFSharpExpression) =
+    let isApplicableType (contextExpr: IFSharpExpression) (fcsType: FSharpType) =
         if isNull fcsType then false else
 
-        let exprType = fcsType.MapType(contextExpr)
-        if isNull exprType then false else
+        let enumeratedType = ForPostfixTemplate.getEnumeratedType contextExpr fcsType
+        isNotNull enumeratedType ||
 
-        if exprType :? IArrayType then true else
-
-        let declaredType = exprType.As<IDeclaredType>()
-        if isNull declaredType then false else
-
-        let typeElement = declaredType.GetTypeElement()
-        if isNull typeElement then false else
-
-        let enumerableTypeElement = exprType.Module.GetPredefinedType().IEnumerable.GetTypeElement()
-
-        let typeParameter = typeElement.As<ITypeParameter>()
-        if isNotNull typeParameter then
-            let superTypeElements = typeParameter.GetSuperTypeElements()
-            superTypeElements |> Seq.exists (fun t -> t.IsDescendantOf(enumerableTypeElement))
-        else
-            typeElement.IsDescendantOf(enumerableTypeElement)
-
-    let isApplicableDeclaredElement (refExpr: IReferenceExpr) =
-        if isNull refExpr then false else
-
-        let refPat = refExpr.Reference.Resolve().DeclaredElement.As<ILocalReferencePat>()
-        if isNull refPat then false else
-
-        let rec tryGetTopLevelPatternFromUntypedPattern (pat: IFSharpPattern) =
-            let pat = pat.IgnoreParentParens()
-            match TuplePatNavigator.GetByPattern(pat) with
-            | null -> pat
-            | pat -> tryGetTopLevelPatternFromUntypedPattern pat
-
-        let pat = tryGetTopLevelPatternFromUntypedPattern refPat
-        if isNull (BindingNavigator.GetByParameterPattern(pat)) then false else
-
-        let references = List()
-        let searchPattern = SearchPattern.FIND_USAGES ||| SearchPattern.FIND_RELATED_ELEMENTS
-        let searchDomain = refPat.DeclaredElement.GetSearchDomain()
-
-        refPat.GetPsiServices().AsyncFinder.Find([| refPat.DeclaredElement |], searchDomain, references.ConsumeReferences(),
-                searchPattern, NullProgressIndicator.Create())
-
-        match Seq.tryHead references with
-        | None -> false
-        | Some reference -> reference.GetTreeNode().GetTreeStartOffset() = refExpr.GetTreeStartOffset()
+        fcsType.IsGenericParameter && Seq.isEmpty fcsType.AllInterfaces
 
     let isApplicable (expr: IFSharpExpression) =
-        let refExpr = expr.As<IReferenceExpr>()
-        if isNull refExpr then false else
+        if not (FSharpPostfixTemplates.canBecomeStatement expr) then false else
 
-        let expr = refExpr.Qualifier
-        if isNull expr then false else
+        let wholeExpr =
+            expr
+            |> FSharpPostfixTemplates.getContainingAppExprFromLastArg false
+            |> FSharpPostfixTemplates.getContainingTupleExprFromLastItem
 
-        let expr = expr.TryGetOriginalNodeThroughSandBox()
-        if isNull expr then false else
+        let fcsType, displayContext = ForPostfixTemplate.getExpressionType wholeExpr expr
+        isNotNull displayContext && isApplicableType wholeExpr fcsType
 
-        let fcsType = expr.TryGetFcsType()
-        isApplicableType fcsType expr ||
+    override x.CreateBehavior(info) = ForPostfixTemplateBehavior(info :?> ForPostfixTemplateInfo) :> _
 
-        let refExpr = expr.As<IReferenceExpr>()
-        isApplicableDeclaredElement refExpr
+    override x.CreateInfo(context) =
+        let expr = context.Expression.As<IReferenceExpr>()
 
-    override x.CreateBehavior(info) = ForPostfixTemplateBehavior(info) :> _
+        let wholeExpr =
+            expr
+            |> FSharpPostfixTemplates.getContainingAppExprFromLastArg false
+            |> FSharpPostfixTemplates.getContainingTupleExprFromLastItem
 
-    override x.TryCreateInfo(context) =
-        let context = context.AllExpressions[0]
-        let fsExpr = context.Expression.As<IFSharpExpression>()
-        if not (isApplicable fsExpr) then null else
+        let _, displayContext = ForPostfixTemplate.getExpressionType wholeExpr expr
+        ForPostfixTemplateInfo(context, displayContext) :> _
 
-        ForPostfixTemplateInfo(context) :> _
+    override this.IsApplicable(node) =
+        let expr = node.As<IFSharpExpression>()
+        isApplicable expr
 
-    override this.IsEnabled(solution) =
-        let configurations = solution.GetComponent<RunsProducts.ProductConfigurations>()
-        configurations.IsInternalMode() || base.IsEnabled(solution)
+    override this.IsEnabled _ = true
 
-
-and ForPostfixTemplateInfo(expressionContext: PostfixExpressionContext) =
+and ForPostfixTemplateInfo(expressionContext: PostfixExpressionContext, displayContext: FSharpDisplayContext) =
     inherit PostfixTemplateInfo("for", expressionContext)
 
+    member val DisplayContext = displayContext
 
-and ForPostfixTemplateBehavior(info) =
+
+and ForPostfixTemplateBehavior(info: ForPostfixTemplateInfo) =
     inherit FSharpPostfixTemplateBehaviorBase(info)
 
     override x.ExpandPostfix(context) =
@@ -123,21 +145,97 @@ and ForPostfixTemplateBehavior(info) =
             use writeCookie = WriteLockCookie.Create(node.IsPhysical())
             use disableFormatter = new DisableCodeFormatter()
 
-            let refExpr = x.GetExpression(context)
-            let forEachExpr = refExpr.CreateElementFactory().CreateForEachExpr(refExpr)
-            ModificationUtil.ReplaceChild(refExpr, forEachExpr) :> ITreeNode)
+            let expr = x.GetExpression(context)
+            let expr =
+                expr
+                |> FSharpPostfixTemplates.getContainingAppExprFromLastArg false
+                |> FSharpPostfixTemplates.getContainingTupleExprFromLastItem
+
+            FSharpPostfixTemplates.convertToBlockLikeExpr expr context
+            let forEachExpr = expr.CreateElementFactory().CreateForEachExpr(expr)
+            ModificationUtil.ReplaceChild(expr, forEachExpr) :> ITreeNode)
 
     override x.AfterComplete(textControl, node, _) =
-        let forEachExpr = node.As<IForEachExpr>()
-        if isNull forEachExpr then () else
+        let id = "ForPostfixTemplateBehavior.AfterComplete"
 
-        let hotspotInfos =
-            let templateField = TemplateField("Foo", SimpleHotspotExpression(null), 0)
-            HotspotInfo(templateField, forEachExpr.Pattern.GetDocumentRange(), KeepExistingText = true)
+        let solution = node.GetSolution()
+        let psiServices = node.GetPsiServices()
 
-        let hotspotSession =
-            LiveTemplatesManager.Instance.CreateHotspotSessionAtopExistingText(
-                info.ExecutionContext.Solution, forEachExpr.GetDocumentEndOffset(), textControl,
-                LiveTemplatesManager.EscapeAction.LeaveTextAndCaret, hotspotInfos)
+        let forEachExpr = node :?> IForEachExpr
 
-        hotspotSession.ExecuteAndForget()
+        let fcsType =
+            forEachExpr.InExpression.TryGetFcsType()
+            |> ForPostfixTemplate.getEnumeratedType forEachExpr
+
+        let names =
+            let namesCollection = FSharpNamingService.createEmptyNamesCollection forEachExpr
+            match fcsType with
+            | None -> ()
+            | Some fcsType ->
+                let exprType = fcsType.MapType(forEachExpr)
+                if isNotNull exprType then
+                    FSharpNamingService.addNamesForType exprType namesCollection |> ignore
+            let namingService = LanguageManager.Instance.GetService<FSharpNamingService>(forEachExpr.Language)
+            namingService.AddExtraNames(namesCollection, forEachExpr.Pattern)
+            FSharpNamingService.prepareNamesCollection EmptySet.Instance forEachExpr namesCollection
+
+        let names = List.ofSeq names @ ["_"]
+
+        psiServices.Transactions.Execute(id, fun _ ->
+            let name = if names.Length > 1 then names[0] else "x"
+            let pat = forEachExpr.CreateElementFactory().CreatePattern(name, false)
+            forEachExpr.SetPattern(pat) |> ignore
+        ) |> ignore
+
+        let dummy () =
+            use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, id)
+            use writeCookie = WriteLockCookie.Create(node.IsPhysical())
+            use disableFormatter = new DisableCodeFormatter()
+
+            let hotspotsRegistry = HotspotsRegistry(psiServices)
+            hotspotsRegistry.Register(forEachExpr.Pattern, NameSuggestionsExpression(names))
+
+            let endOffset = forEachExpr.DoExpression.GetDocumentStartOffset()
+            ModificationUtil.DeleteChild(forEachExpr.DoExpression)
+
+            BulbActionUtils.ExecuteHotspotSession(hotspotsRegistry, endOffset).Invoke(textControl)
+
+        match fcsType with
+        | None -> dummy ()
+        | Some fcsType ->
+
+        match FSharpDeconstruction.tryGetDeconstruction forEachExpr fcsType with
+        | None -> dummy ()
+        | Some(deconstruction) ->
+
+        textControl.Caret.MoveTo(forEachExpr.Pattern.GetDocumentEndOffset(), CaretVisualPlacement.DontScrollIfVisible)
+
+        let lifetime = textControl.Lifetime
+        solution.Locks.ExecuteOrQueueReadLockEx(lifetime, id, fun _ ->
+            let popupMenu = node.GetSolution().GetComponent<WorkflowPopupMenu>()
+
+            let occurrences =
+                let valueText = FSharpIntroduceVariable.getOccurrenceText info.DisplayContext fcsType "' value"
+                [| WorkflowPopupMenuOccurrence(RichText(deconstruction.Text), null, deconstruction)
+                   WorkflowPopupMenuOccurrence(valueText, null, null, null) |]
+
+            let selectedOccurrence =
+                popupMenu.ShowPopup(lifetime, occurrences, CustomHighlightingKind.Other, textControl, null)
+            if isNull selectedOccurrence then () else
+
+            let deconstruction = selectedOccurrence.Entities.FirstOrDefault()
+            if isNull deconstruction then dummy () else
+
+            use writeCookie = WriteLockCookie.Create(node.IsPhysical())
+            use disableFormatter = new DisableCodeFormatter()
+            use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, id)
+            use cookie = CompilationContextCookie.GetOrCreate(node.GetPsiModule().GetContextFromModule())
+
+            match FSharpDeconstructionImpl.deconstructImpl false deconstruction forEachExpr.Pattern with
+            | Some(hotspotsRegistry, _) ->
+                let endOffset = forEachExpr.DoExpression.GetDocumentStartOffset()
+                ModificationUtil.DeleteChild(forEachExpr.DoExpression)
+
+                BulbActionUtils.ExecuteHotspotSession(hotspotsRegistry, endOffset).Invoke(textControl)
+            | _ -> failwith id
+        )

@@ -1,0 +1,7 @@
+﻿// ${COMPLETE_ITEM:for}
+module Module
+
+let f (x: _) =
+    for a in x do
+      {caret}
+    ()

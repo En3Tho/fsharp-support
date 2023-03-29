@@ -10,6 +10,7 @@ open JetBrains
 open JetBrains.Annotations
 open JetBrains.Application
 open JetBrains.Application.Settings
+open JetBrains.Application.Threading
 open JetBrains.DataFlow
 open JetBrains.DocumentModel
 open JetBrains.Lifetimes
@@ -43,12 +44,16 @@ type FcsProject =
     member x.IsKnownFile(sourceFile: IPsiSourceFile) =
         x.FileIndices.ContainsKey(sourceFile.GetLocation())
 
-    member x.TestDump(writer: StreamWriter) =
+    member x.TestDump(writer: TextWriter) =
         let projectOptions = x.ProjectOptions
 
         writer.WriteLine($"Project file: {projectOptions.ProjectFileName}")
         writer.WriteLine($"Stamp: {projectOptions.Stamp}")
         writer.WriteLine($"Load time: {projectOptions.LoadTime}")
+
+        writer.WriteLine("Source files:")
+        for sourceFile in projectOptions.SourceFiles do
+            writer.WriteLine($"  {sourceFile}")
 
         writer.WriteLine("Other options:")
         for option in projectOptions.OtherOptions do
@@ -63,7 +68,7 @@ type FcsProject =
 
 [<ShellComponent; AllowNullLiteral>]
 type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotifier: OnSolutionCloseNotifier,
-        settingsStore: ISettingsStore) =
+        settingsStore: ISettingsStore, locks: IShellLocks) =
 
     let checker =
         Environment.SetEnvironmentVariable("FCS_CheckFileInProjectCacheSize", "20")
@@ -99,6 +104,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
 
     member x.ParseFile(path, document, parsingOptions, [<Optional; DefaultParameterValue(false)>] noCache: bool) =
         try
+            locks.AssertReadAccessAllowed()
             let source = FcsCheckerService.getSourceText document
             let fullPath = getFullPath path
             let parseAsync = x.Checker.ParseFile(fullPath, source, parsingOptions, cache = not noCache)
@@ -115,6 +121,7 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         let parsingOptions = x.FcsProjectProvider.GetParsingOptions(sourceFile)
         x.ParseFile(sourceFile.GetLocation(), sourceFile.Document, parsingOptions)
 
+    // todo: assert that no modification was done? force pin check results or allow via cookie?
     member x.ParseAndCheckFile([<NotNull>] sourceFile: IPsiSourceFile, opName,
             [<Optional; DefaultParameterValue(false)>] allowStaleResults) =
         match PinTypeCheckResultsCookie.PinnedResults with
@@ -122,15 +129,18 @@ type FcsCheckerService(lifetime: Lifetime, logger: ILogger, onSolutionCloseNotif
         | _ ->
 
         ProhibitTypeCheckCookie.AssertTypeCheckIsAllowed()
+        locks.AssertReadAccessAllowed()
 
         let psiModule = sourceFile.PsiModule
         match x.FcsProjectProvider.GetFcsProject(psiModule) with
         | None -> None
         | Some fcsProject ->
 
+        let options = fcsProject.ProjectOptions
+        if not (fcsProject.IsKnownFile(sourceFile)) && not options.UseScriptResolutionRules then None else
+
         x.FcsProjectProvider.PrepareAssemblyShim(psiModule)
 
-        let options = fcsProject.ProjectOptions
         let path = sourceFile.GetLocation().FullPath
         let source = FcsCheckerService.getSourceText sourceFile.Document
         logger.Trace("ParseAndCheckFile: start {0}, {1}", path, opName)
@@ -243,10 +253,10 @@ type IFcsProjectProvider =
     abstract HasPairFile: IPsiSourceFile -> bool
 
     /// Returns True when the project has been invalidated.
-    abstract InvalidateReferencesToProject: IProject -> bool
+    abstract InvalidateReferencesToProject: IProject * forceInvalidateFcs: bool -> bool
 
     abstract InvalidateDirty: unit -> unit
-    abstract ModuleInvalidated: ISignal<IPsiModule>
+    abstract ModuleInvalidated: ISignal<IPsiModule * FcsProject>
 
     abstract PrepareAssemblyShim: psiModule: IPsiModule -> unit 
 
@@ -263,6 +273,7 @@ type IScriptFcsProjectProvider =
     abstract GetScriptOptions: IPsiSourceFile -> FSharpProjectOptions option
     abstract GetScriptOptions: VirtualFileSystemPath * string -> FSharpProjectOptions option
     abstract OptionsUpdated: Signal<VirtualFileSystemPath * FSharpProjectOptions>
+    abstract SyncUpdate: bool
 
 
 [<AutoOpen>]

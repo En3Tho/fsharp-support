@@ -1,0 +1,11 @@
+﻿module Say
+
+[<RequireQualifiedAccess>]
+module Nested =
+    type E =
+        | A = 1
+        | B = 2
+
+match Nested.E.A with
+| Nested.E.A -> ()
+| Nested.E.B -> {selstart}failwith "todo"{selend}

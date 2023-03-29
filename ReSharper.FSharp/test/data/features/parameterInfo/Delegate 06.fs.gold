@@ -1,0 +1,7 @@
+﻿ParameterInfo is available
+--- All invocables: ----
+(string -> unit)
+Parameter: 0 'string -> unit'
+
+--- Accepted invocables: ---
+(string -> unit)

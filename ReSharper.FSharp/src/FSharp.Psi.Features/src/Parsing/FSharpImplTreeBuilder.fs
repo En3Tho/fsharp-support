@@ -74,29 +74,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             x.ProcessOpenDeclTarget(openDeclTarget, range)
 
         | SynModuleDecl.Let(_, bindings, range) ->
-            // `extern` declarations are represented as normal `let` bindings with fake rhs expressions in FCS AST.
-            // This is a workaround to mark such declarations and not to mark the non-existent expressions inside it.
-            match bindings with
-            | [SynBinding(attributes = attrs; headPat = headPat; returnInfo = returnInfo; trivia = trivia; xmlDoc = XmlDoc xmlDoc)] when
-                trivia.LetKeyword.IsNone ->
-
-                let mark = x.MarkXmlDocOwner(xmlDoc, null, range)
-                x.ProcessAttributeLists(attrs)
-                x.AdvanceToTokenOrRangeStart(FSharpTokenType.EXTERN, headPat.Range)
-                Assertion.Assert(x.TokenType == FSharpTokenType.EXTERN, "Expecting EXTERN, got: {0}", x.TokenType)
-
-                match returnInfo with
-                | Some(SynBindingReturnInfo(attributes = attrs)) ->
-                    x.ProcessAttributeLists(attrs)
-                | _ -> ()
-                // todo: mark parameters
-                x.Done(range, mark, ElementType.EXTERN_DECLARATION)
-
-            | _ ->
-
-            let letMark = x.Mark(range)
-            x.ProcessTopLevelBindings(bindings)
-            x.Done(range, letMark, ElementType.LET_BINDINGS_DECLARATION)
+            x.ProcessTopLevelBindings(bindings, range)
 
         | SynModuleDecl.HashDirective(hashDirective, _) ->
             x.ProcessHashDirective(hashDirective)
@@ -191,7 +169,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
 
     member x.ProcessPrimaryConstructor(typeMember: SynMemberDefn) =
         match typeMember with
-        | SynMemberDefn.ImplicitCtor(_, attrs, args, selfId, XmlDoc xmlDoc, range) ->
+        | SynMemberDefn.ImplicitCtor(_, attrs, args, selfId, XmlDoc xmlDoc, range, _) ->
 
             // Skip spaces inside `T ()` range
             while (isNotNull x.TokenType && x.TokenType.IsWhitespace) && not x.Eof do
@@ -216,15 +194,13 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
     member x.ProcessTypeMember(typeMember: SynMemberDefn) =
         match typeMember with
         | SynMemberDefn.ImplicitCtor _ -> ()
+        | SynMemberDefn.LetBindings(bindings, _, _, range) ->
+            x.ProcessTopLevelBindings(bindings, range)
         | _ ->
 
         let mark =
             match x.ContinueMemberDecl(typeMember.Range) with
             | ValueSome(mark) -> mark
-            | _ ->
-
-            match typeMember with
-            | SynMemberDefn.LetBindings _ -> x.Mark(typeMember.Range)
             | _ -> x.MarkAndProcessIntro(typeMember.Attributes, typeMember.XmlDoc, null, typeMember.Range)
 
         let memberType =
@@ -271,36 +247,33 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             | SynMemberDefn.Member(binding, range) ->
                 x.ProcessMemberBinding(mark, binding, range, None)
 
-            | SynMemberDefn.LetBindings([SynBinding(kind = SynBindingKind.Do; expr = expr)], _, _, range) ->
-                x.AdvanceToTokenOrRangeStart(FSharpTokenType.DO, range)
-                let expr = x.RemoveDoExpr(expr)
-                x.MarkChameleonExpression(expr)
-                ElementType.DO_STATEMENT
-
-            | SynMemberDefn.LetBindings(bindings, _, _, _) ->
-                x.ProcessTopLevelBindings(bindings)
-                ElementType.LET_BINDINGS_DECLARATION
-
-            | SynMemberDefn.AbstractSlot(SynValSig(explicitTypeParams = typeParams; synType = synType; arity = arity), _, _) ->
+            | SynMemberDefn.AbstractSlot(SynValSig(explicitTypeParams = typeParams; synType = synType; arity = arity; trivia = trivia), _, range, _) ->
                 match typeParams with
                 | SynValTyparDecls(Some(typeParams), _) ->
                     x.ProcessTypeParameters(typeParams, false)
                 | _ -> ()
                 x.ProcessReturnTypeInfo(arity, synType)
+                x.ProcessAccessorsNamesClause(trivia, range)
                 ElementType.ABSTRACT_MEMBER_DECLARATION
 
             | SynMemberDefn.ValField(SynField(fieldType = synType), _) ->
                 x.ProcessType(synType)
                 ElementType.VAL_FIELD_DECLARATION
 
-            | SynMemberDefn.AutoProperty(_, _, _, synTypeOpt, _, _, _, _, _, _, expr, _, accessorClause, _) ->
+            | SynMemberDefn.AutoProperty(_, _, _, synTypeOpt, _, _, _, _, _, expr, _, accessorClause) ->
                 match synTypeOpt with
                 | Some synType -> x.ProcessType(synType)
                 | _ -> ()
                 x.MarkChameleonExpression(expr)
-                match accessorClause with
-                | Some clause -> x.MarkAndDone(clause, ElementType.ACCESSORS_NAMES_CLAUSE)
+
+                match accessorClause.WithKeyword, accessorClause.GetSetKeywords with
+                | Some withKeyword, None ->
+                    x.MarkAndDone(withKeyword, ElementType.ACCESSORS_NAMES_CLAUSE)
+                | Some withKeyword, Some getSetKeywords ->
+                    let range = Range.unionRanges withKeyword getSetKeywords.Range
+                    x.MarkAndDone(range, ElementType.ACCESSORS_NAMES_CLAUSE)
                 | _ -> ()
+
                 ElementType.AUTO_PROPERTY_DECLARATION
 
             | _ -> failwithf "Unexpected type member: %A" typeMember
@@ -335,7 +308,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
     member x.ProcessMemberBinding(mark, SynBinding(_, _, _, _, attrLists, _, valData, headPat, returnInfo, expr, _, _, _), range, accessorsStart: pos option) : CompositeNodeType =
         let elType =
             match headPat with
-            | SynPat.LongIdent(LongIdentWithDots(lid, _), accessorId, typeParamsOpt, memberParams, _, range) ->
+            | SynPat.LongIdent(SynLongIdent(id = lid), accessorId, typeParamsOpt, memberParams, _, range) ->
                 match lid with
                 | [_] ->
                     match valData with
@@ -432,7 +405,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
     member x.ProcessReturnInfo(returnInfo) =
         match returnInfo with
         | None -> ()
-        | Some(SynBindingReturnInfo(returnType, range, attrs)) ->
+        | Some(SynBindingReturnInfo(returnType, range, attrs, _)) ->
 
         x.AdvanceToTokenOrPos(FSharpTokenType.COLON, range.Start)
 
@@ -456,14 +429,6 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
     //   let Some x = ...
     member x.ProcessPat(PatRange range as pat, isLocal, isBindingHeadPattern) =
         let patMark = x.Mark(range)
-
-        match pat with
-        | SynPat.LongIdent(LongIdentLid [ IdentText "op_ColonColon" ], _, _,
-                SynArgPats.Pats([SynPat.Tuple(_, pats, _)]), _, _) ->
-            for pat in pats do
-                x.ProcessPat(pat, isLocal, false)
-            x.Done(range, patMark, ElementType.LIST_CONS_PAT)
-        | _ ->
 
         match isBindingHeadPattern, pat with
         | true, SynPat.LongIdent(lid, _, typars, args, _, _) ->
@@ -613,6 +578,11 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             // todo: mark inner pattern, assert ranges
             | SynPat.FromParseError _ -> ElementType.FROM_ERROR_PAT
 
+            | SynPat.ListCons(lhsPat, rhsPat, _, _) ->
+                x.ProcessPat(lhsPat, isLocal, false)
+                x.ProcessPat(rhsPat, isLocal, false)
+                ElementType.LIST_CONS_PAT
+
             | SynPat.InstanceMember _ -> failwith $"Unexpected pattern: {pat}"
 
         x.Done(range, patMark, elementType)
@@ -627,12 +597,16 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             for pat in pats do
                 x.ProcessParam(pat, isLocal, markMember)
 
-        | SynArgPats.NamePatPairs(idsAndPats, _) ->
+        | SynArgPats.NamePatPairs(idsAndPats, argsRange, _) ->
+            let argsMark = x.MarkTokenOrRange(FSharpTokenType.LPAREN, argsRange)
+
             for IdentRange range, _, pat in idsAndPats do
                 let mark = x.Mark(range)
                 x.MarkAndDone(range, ElementType.EXPRESSION_REFERENCE_NAME)
                 x.ProcessParam(pat, isLocal, markMember)
                 x.Done(range, mark, ElementType.FIELD_PAT)
+
+            x.Done(argsRange, argsMark, ElementType.NAMED_UNION_CASE_FIELDS_PAT)
 
     member x.ProcessMemberParams(args: SynArgPats, isLocal, markMember) =
         match args with
@@ -683,14 +657,44 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
 
         x.Done(binding.RangeOfBindingWithRhs, mark, ElementType.TOP_BINDING)
 
-    member x.ProcessTopLevelBindings(bindings) =
+    member x.ProcessTopLevelBindings(bindings, range) =
         match bindings with
         | [] -> ()
+        | [SynBinding(kind = SynBindingKind.Do; expr = expr)] ->
+            let mark = x.Mark(range)
+            x.AdvanceToTokenOrRangeStart(FSharpTokenType.DO, range)
+            let expr = x.RemoveDoExpr(expr)
+            x.MarkChameleonExpression(expr)
+            x.Done(range, mark, ElementType.DO_STATEMENT)
+
+        // `extern` declarations are represented as normal `let` bindings with fake rhs expressions in FCS AST.
+        // This is a workaround to mark such declarations and not to mark the non-existent expressions inside it.
+        | [SynBinding(attributes = attrs
+                      headPat = headPat
+                      returnInfo = returnInfo
+                      trivia = { LeadingKeyword = SynLeadingKeyword.Extern _ }
+                      xmlDoc = XmlDoc xmlDoc)] ->
+
+            let mark = x.MarkXmlDocOwner(xmlDoc, null, range)
+            x.ProcessAttributeLists(attrs)
+            x.AdvanceToTokenOrRangeStart(FSharpTokenType.EXTERN, headPat.Range)
+            Assertion.Assert(x.TokenType == FSharpTokenType.EXTERN, "Expecting EXTERN, got: {0}", x.TokenType)
+
+            match returnInfo with
+            | Some(SynBindingReturnInfo(attributes = attrs)) ->
+                x.ProcessAttributeLists(attrs)
+            | _ -> ()
+            // todo: mark parameters
+            x.Done(range, mark, ElementType.EXTERN_DECLARATION)
+
         | binding :: rest ->
+        let mark = x.Mark(range)
 
         x.ProcessTopLevelBinding(binding, false)
         for binding in rest do
             x.ProcessTopLevelBinding(binding, true)
+
+        x.Done(range, mark, ElementType.LET_BINDINGS_DECLARATION)
 
     member x.ProcessActivePatternExpr(range: range) =
         x.ProcessActivePatternId(range, ElementType.ACTIVE_PATTERN_NAMED_CASE_REFERENCE_NAME)
@@ -777,7 +781,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushRange(range, ElementType.TRAIT_CALL_EXPR)
 
             match traitSig with
-            | SynMemberSig.Member(SynValSig(synType = synType), _, _) -> x.ProcessType(synType)
+            | SynMemberSig.Member(SynValSig(synType = synType), _, _, _) -> x.ProcessType(synType)
             | _ -> ()
 
             x.ProcessExpression(expr)
@@ -821,7 +825,7 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             Assertion.Assert(List.isEmpty exprs, "Non-empty SynExpr.ArrayOrList: {0}", expr)
             x.MarkAndDone(range, if isArray then ElementType.ARRAY_EXPR else ElementType.LIST_EXPR)
 
-        | SynExpr.AnonRecd(_, copyInfo, fields, _) ->
+        | SynExpr.AnonRecd(_, copyInfo, fields, _, _) ->
             x.PushRange(range, ElementType.ANON_RECORD_EXPR)
             if not fields.IsEmpty then
                 x.PushStep(fields, anonRecordBindingListRepresentationProcessor)
@@ -1094,7 +1098,8 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
         | SynExpr.ArbitraryAfterError _ ->
             x.MarkAndDone(range, ElementType.FROM_ERROR_EXPR)
 
-        | SynExpr.DiscardAfterMissingQualificationAfterDot(expr, _)
+        // todo: convert to refExpr
+        | SynExpr.DiscardAfterMissingQualificationAfterDot(expr, _, _)
         | SynExpr.FromParseError(expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.FROM_ERROR_EXPR)
 

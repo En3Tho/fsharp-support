@@ -116,6 +116,8 @@ let tryGetCommonParentModuleDecl (context: ITreeNode) (moduleToImport: ModuleToI
             | :? IGlobalNamespaceDeclaration :: decls -> decls
             | _ -> moduleDecls
 
+        if moduleDecls.IsEmpty then None else
+
         let importModuleQualifiedList = toQualifiedList declaredElement
         let topLevelDecl = List.head moduleDecls
 
@@ -210,7 +212,8 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
             // Add space after new opens group.
             if not (moduleMember :? IOpenStatement) then
                 NewLine(lineEnding)
-                Whitespace(indent)
+                if indent > 0 then
+                    Whitespace(indent)
         ] |> ignore
 
     let insertAfterAnchor (ns: string) (anchor: ITreeNode) indent =
@@ -242,6 +245,7 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
             | _ -> addOpenToOpensGroup rest ns
 
     let moduleDecl, searchAnchor = findModuleToInsertTo fsFile offset settings moduleToImport
+    if isNull moduleDecl then () else // can happen when the node is not in a proper tree, i.e. during generation
 
     let qualifiedElementList = moduleToImport.GetQualifiedElementList(moduleDecl, true)
     let firstModule = qualifiedElementList |> List.tryHead |> Option.toObj

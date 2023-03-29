@@ -11,6 +11,7 @@ open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.Properties
 open JetBrains.ProjectModel.Properties.Managed
+open JetBrains.ReSharper.FeaturesTestFramework.Refactorings
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
@@ -38,6 +39,7 @@ module FSharpTestAttribute =
 [<AutoOpen>]
 module PackageReferences =
     let [<Literal>] FSharpCorePackage = "FSharp.Core/4.7.2"
+    let [<Literal>] JetBrainsAnnotationsPackage = "JetBrains.Annotations/2022.1.0"
     let [<Literal>] SqlProviderPackage = "SQLProvider/1.1.101"
     let [<Literal>] FsPickler = "FsPickler/5.3.2"
 
@@ -226,7 +228,7 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
         member x.InvalidateDirty() = ()
         member x.ModuleInvalidated = new Signal<_>("Todo") :> _
 
-        member x.InvalidateReferencesToProject _ = false
+        member x.InvalidateReferencesToProject(_, _) = false
         member x.HasFcsProjects = false
         member this.GetAllFcsProjects() = []
 
@@ -236,3 +238,24 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
         member this.GetReferencedModule _ = None
         member this.GetPsiModule _ = failwith "todo"
         member this.GetAllReferencedModules() = failwith "todo"
+
+
+module FSharpTestPopup =
+    let [<Literal>] OccurrenceName = "OCCURRENCE"
+
+    let setOccurrence occurrenceName assertExists (solution: ISolution) (lifetime: Lifetime) =
+        if isNull occurrenceName then () else
+
+        let workflowPopupMenu = solution.GetComponent<TestWorkflowPopupMenu>()
+        workflowPopupMenu.SetTestData(lifetime, fun _ occurrences _ _ _ ->
+            occurrences
+            |> Array.tryFind (fun occurrence -> occurrence.Name.Text = occurrenceName)
+            |> Option.defaultWith (fun _ ->
+                if assertExists then
+                    failwithf $"Could not find %s{occurrenceName} occurrence"
+                else
+                    occurrences
+                    |> Seq.tryLast
+                    |> Option.defaultValue null
+            )
+        )

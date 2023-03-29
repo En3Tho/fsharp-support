@@ -1,0 +1,8 @@
+﻿module Say
+
+let (|Id|) x = x
+
+match true with
+| Id true -> ()
+| true -> {selstart}failwith "todo"{selend}
+| false -> failwith "todo"

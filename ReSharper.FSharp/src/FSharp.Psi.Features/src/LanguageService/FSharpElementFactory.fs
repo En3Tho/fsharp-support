@@ -75,7 +75,7 @@ type FSharpElementFactory(languageService: IFSharpLanguageService, sourceFile: I
         if PrettyNaming.IsLogicalOpName logicalName then
             sprintf "( %s )" name
         else
-            PrettyNaming.AddBackticksToIdentifierIfNeeded name
+            PrettyNaming.NormalizeIdentifierBackticks name
 
     let createMemberDecl logicalName typeParameters parameters addSpaceBeforeParams =
         let typeParametersSource =
@@ -179,7 +179,7 @@ type FSharpElementFactory(languageService: IFSharpLanguageService, sourceFile: I
 
         member x.CreateMemberParamDeclarations(curriedParameterNames, isSpaceAfterComma, addTypes, preferNoParens, displayContext) =
             let printParam (name, fcsType: FSharpType) =
-                let name = PrettyNaming.AddBackticksToIdentifierIfNeeded name
+                let name = PrettyNaming.NormalizeIdentifierBackticks name
                 if not addTypes then name else
 
                 let fcsType = fcsType.Format(displayContext)
@@ -290,12 +290,13 @@ type FSharpElementFactory(languageService: IFSharpLanguageService, sourceFile: I
             expr
 
         member x.CreatePattern(text, topLevel) =
+            let text = $"({text})"
             let letBindings: ILetBindings =
                 match topLevel with
                 | true -> createLetDecl text :> _
                 | _ -> createLetExpr text :> _
 
-            letBindings.Bindings[0].HeadPattern
+            letBindings.Bindings[0].HeadPattern.As<IParenPat>().Pattern
 
         member x.CreateParenPat() =
             let expr = createLetExpr "(())"
@@ -326,7 +327,7 @@ type FSharpElementFactory(languageService: IFSharpLanguageService, sourceFile: I
                 let typeUsage = typeDecl.TypeRepresentation.As<ITypeAbbreviationRepresentation>().AbbreviatedType
                 typeUsage.As<IParenTypeUsage>().InnerTypeUsage
 
-            | TypeUsageContext.Return ->
+            | TypeUsageContext.Signature ->
                 let typeDecl = getTypeDecl $"abstract M: {typeUsage}"
                 let memberDecl = typeDecl.TypeMembers[0] :?> IAbstractMemberDeclaration
                 memberDecl.ReturnTypeInfo.ReturnType
@@ -385,3 +386,12 @@ type FSharpElementFactory(languageService: IFSharpLanguageService, sourceFile: I
                 moduleMember.As<ITypeDeclarationGroup>().TypeDeclarations[0] :?> IFSharpTypeDeclaration
 
             typeDeclaration.TypeParameterDeclarationList
+
+        member this.CreateAccessorsNamesClause(withGetter, withSetter) =
+            let accessors = [|
+                if withGetter then "get"
+                if withSetter then "set" |] |> String.concat ", "
+
+            let source = $"member val P = 3 with {accessors}"
+            let t = getTypeDecl source
+            t.MemberDeclarations[0].As<IAutoPropertyDeclaration>().AccessorsClause

@@ -15,7 +15,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
-open JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
+open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Search
@@ -91,8 +91,8 @@ module FSharpDeconstructionImpl =
                     | _ -> namesCollection)
                 |> FSharpNamingService.prepareNamesCollection usedNames pat
                 |> fun names ->
-                    let names = List.ofSeq names @ [if isSingle then "item" else $"item{i + 1}"; "_"]
-                    usedNames.Add(names.Head) |> ignore
+                    let names = List.ofSeq names @ [(if isSingle then "item" else $"item{i + 1}"); "_"]
+                    usedNames.Add(names.Head.RemoveBackticks()) |> ignore
                     List.distinct names)
 
         let isTopLevel = binding :? ITopBinding
@@ -136,7 +136,9 @@ module FSharpDeconstructionImpl =
         let containingType = FSharpNamingService.getPatternContainingType pat
         let usedNames = FSharpNamingService.getUsedNames inExprs EmptyList.InstanceList containingType true
 
-        let patternUsedNames = FSharpNamingService.getPatternContextUsedNames pat
+        let patternUsedNames =
+            FSharpNamingService.getPatternContextUsedNames pat
+            |> Seq.map (fun name -> name.RemoveBackticks())
         usedNames.AddRange(patternUsedNames)
 
         if isFromParameter && isNotNull binding then
@@ -145,7 +147,7 @@ module FSharpDeconstructionImpl =
 
                 parameterPattern.NestedPatterns
                 |> Seq.iter (function
-                    | :? IReferencePat as refPat -> usedNames.Add(refPat.SourceName) |> ignore
+                    | :? IReferencePat as refPat -> usedNames.Add(refPat.SourceName.RemoveBackticks()) |> ignore
                     | _ -> ())
 
         let hasUsages =
@@ -153,10 +155,10 @@ module FSharpDeconstructionImpl =
             if isNull refPat then false else
 
             if not ignoreUsages && hasUsages pat then
-                usedNames.Add(refPat.SourceName) |> ignore
+                usedNames.Add(refPat.SourceName.RemoveBackticks()) |> ignore
                 true
             else
-                usedNames.Remove(refPat.SourceName) |> ignore
+                usedNames.Remove(refPat.SourceName.RemoveBackticks()) |> ignore
                 false
 
         let pat =
@@ -317,6 +319,45 @@ type DeconstructionFromUnionCase(fcsUnionCase: FSharpUnionCase,
         parametersOwnerPat :> _, ModificationUtil.ReplaceChild(parametersOwnerPat.Parameters[0], pattern), names
 
 
+[<AllowNullLiteral>]
+type DeconstructionFromKeyValuePair(components: IDeconstructionComponent list) =
+    inherit FSharpDeconstructionBase(components)
+
+    static let keyValuePairTypeName = FSharpPredefinedType.clrTypeName "System.Collections.Generic.KeyValuePair`2"
+
+    let [<Literal>] opName = "DeconstructionFromUnionCase.DeconstructInnerPatterns"
+
+    override this.Text = $"Deconstruct 'KeyValuePair'"
+
+    static member TryCreate(context: ITreeNode, fcsType: FSharpType): IFSharpDeconstruction =
+        let declaredType = fcsType.MapType(context).As<IDeclaredType>()
+        if isNull declaredType then null else
+
+        let typeElement = declaredType.GetTypeElement()
+        if isNull typeElement then null else
+
+        if not (typeElement.GetClrName().Equals(keyValuePairTypeName)) then null else
+
+        let substitution = declaredType.GetSubstitution()
+        let components = 
+            substitution.Domain
+            |> List.ofSeq
+            |> List.map (fun typeParameter ->
+                SingleValueDeconstructionComponent(null, substitution[typeParameter]) :> IDeconstructionComponent)
+
+        DeconstructionFromKeyValuePair(components) :> _
+
+    override this.DeconstructInnerPatterns(pat, usedNames) =
+        let pat = ModificationUtil.ReplaceChild(pat, pat.CreateElementFactory().CreatePattern("KeyValue", false))
+        let pat = FSharpPatternUtil.toParameterOwnerPat pat opName
+
+        let pat = ParenPatUtil.addParensIfNeeded pat
+        let parametersOwnerPat = pat.IgnoreInnerParens() :?> IParametersOwnerPat
+
+        let pattern, names = FSharpDeconstructionImpl.createInnerPattern pat this false usedNames
+        parametersOwnerPat :> _, ModificationUtil.ReplaceChild(parametersOwnerPat.Parameters[0], pattern), names
+
+
 module FSharpDeconstruction =
     let getPatternFcsType (pat: IFSharpPattern) =
         match pat with
@@ -337,7 +378,8 @@ module FSharpDeconstruction =
 
     let tryGetDeconstruction (context: ITreeNode) (fcsType: FSharpType) =
         [ DeconstructionFromTuple.TryCreate(context, fcsType)
-          DeconstructionFromUnionCase.TryCreateFromSingleCaseUnionType(context, fcsType) ]
+          DeconstructionFromUnionCase.TryCreateFromSingleCaseUnionType(context, fcsType)
+          DeconstructionFromKeyValuePair.TryCreate(context, fcsType) ]
           |> List.tryFind isNotNull
 
 

@@ -143,6 +143,18 @@ module FSharpIntroduceVariable =
             getOutermostLambda parent
         | _ -> parent
 
+    let getOccurrenceText (displayContext: FSharpDisplayContext) (fcsType: FSharpType) (text: string) =
+        let richText = RichText("Bind '")
+        richText.Append(fcsType.Format(displayContext), TextStyle(JetFontStyles.Bold)) |> ignore
+        richText.Append(text, TextStyle()) |> ignore
+        richText
+
+    let getDeconstructionOccurrences fcsType displayContext (deconstruction: IFSharpDeconstruction) =
+        let valueText = getOccurrenceText displayContext fcsType "' value"
+        [| WorkflowPopupMenuOccurrence(valueText, null, null, null)
+           WorkflowPopupMenuOccurrence(RichText(deconstruction.Text), null, deconstruction) |]
+
+
 type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, driver) =
     inherit IntroduceVariableBase(workflow, solution, driver)
 
@@ -187,14 +199,18 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
                 LowLevelModificationUtil.AddChild(newSeqExpr, Array.ofSeq inRange)
 
                 let replaceRange =
+                    if index = 0 then TreeRange(sequentialExpr) else
                     if removeSourceExpr then TreeRange(contextExpr, newSeqExpr) else TreeRange(newSeqExpr)
 
                 {| ReplaceRange = replaceRange
                    InRange = TreeRange(newSeqExpr)
                    AddNewLine = not removeSourceExpr |}
             else
+                let replaceRange = 
+                    if index = 0 then TreeRange(sequentialExpr) else TreeRange(contextExpr, sequentialExpr.LastChild)
+                
                 // The last expression can be moved as is.
-                {| ReplaceRange = TreeRange(contextExpr, sequentialExpr.LastChild)
+                {| ReplaceRange = replaceRange
                    InRange = inRange
                    AddNewLine = not removeSourceExpr |}
         else
@@ -281,7 +297,8 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
 
         addNodesBefore contextExpr [
             NewLine(contextExpr.GetLineEnding())
-            Whitespace(indent)
+            if indent > 0 then
+                Whitespace(indent)
         ] |> ignore
 
     static member val ExpressionToRemoveKey = Key("FSharpIntroduceVariable.ExpressionToRemove")
@@ -415,7 +432,8 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
                 if alwaysGenerateCompleteBindingExpr then
                     addNodesAfter letBindings.LastChild [
                         NewLine(lineEnding)
-                        Whitespace(contextIndent)
+                        if contextIndent > 0 then
+                            Whitespace(contextIndent)
 
                         if removeSourceExpr then
                             elementFactory.CreateExpr("()")
@@ -449,7 +467,8 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
                     ] |> ignore
                 elif ranges.AddNewLine then
                     let anchor = ModificationUtil.AddChildBefore(replaced.First, NewLine(lineEnding))
-                    ModificationUtil.AddChildAfter(anchor, Whitespace(contextIndent)) |> ignore
+                    if contextIndent > 0 then
+                        ModificationUtil.AddChildAfter(anchor, Whitespace(contextIndent)) |> ignore
 
                 ModificationUtil.DeleteChildRange(ranges.ReplaceRange)
                 letBindings
@@ -461,7 +480,8 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
                     let letBindings = ModificationUtil.AddChildBefore(contextDecl, letBindings)
                     addNodesAfter letBindings [
                         NewLine(lineEnding)
-                        Whitespace(contextIndent)
+                        if contextIndent > 0 then
+                            Whitespace(contextIndent)
                     ] |> ignore
                     letBindings
 
@@ -579,8 +599,9 @@ type FSharpIntroduceVariable(workflow: IntroduceLocalWorkflowBase, solution, dri
             | :? IFromErrorExpr -> false
 
             | :? ITupleExpr ->
-                isNull (NewExprNavigator.GetByArgumentExpression(ParenOrBeginEndExprNavigator.GetByInnerExpression(expr))) &&
-                
+                let parenOrBeginEndExpr = ParenOrBeginEndExprNavigator.GetByInnerExpression(expr)
+                isNull (NewExprNavigator.GetByArgumentExpression(parenOrBeginEndExpr)) &&
+
                 let listExpr = ListExprNavigator.GetByExpression(expr.IgnoreParentParens())
                 let appExpr = PrefixAppExprNavigator.GetByArgumentExpression(listExpr)
                 isNull appExpr || not appExpr.IsIndexerLike
@@ -694,17 +715,14 @@ type FSharpIntroduceVarHelper() =
 
                     Some(lambdaType.Instantiate(substitution).GenericArguments[0], allMembers)))
 
-        let getOccurrenceText (fcsType: FSharpType) (text: string) =
-            let richText = RichText("Bind '")
-            richText.Append(fcsType.Format(displayContext), TextStyle(JetFontStyles.Bold)) |> ignore
-            richText.Append(text, TextStyle()) |> ignore
-            richText
-
         let boundType =
             match computationType with
             | None -> Some(fcsType, false)
             | Some(computationType, _) ->
                 let occurrences =
+                    let getOccurrenceText =
+                        FSharpIntroduceVariable.getOccurrenceText displayContext
+
                     let computationText = getOccurrenceText computationType "' computation with let!"
                     let valueText = getOccurrenceText fcsType "' value"
                     [| WorkflowPopupMenuOccurrence(valueText, null, (fcsType, false))
@@ -747,10 +765,7 @@ type FSharpIntroduceVarHelper() =
         | None -> true
         | Some(deconstruction) ->
 
-        let occurrences =
-            let valueText = getOccurrenceText boundType "' value"
-            [| WorkflowPopupMenuOccurrence(valueText, null, null)
-               WorkflowPopupMenuOccurrence(RichText(deconstruction.Text), null, deconstruction) |]
+        let occurrences = FSharpIntroduceVariable.getDeconstructionOccurrences fcsType displayContext deconstruction
 
         let selectedOccurrence = workflow.ShowOccurrences(occurrences, context)
         if isNull selectedOccurrence then false else

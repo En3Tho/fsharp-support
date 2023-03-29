@@ -37,6 +37,7 @@ module FSharpErrors =
     let [<Literal>] TypeEquation = 1
     let [<Literal>] NotAFunction = 3
     let [<Literal>] FieldNotMutable = 5
+    let [<Literal>] IndeterminateRuntimeCoercion = 8
     let [<Literal>] RuntimeCoercionSourceSealed = 16
     let [<Literal>] UnitTypeExpected = 20
     let [<Literal>] MatchIncomplete = 25
@@ -68,6 +69,7 @@ module FSharpErrors =
     let [<Literal>] SuccessiveArgsShouldBeSpacedOrTupled = 597
     let [<Literal>] StaticFieldUsedWhenInstanceFieldExpected = 627
     let [<Literal>] InstanceMemberRequiresTarget = 673
+    let [<Literal>] UnionCaseDoesNotTakeArguments = 725
     let [<Literal>] UnionCaseExpectsTupledArguments = 727
     let [<Literal>] ConstructRequiresListArrayOrSequence = 747
     let [<Literal>] ConstructRequiresComputationExpression = 748
@@ -75,10 +77,12 @@ module FSharpErrors =
     let [<Literal>] FieldRequiresAssignment = 764
     let [<Literal>] EmptyRecordInvalid = 789
     let [<Literal>] PropertyIsStatic = 809
+    let [<Literal>] PropertyCannotBeSet = 810
     let [<Literal>] LocalClassBindingsCannotBeInline = 894
     let [<Literal>] TypeAbbreviationsCannotHaveAugmentations = 964
     let [<Literal>] UnusedValue = 1182
     let [<Literal>] UnusedThisVariable = 1183
+    let [<Literal>] LiteralPatternDoesNotTakeArguments = 3191
     let [<Literal>] ArgumentNamesInSignatureAndImplementationDoNotMatch = 3218
     let [<Literal>] CantTakeAddressOfExpression = 3236
     let [<Literal>] SingleQuoteInSingleQuote = 3373
@@ -228,6 +232,17 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | FieldNotMutable ->
             createHighlightingFromNode FieldNotMutableError range
 
+        | IndeterminateRuntimeCoercion ->
+            let isInstPat = nodeSelectionProvider.GetExpressionInRange<IIsInstPat>(fsFile, range, false, null)
+            if isNotNull isInstPat then
+                IndeterminateTypeRuntimeCoercionPatternError(isInstPat, error.Message) else
+
+            let typeTestExpr = nodeSelectionProvider.GetExpressionInRange<ITypeTestExpr>(fsFile, range, false, null)
+            if isNotNull typeTestExpr then
+                IndeterminateTypeRuntimeCoercionExpressionError(typeTestExpr, error.Message) else
+
+            createGenericHighlighting error range
+
         | RuntimeCoercionSourceSealed ->
             match fsFile.GetNode<IFSharpPattern>(range) with
             | null -> createHighlightingFromNodeWithMessage RuntimeCoercionSourceSealedError range error
@@ -285,9 +300,6 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | MatchIncomplete ->
             let fsPattern = fsFile.GetNode<IFSharpPattern>(range)
             if isNotNull fsPattern then createGenericHighlighting error range else
-
-            let matchLambdaExpr = fsFile.GetNode<IMatchLambdaExpr>(range)
-            if isNotNull matchLambdaExpr then createGenericHighlighting error range else
 
             createHighlightingFromParentNodeWithMessage MatchIncompleteWarning range error
 
@@ -383,6 +395,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
         | PropertyIsStatic ->
             createHighlightingFromNode PropertyIsStaticError range
 
+        | PropertyCannotBeSet ->
+            createHighlightingFromNode PropertyCannotBeSetError range
+
         | LocalClassBindingsCannotBeInline ->
             createHighlightingFromParentNode LocalClassBindingsCannotBeInlineError range
 
@@ -395,6 +410,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
         | UnusedThisVariable ->
             createHighlightingFromParentNode UnusedThisVariableWarning range
+            
+        | LiteralPatternDoesNotTakeArguments ->
+            createHighlightingFromNode LiteralPatternDoesNotTakeArgumentsError range
 
         | ArgumentNamesInSignatureAndImplementationDoNotMatch ->
             match error.Message with
@@ -430,6 +448,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             match fsFile.GetNode<IMemberDeclaration>(range) with
             | null -> null
             | memberDecl -> InstanceMemberRequiresTargetError(memberDecl) :> _
+
+        | UnionCaseDoesNotTakeArguments ->
+            createHighlightingFromNode UnionCaseDoesNotTakeArgumentsError range
 
         | UnionCaseExpectsTupledArguments ->
             createHighlightingFromNodeWithMessage UnionCaseExpectsTupledArgumentsError range error

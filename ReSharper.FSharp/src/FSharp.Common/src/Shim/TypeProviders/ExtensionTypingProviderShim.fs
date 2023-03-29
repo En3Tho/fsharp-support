@@ -30,12 +30,12 @@ type IProxyExtensionTypingProvider =
 type ExtensionTypingProviderShim(solution: ISolution, toolset: ISolutionToolset,
         experimentalFeatures: FSharpExperimentalFeaturesProvider, fcsProjectProvider: IFcsProjectProvider,
         scriptPsiModulesProvider: FSharpScriptPsiModulesProvider, outputAssemblies: OutputAssemblies,
-        typeProvidersLoadersFactory: TypeProvidersExternalProcessFactory,
+        typeProvidersProcessFactory: TypeProvidersExternalProcessFactory,
         productConfigurations: RunsProducts.ProductConfigurations) as this =
     let lifetime = solution.GetSolutionLifetimes().UntilSolutionCloseLifetime
     let defaultShim = ExtensionTyping.Provider
-    let outOfProcess = experimentalFeatures.OutOfProcessTypeProviders
-    let generativeTypeProvidersInMemoryAnalysis = experimentalFeatures.GenerativeTypeProvidersInMemoryAnalysis
+    let outOfProcessHosting = lazy experimentalFeatures.OutOfProcessTypeProviders.Value
+    let generativeTypeProvidersInMemoryAnalysisEnabled = lazy experimentalFeatures.GenerativeTypeProvidersInMemoryAnalysis.Value
     let createProcessLockObj = obj()
 
     let [<VolatileField>] mutable connection: TypeProvidersConnection = null
@@ -49,24 +49,26 @@ type ExtensionTypingProviderShim(solution: ISolution, toolset: ISolutionToolset,
         if isConnectionAlive() then typeProvidersHostLifetime.Terminate()
 
     let connect requestingProjectOutputPath =
-        if isConnectionAlive () then () else
+        if isConnectionAlive () then true else
 
         lock createProcessLockObj (fun () ->
-            if isConnectionAlive () then () else
+            if isConnectionAlive () then true else
 
             typeProvidersHostLifetime <- Lifetime.Define(lifetime)
             let isInternalMode = productConfigurations.IsInternalMode()
-            let newConnection =
-                typeProvidersLoadersFactory
-                    .Create(
+            let externalProcess =
+                typeProvidersProcessFactory.Create(
                         typeProvidersHostLifetime.Lifetime,
                         requestingProjectOutputPath,
                         isInternalMode)
-                    .Run()
+
+            if isNull externalProcess then false else
+            let newConnection = externalProcess.Run()
 
             typeProvidersManager <- TypeProvidersManager(newConnection, fcsProjectProvider, scriptPsiModulesProvider,
-                                                         outputAssemblies, generativeTypeProvidersInMemoryAnalysis.Value) :?> _
-            connection <- newConnection)
+                                                         outputAssemblies, generativeTypeProvidersInMemoryAnalysisEnabled.Value) :?> _
+            connection <- newConnection
+            true)
 
     do
         lifetime.Bracket((fun () -> ExtensionTyping.Provider <- this),
@@ -74,23 +76,18 @@ type ExtensionTypingProviderShim(solution: ISolution, toolset: ISolutionToolset,
 
         toolset.Changed.Advise(lifetime, fun _ -> terminateConnection ())
 
-        outOfProcess.Change.Advise(lifetime, fun enabled ->
-            if enabled.HasNew && not enabled.New then terminateConnection ())
-
-        generativeTypeProvidersInMemoryAnalysis.Change.Advise(lifetime, fun _ -> terminateConnection ())
-
     interface IProxyExtensionTypingProvider with
         member this.InstantiateTypeProvidersOfAssembly(runTimeAssemblyFileName: string,
                 designTimeAssemblyNameString: string, resolutionEnvironment: ResolutionEnvironment,
                 isInvalidationSupported: bool, isInteractive: bool, systemRuntimeContainsType: string -> bool,
                 systemRuntimeAssemblyVersion: Version, compilerToolsPath: string list,
                 logError: TypeProviderError -> unit, m: range) =
-            if not outOfProcess.Value then
+            if not outOfProcessHosting.Value then
                defaultShim.InstantiateTypeProvidersOfAssembly(runTimeAssemblyFileName, designTimeAssemblyNameString,
                     resolutionEnvironment, isInvalidationSupported, isInteractive,
                     systemRuntimeContainsType, systemRuntimeAssemblyVersion, compilerToolsPath, logError, m)
             else
-                connect (Option.toObj resolutionEnvironment.OutputFile)
+                if not (connect (Option.toObj resolutionEnvironment.OutputFile)) then [] else
                 try
                     typeProvidersManager.GetOrCreate(runTimeAssemblyFileName, designTimeAssemblyNameString,
                         resolutionEnvironment, isInvalidationSupported, isInteractive, systemRuntimeContainsType,

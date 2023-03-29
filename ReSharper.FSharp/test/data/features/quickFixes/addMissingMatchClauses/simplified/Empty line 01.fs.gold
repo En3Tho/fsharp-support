@@ -1,0 +1,16 @@
+﻿module Say
+
+type U =
+    | A
+    | B
+    | C
+    | D
+
+do
+    match A with
+    | A -> ()
+
+    | B -> ()
+
+    | C -> {selstart}failwith "todo"{selend}
+    | D -> failwith "todo"

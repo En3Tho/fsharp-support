@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <Generator>JetResourceGenerator</Generator>
+      <LastGenOutput>Strings.Designer.fs</LastGenOutput>
+    </EmbeddedResource>
+    <Compile Include="Resources\Strings.Designer.fs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Strings.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
     <Compile Include="src\Util\StringLiteralsUtil.fs" />
     <Compile Include="src\Util\PsiUtil.fs" />
     <Compile Include="src\Util\ParenPatUtil.fs" />
@@ -25,6 +34,8 @@
     <Compile Include="src\Util\FSharpModulesUtil.fs" />
     <Compile Include="src\Util\FcsTypeUtil.fs" />
     <Compile Include="src\Util\Deconstruction.fs" />
+    <Compile Include="src\Util\MatchExprUtil.fs" />
+    <Compile Include="src\Util\MatchTree.fs" />
     <Compile Include="src\Util\FSharpLambdaUtil.fs" />
     <Compile Include="src\Util\FSharpExpectedTypesUtil.fs" />
     <Compile Include="src\Util\EnumCaseLikeDeclarationUtil.fs" />

@@ -1,0 +1,7 @@
+﻿module Say
+
+match None with
+| Some true when true -> ()
+| None -> {selstart}failwith "todo"{selend}
+| Some true -> failwith "todo"
+| Some false -> failwith "todo"

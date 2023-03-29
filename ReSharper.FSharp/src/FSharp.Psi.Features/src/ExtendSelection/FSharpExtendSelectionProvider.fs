@@ -25,14 +25,18 @@ type FSharpExtendSelectionProvider(settingsStore: ISettingsStore) =
 
             null
 
-        | :? ITypeReferenceName as typeReferenceName ->
-            let attribute = AttributeNavigator.GetByReferenceName(typeReferenceName)
+        | :? ITypeReferenceName as referenceName ->
+            let attribute = AttributeNavigator.GetByReferenceName(referenceName)
             if isNotNull attribute && isNotNull attribute.ArgExpression then
-                FSharpTreeRangeSelection(fsFile, typeReferenceName, attribute.ArgExpression) :> _ else
+                FSharpTreeRangeSelection(fsFile, referenceName, attribute.ArgExpression) :> _ else
 
-            let typeInherit = TypeInheritNavigator.GetByTypeName(typeReferenceName)
+            let typeInherit = TypeInheritNavigator.GetByTypeName(referenceName)
             if isNotNull typeInherit && isNotNull typeInherit.CtorArg then
-                FSharpTreeRangeSelection(fsFile, typeReferenceName, typeInherit.CtorArg) :> _ else
+                FSharpTreeRangeSelection(fsFile, referenceName, typeInherit.CtorArg) :> _ else
+
+            let decl = QualifiableDeclarationNavigator.GetByQualifierReferenceName(referenceName)
+            if isNotNull decl && isNotNull decl.Identifier then
+                FSharpTreeRangeSelection(fsFile, referenceName, decl.Identifier) :> _ else
 
             null
 
@@ -121,7 +125,7 @@ type FSharpExtendSelectionProvider(settingsStore: ISettingsStore) =
 
 
 and FSharpDotSelection(fsFile, offset, selectBetterToken, useCamelHumps) =
-    inherit DotSelection<IFSharpFile>(fsFile, offset, selectBetterToken, useCamelHumps, false)
+    inherit DotSelection<IFSharpFile>(fsFile, offset, selectBetterToken, useCamelHumps, true)
 
     override x.IsWordToken(token) =
         let tokenType = token.GetTokenType()

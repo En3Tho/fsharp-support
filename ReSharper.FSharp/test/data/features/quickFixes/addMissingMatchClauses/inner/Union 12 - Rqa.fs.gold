@@ -1,0 +1,12 @@
+﻿module Say
+
+[<RequireQualifiedAccess>]
+type U =
+    | A
+    | B
+    | C of x: int
+
+match U.A with
+| U.A -> ()
+| U.B -> {selstart}failwith "todo"{selend}
+| U.C x -> failwith "todo"

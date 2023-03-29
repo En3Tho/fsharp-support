@@ -1,0 +1,10 @@
+﻿module Say
+
+type U =
+    | A
+    | B of bool * bool
+
+match A with
+| B (x, true) -> ()
+| B (x, false) -> ()
+| A -> {selstart}failwith "todo"{selend}

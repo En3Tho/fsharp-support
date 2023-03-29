@@ -82,9 +82,9 @@ type ScriptPsiModulesTest() =
 type MyTestSolutionToolset(lifetime: Lifetime, logger: ILogger) =
     inherit DefaultSolutionToolset(lifetime, logger)
 
-    let changed = new Signal<_>(lifetime, "MySolutionToolset::Changed")
+    let changed = new Signal<_>("MySolutionToolset::Changed")
 
-    let cli = DotNetCoreRuntimesDetector.DetectDotNetCoreRuntimes(InteractionContext.SolutionContext).FirstOrDefault().NotNull()
+    let cli = DotNetCoreInstallationsDetector.DetectSdkInstallations(InteractionContext.SolutionContext).FirstOrDefault().NotNull()
     let dotnetCoreToolset = DotNetCoreToolset(cli, cli.Sdks.FirstOrDefault().NotNull())
 
     let env = BuildToolEnvironment.Create(dotnetCoreToolset, null)

@@ -10,6 +10,8 @@
     <Compile Include="src\CodeCompletion\FSharpCompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FcsLookupItem.fs" />
+    <Compile Include="src\CodeCompletion\Strategies\FSharpAutocompletionStrategy.fs" />
+    <Compile Include="src\CodeCompletion\Strategies\FSharpOnSpaceAutopopupStrategy.fs" />
     <Compile Include="src\CodeCompletion\Rules\GenerateLambdaRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\ToRecursiveFunctionRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\FSharpRelevanceRule.fs" />
@@ -17,6 +19,8 @@
     <Compile Include="src\CodeCompletion\Rules\RecordFieldRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\RemoveReparsePatternRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\ImportRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\GenerateMatchExprPatternsRule.fs" />
+    <Compile Include="src\CodeCompletion\FSharpScriptNugetReferencesCompletionProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpKeywordsProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionProviders.fs" />
@@ -64,6 +68,7 @@
     <Compile Include="src\PostfixTemplates\LetPostfixTemplate.fs" />
     <Compile Include="src\PostfixTemplates\MatchPostfixTemplate.fs" />
     <Compile Include="src\PostfixTemplates\ForPostfixTemplate.fs" />
+    <Compile Include="src\PostfixTemplates\WithPostfixTemplate.fs" />
     <Compile Include="src\RearrangeCode\RearrangeCode.fs" />
     <Compile Include="src\RunMarkers\FSharpRunMarkerProvider.fs" />
     <Compile Include="src\LanguageService\FSharpDeclaredElementIconProvider.fs" />
@@ -78,6 +83,10 @@
     <Compile Include="src\LanguageService\SandboxDocumentLanguageSupportFSharpScript.fs" />
     <Compile Include="src\LanguageService\FSharpLanguageSpecificCopyPasteBehavior.fs" />
     <Compile Include="src\Internal\FSharpInternalActionGroup.fs" />
+    <Compile Include="src\Injected\FSharpInjectionUtil.fs" />
+    <Compile Include="src\Injected\FSharpLiteralInjectionTarget.fs" />
+    <Compile Include="src\Injected\FSharpRegexProviders.fs" />
+    <Compile Include="src\Injected\FSharpRegexNodeProvider.fs" />
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
   </ItemGroup>

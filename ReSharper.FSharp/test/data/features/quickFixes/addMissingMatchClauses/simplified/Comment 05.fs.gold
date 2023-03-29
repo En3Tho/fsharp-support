@@ -1,0 +1,7 @@
+﻿module Say
+
+(fun _ ->
+    match Some() with
+    | None -> () (* *) 
+    | Some value -> {selstart}failwith "todo"{selend})
+|> ignore

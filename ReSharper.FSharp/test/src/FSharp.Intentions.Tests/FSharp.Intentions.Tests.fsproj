@@ -32,6 +32,7 @@
     <Compile Include="src\Daemon\LambdaAnalyzerTest.fs" />
     <Compile Include="src\Daemon\InterpolatedStringCandidateTest.fs" />
     <Compile Include="src\Daemon\IfExpressionAnalyzerTest.fs" />
+    <Compile Include="src\Daemon\RegexpHighlightingTest.fs" />
     <Compile Include="src\Intentions\IntentionsTestBase.fs" />
     <Compile Include="src\Intentions\ToRecursiveLetBindings.fs" />
     <Compile Include="src\Intentions\ToMultilineRecordTest.fs" />
@@ -77,6 +78,7 @@
     <Compile Include="src\QuickFixes\RemoveRedundantAttributeSuffixTest.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithAssignmentExpressionTest.fs" />
     <Compile Include="src\QuickFixes\AddMatchAllClauseFixTest.fs" />
+    <Compile Include="src\QuickFixes\AddMissingInnerPatternsFixTest.fs" />
     <Compile Include="src\QuickFixes\ToAbstractFixTest.fs" />
     <Compile Include="src\QuickFixes\RemoveYieldTest.fs" />
     <Compile Include="src\QuickFixes\RemoveRedundantQualifierTest.fs" />
@@ -112,6 +114,8 @@
     <Compile Include="src\QuickFixes\UpdateParameterNameInSignatureFixTests.fs" />
     <Compile Include="src\QuickFixes\UpdateRecordFieldsInSignatureFixTest.fs" />
     <Compile Include="src\QuickFixes\UpdateRecordFieldTypeInSignatureFixTest.fs" />
+    <Compile Include="src\QuickFixes\RemovePatternArgumentFixTest.fs" />
+    <Compile Include="src\QuickFixes\AddSetterFixTest.fs" />
   </ItemGroup>
 
   <ItemGroup>

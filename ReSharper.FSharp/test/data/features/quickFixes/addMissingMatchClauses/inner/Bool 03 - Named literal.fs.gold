@@ -1,0 +1,7 @@
+﻿module Say
+
+let [<Literal>] True = true
+
+match true with
+| True -> ()
+| false -> {selstart}failwith "todo"{selend}
