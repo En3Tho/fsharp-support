@@ -203,6 +203,7 @@ type FSharpImportTypeHelper() =
                     Option.isSome symbolUse)
                 |> Seq.cast
 
+
             let referenceName = context.As<ITypeArgumentOwner>()
             if isNotNull referenceName then
                 let typeArgumentList = referenceName.TypeArgumentList

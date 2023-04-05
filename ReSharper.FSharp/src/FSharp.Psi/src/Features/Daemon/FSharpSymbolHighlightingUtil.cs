@@ -51,7 +51,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         return FSharpHighlightingAttributeIdsModule.Class;
 
       if (entity.IsValueType
-          || (entity.HasMeasureParameter() && entity.AsType().StrippedType.TypeDefinition.IsValueType))
+          || (entity.HasMeasureParameter()))
         return FSharpHighlightingAttributeIdsModule.Struct;
 
       if (entity.IsFSharpAbbreviation)

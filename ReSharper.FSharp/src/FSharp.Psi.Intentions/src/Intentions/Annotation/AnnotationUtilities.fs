@@ -139,7 +139,7 @@ module SpecifyUtil =
         // for some reason returnTypeInfo.SetReturnType is failing on a case like let x: [<A>] _ = 1
         // and sets returnType before AttributeList resulting in something like let x: int[<A>] = 1
         // so I guess we have to save attribute list and recreate new returnTypeInfo with it
-        let newTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.Return))
+        let newTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.ParameterSignature))
 
         let mutable idx = 0
         if not (returnTypeInfo.AttributeListsEnumerable.IsEmpty()) then
@@ -160,7 +160,7 @@ module SpecifyUtil =
     let private specifyConstrainedTypeUsage displayContext (fcsType: FSharpType) (typeUsage: IConstrainedTypeUsage) =
         let typeString = fcsType.Format(displayContext)
         let factory = typeUsage.CreateElementFactory()
-        typeUsage.SetTypeUsage(factory.CreateTypeUsage(typeString, TypeUsageContext.Return))
+        typeUsage.SetTypeUsage(factory.CreateTypeUsage(typeString, TypeUsageContext.ParameterSignature))
 
     let rec private specifyTuplePat displayContext (fcsType: FSharpType) (pattern: ITuplePat) =
         let innerPatterns = pattern.Patterns
@@ -195,7 +195,7 @@ module SpecifyUtil =
             | pattern ->
                 let typeString = fcsType.Format(displayContext)
                 pattern
-                |> replaceWithTypedPattern(typeString, TypeUsageContext.Return)
+                |> replaceWithTypedPattern(typeString, TypeUsageContext.ParameterSignature)
                 |> fun pattern ->
                     if forceParens then
                         addParens pattern
@@ -205,7 +205,7 @@ module SpecifyUtil =
         let anchor = method.ParametersDeclarationsEnumerable.LastOrDefault()
 
         let factory = anchor.CreateElementFactory()
-        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.Return))
+        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.ParameterSignature))
         ModificationUtil.AddChildAfter(anchor, returnTypeInfo)
         |> addSpaceBeforeColon false
 
@@ -231,7 +231,7 @@ module SpecifyUtil =
         let forceSpaceBeforeColon = anchor :? IPostfixTypeParameterDeclarationList
 
         let factory = anchor.CreateElementFactory()
-        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.Return))
+        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(typeString, TypeUsageContext.ParameterSignature))
         ModificationUtil.AddChildAfter(anchor, returnTypeInfo)
         |> addSpaceBeforeColon forceSpaceBeforeColon
 
@@ -240,7 +240,7 @@ module SpecifyUtil =
             "decl.ParametersDeclarationsEnumerable.IsEmpty()")
 
         let factory = decl.CreateElementFactory()
-        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(fcsType.Format(displayContext), TypeUsageContext.Return))
+        let returnTypeInfo = factory.CreateReturnTypeInfo(factory.CreateTypeUsage(fcsType.Format(displayContext), TypeUsageContext.ParameterSignature))
 
         if isNotNull decl.ReturnTypeInfo then
             ModificationUtil.DeleteChild(decl.ReturnTypeInfo)
