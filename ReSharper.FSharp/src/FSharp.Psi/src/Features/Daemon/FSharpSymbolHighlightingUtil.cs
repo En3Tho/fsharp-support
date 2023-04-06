@@ -47,11 +47,13 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (entity.IsException())
         return FSharpHighlightingAttributeIdsModule.Exception;
 
+      if (entity.IsAttributeType)
+        return FSharpHighlightingAttributeIdsModule.Attribute;
+
       if (entity.IsClass)
         return FSharpHighlightingAttributeIdsModule.Class;
 
-      if (entity.IsValueType
-          || (entity.HasMeasureParameter()))
+      if (entity.IsValueType || entity.HasMeasureParameter())
         return FSharpHighlightingAttributeIdsModule.Struct;
 
       if (entity.IsFSharpAbbreviation)
@@ -93,6 +95,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
         if (declaringEntity.IsException())
           return FSharpHighlightingAttributeIdsModule.Exception;
+
+        if (declaringEntity.IsAttributeType)
+          return FSharpHighlightingAttributeIdsModule.Attribute;
 
         return declaringEntity.IsValueType
           ? FSharpHighlightingAttributeIdsModule.Struct

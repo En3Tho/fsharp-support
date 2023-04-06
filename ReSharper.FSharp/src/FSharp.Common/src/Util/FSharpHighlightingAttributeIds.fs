@@ -26,6 +26,7 @@ module FSharpHighlightingAttributeIds =
 
     let [<Literal>] Class = "ReSharper F# Class Identifier"
     let [<Literal>] Exception = "ReSharper F# Exception Identifier"
+    let [<Literal>] Attribute = "ReSharper F# Attribute Identifier"
     let [<Literal>] StaticClass = "ReSharper F# Static Class Identifier"
     let [<Literal>] Interface = "ReSharper F# Interface Identifier"
     let [<Literal>] Delegate = "ReSharper F# Delegate Identifier"
@@ -195,6 +196,14 @@ type FSharpSettingsNamesProvider() =
 
   RegisterHighlighter(
       FSharpHighlightingAttributeIds.Exception,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Class,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Types//Exception",
+      Layer = HighlighterLayer.SYNTAX,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
+
+  RegisterHighlighter(
+      FSharpHighlightingAttributeIds.Attribute,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Class,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Types//Exception",
