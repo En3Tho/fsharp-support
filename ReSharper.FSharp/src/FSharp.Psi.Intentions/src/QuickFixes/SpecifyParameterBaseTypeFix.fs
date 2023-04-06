@@ -8,6 +8,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions.Intentions.AnnotationActions
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi
@@ -122,7 +123,7 @@ type SpecifyParameterBaseTypeFix(refExpr: IReferenceExpr, typeUsage: ITypeUsage)
         use writeCookie = WriteLockCookie.Create(pat.IsPhysical())
 
         let baseType, displayContext = baseType.Value
-        SpecifyTypes.specifyParameterType displayContext baseType pat
+        SpecifyUtil.specifyPattern displayContext baseType false pat
 
     override this.Execute(solution, textControl) =
         let fcsEntity, displayContext = getFcsEntity typeUsage |> Option.get

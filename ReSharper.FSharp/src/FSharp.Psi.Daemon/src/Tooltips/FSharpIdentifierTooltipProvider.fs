@@ -17,7 +17,7 @@ open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.UI.RichText
 open JetBrains.Util
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.FSharpIdentifierTooltipProviderExtensions
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon
 
 [<SolutionComponent>]
 type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocService: FSharpXmlDocService,
@@ -50,18 +50,6 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
 
         // todo: provide tooltip for #r strings in fsx, should pass String tag
         checkResults.GetToolTip(int coords.Line + 1, int coords.Column, lineText, tokenNames, FSharpTokenTag.Identifier)
-
-    member _.GetFSharpEntityByToken(checkResults: FSharpCheckFileResults, token: IFSharpIdentifierToken) =
-        // todo: fix getting qualifiers
-        let tokenNames = [token.Name]
-
-        let sourceFile = token.GetSourceFile()
-        let coords = sourceFile.Document.GetCoordsByOffset(token.GetTreeEndOffset().Offset)
-        let lineText = sourceFile.Document.GetLineText(coords.Line)
-        use cookie = CompilationContextCookie.GetOrCreate(sourceFile.GetPsiModule().GetContextFromModule())
-
-        // todo: provide tooltip for #r strings in fsx, should pass String tag
-        checkResults.GetSymbolUseAtLocation(int coords.Line + 1, int coords.Column, lineText, tokenNames)
 
     override x.GetRichTooltip(highlighter, _) =
         if not highlighter.IsValid then emptyPresentation else
@@ -102,12 +90,12 @@ type FSharpIdentifierTooltipProvider(lifetime, solution, presenter, xmlDocServic
                             if not overload.TypeMapping.IsEmpty then
                               yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
 
-                            match x.GetFSharpEntityByToken(results.CheckResults, token) with
+                            match FSharpIdentifierTooltipProviderExtensions.getFSharpEntityByIdentifier results token with
                             | Some symbolUse ->
-                                yield! getDeclaringEntityHeaderIfExtensionMember symbolUse
-                                yield! getAbbreviatedEntityHeaderIfAbbreviation symbolUse
-                                yield! getHexRepresentationIfIntConstant symbolUse
-                                yield! getLengthIfStringConstant symbolUse
+                                yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityHeaderIfExtensionMember symbolUse
+                                yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityHeaderIfAbbreviation symbolUse
+                                yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
+                                yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
                             | _ ->
                                 ()
                         ]

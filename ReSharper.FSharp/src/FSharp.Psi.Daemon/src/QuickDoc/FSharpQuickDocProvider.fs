@@ -10,6 +10,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
+open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.DataContext
 open JetBrains.ReSharper.Psi.Files
 open JetBrains.ReSharper.Psi.Tree
@@ -17,6 +18,7 @@ open JetBrains.UI.RichText
 open JetBrains.Util
 
 module FSharpQuickDoc =
+
     let getFSharpToolTipText (token: IFSharpIdentifier) : ToolTipText option =
         match token.FSharpFile.GetParseAndCheckResults(true, "FSharpQuickDoc") with
         | None -> None
@@ -33,7 +35,6 @@ module FSharpQuickDoc =
         let line = int coords.Line + 1
         let column = int coords.Column
         Some(results.CheckResults.GetToolTip(line, column, lineText, tokenNames, FSharpTokenTag.Identifier))
-
 
 type FSharpQuickDocPresenter(xmlDocService: FSharpXmlDocService, identifier: IFSharpIdentifier) =
     let richTextEscapeToHtml (text: RichText) =
@@ -71,7 +72,17 @@ type FSharpQuickDocPresenter(xmlDocService: FSharpXmlDocService, identifier: IFS
                                 yield overload.MainDescription |> richText
 
                               if not overload.TypeMapping.IsEmpty then
-                                yield overload.TypeMapping |> List.map richText |> richTextJoin "\n" ]
+                                yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
+
+                              match FSharpIdentifierTooltipProviderExtensions.parseAndGetFSharpEntityByIdentifier identifier with
+                              | Some symbolUse ->
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityHeaderIfExtensionMember symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityHeaderIfAbbreviation symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
+                              | _ ->
+                                  ()
+                            ]
                             |> richTextJoin "\n\n"
 
                         let body =

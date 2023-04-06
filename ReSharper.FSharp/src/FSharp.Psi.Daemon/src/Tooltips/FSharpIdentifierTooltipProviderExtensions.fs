@@ -3,8 +3,13 @@ module JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.FSharpIdentifierTooltipProv
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Symbols
 open FSharp.Compiler.Text
+open JetBrains.ReSharper.Plugins.FSharp.Checker
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
 open JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
+open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.Tree
+open JetBrains.ReSharper.Psi.Modules
 
 let (|Literal|_|) (symbolUse: FSharpSymbolUse) =
     match symbolUse.Symbol with
@@ -108,3 +113,22 @@ let getLengthIfStringConstant(symbolUse: FSharpSymbolUse) = [
     | _ ->
         ()
 ]
+
+let getFSharpEntityByIdentifier (results: FSharpParseAndCheckResults) (token: IFSharpIdentifier) =
+    // todo: fix getting qualifiers
+    let tokenNames = [token.Name]
+
+    let sourceFile = token.GetSourceFile()
+    let coords = sourceFile.Document.GetCoordsByOffset(token.GetTreeEndOffset().Offset)
+    let lineText = sourceFile.Document.GetLineText(coords.Line)
+    use cookie = CompilationContextCookie.GetOrCreate(sourceFile.GetPsiModule().GetContextFromModule())
+
+    // todo: provide tooltip for #r strings in fsx, should pass String tag
+    results.CheckResults.GetSymbolUseAtLocation(int coords.Line + 1, int coords.Column, lineText, tokenNames)
+
+let parseAndGetFSharpEntityByIdentifier(token: IFSharpIdentifier) =
+    match token.FSharpFile.GetParseAndCheckResults(true, "FSharpQuickDoc") with
+    | Some results ->
+        getFSharpEntityByIdentifier results token
+    | _ ->
+        None
