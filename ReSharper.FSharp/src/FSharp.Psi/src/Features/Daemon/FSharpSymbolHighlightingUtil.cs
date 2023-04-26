@@ -114,10 +114,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
                 && !mfv.Attributes.ContainsIsExternalInitAttribute()
                 ? FSharpHighlightingAttributeIdsModule.MutableProperty
                 : FSharpHighlightingAttributeIdsModule.Property;
+          else if (mfv.IsExtensionMemberMfv())
+            return FSharpHighlightingAttributeIdsModule.ExtensionMethod;
+          else if (mfv.IsInlineable())
+            return FSharpHighlightingAttributeIdsModule.InlineMethod;
           else
-            return mfv.IsExtensionMemberMfv()
-              ? FSharpHighlightingAttributeIdsModule.ExtensionMethod
-              : FSharpHighlightingAttributeIdsModule.Method;
+            return FSharpHighlightingAttributeIdsModule.Method;
       }
 
       if (mfv.IsLiteral())
@@ -130,19 +132,23 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
 
       if (IsLogicalOpName(mfv.LogicalName) && fsType.IsFunctionType)
       {
-        return !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
-            && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline)
+        return mfv.IsInlineable()
           ? FSharpHighlightingAttributeIdsModule.InlineOperator
           : FSharpHighlightingAttributeIdsModule.Operator;
       }
 
       if (fsType.IsFunctionType || mfv.IsTypeFunction || fsType.IsAbbreviation && fsType.AbbreviatedType.IsFunctionType)
       {
-        if (!mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
-         && !mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline))
+        if (mfv.IsInlineable())
           return FSharpHighlightingAttributeIdsModule.InlineFunction;
         if (mfv.IsValCompiledAsMethod())
+        {
+          if (mfv.IsInlineable())
+            return FSharpHighlightingAttributeIdsModule.InlineMethod;
+
           return FSharpHighlightingAttributeIdsModule.Method;
+        }
+
         return mfv.IsMutable
           ? FSharpHighlightingAttributeIdsModule.MutableFunction
           : FSharpHighlightingAttributeIdsModule.Function;

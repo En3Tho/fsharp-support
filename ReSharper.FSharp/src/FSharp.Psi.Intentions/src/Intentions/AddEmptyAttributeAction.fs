@@ -15,6 +15,8 @@ open JetBrains.TextControl
 
 module AttributeUtil =
 
+    let [<Literal>] AddAttributeActionPriority = -10s
+
     let isAvailable dataProvider decl =
         isNotNull decl &&
         isAtTreeNode dataProvider decl
@@ -87,9 +89,17 @@ module AttributeUtil =
 
         ranges.Contains(dataProvider.SelectedTreeRange)
 
+    let isAtRecordFieldDecl (dataProvider: IContextActionDataProvider) (declaration: IRecordFieldDeclaration) =
+        let ranges =
+            DisjointedTreeTextRange
+                .From(declaration.NameIdentifier)
+                .Then(declaration.TypeUsage)
+
+        ranges.Contains(dataProvider.SelectedTreeRange)
+
 [<ContextAction(Group = "F#", Name = "Add empty attribute to type",
                 Description = "Adds an empty attribute to type",
-                Priority = 10s)>]
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
 type AddEmptyAttributeToTypeAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -113,7 +123,7 @@ type AddEmptyAttributeToTypeAction(dataProvider: FSharpContextActionDataProvider
 
 [<ContextAction(Group = "F#", Name = "Add empty attribute to binding",
                 Description = "Adds an empty attribute to binding",
-                Priority = 10s)>]
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
 type AddEmptyAttributeToBindingAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -137,7 +147,7 @@ type AddEmptyAttributeToBindingAction(dataProvider: FSharpContextActionDataProvi
 
 [<ContextAction(Group = "F#", Name = "Add empty attribute to member",
                 Description = "Adds an empty attribute to member",
-                Priority = 10s)>]
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
 type AddEmptyAttributeToMemberAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -161,7 +171,7 @@ type AddEmptyAttributeToMemberAction(dataProvider: FSharpContextActionDataProvid
 
 [<ContextAction(Group = "F#", Name = "Add empty attribute to module",
                 Description = "Adds an empty attribute to module",
-                Priority = 10s)>]
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
 type AddEmptyAttributeToModuleAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -185,7 +195,7 @@ type AddEmptyAttributeToModuleAction(dataProvider: FSharpContextActionDataProvid
 
 [<ContextAction(Group = "F#", Name = "Add empty attribute to parameter",
                 Description = "Adds an attribute to parameter",
-                Priority = 10s)>]
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
 type AddEmptyAttributeToParameterAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -221,5 +231,29 @@ type AddEmptyAttributeToParameterAction(dataProvider: FSharpContextActionDataPro
         let decl = dataProvider.GetSelectedElement<IParametersPatternDeclaration>()
         isNotNull decl &&
         AttributeUtil.isAtParameterDecl dataProvider decl
+
+    override this.Text = "Add empty attribute"
+
+[<ContextAction(Group = "F#", Name = "Add empty attribute to record field",
+                Description = "Adds an attribute to record field",
+                Priority = AttributeUtil.AddAttributeActionPriority)>]
+type AddEmptyAttributeToRecordFieldAction(dataProvider: FSharpContextActionDataProvider) =
+    inherit FSharpContextActionBase(dataProvider)
+
+    override this.ExecutePsiTransaction(_, _) =
+        let parameterDecl = dataProvider.GetSelectedElement<IRecordFieldDeclaration>()
+
+        use writeCookie = WriteLockCookie.Create(parameterDecl.IsPhysical())
+        use disableFormatter = new DisableCodeFormatter()
+
+        parameterDecl
+        |> FSharpAttributesUtil.getRecordFieldDeclarationAttributeList
+        |> AttributeUtil.addEmptyAttributeToEndOfList
+        |> AttributeUtil.makeMoveCaretToEmptyAttributeAction
+
+    override this.IsAvailable(cache) =
+        let decl = dataProvider.GetSelectedElement<IRecordFieldDeclaration>()
+        isNotNull decl &&
+        AttributeUtil.isAtRecordFieldDecl dataProvider decl
 
     override this.Text = "Add empty attribute"

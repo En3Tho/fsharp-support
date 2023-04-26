@@ -277,6 +277,13 @@ let containsExtensionAttribute (attributes: IList<FSharpAttribute>) =
 let isExtensionMemberMfv (mfv: FSharpMemberOrFunctionOrValue) =
     mfv.IsExtensionMember || containsExtensionAttribute mfv.Attributes
 
+[<Extension; CompiledName("IsInlineable")>]
+let isInlineable (mfv: FSharpMemberOrFunctionOrValue) =
+    not (
+        mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.NeverInline)
+        || mfv.InlineAnnotation.Equals(FSharpInlineAnnotation.OptionalInline)
+    )
+
 type FSharpActivePatternGroup with
     member x.PatternName = patternName x
 

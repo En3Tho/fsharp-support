@@ -37,6 +37,7 @@ let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDispla
         for entity in entities do
             let layout = entity.AsType().FormatLayout(displayContext)
             yield! layout
+            TaggedText(TextTag.Punctuation, ".")
     ]
     entities |> List.filter (fun text -> text.Tag <> TextTag.UnknownEntity)
 

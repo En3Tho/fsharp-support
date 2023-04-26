@@ -175,6 +175,11 @@ let getModuleDeclarationAttributeList (moduleDecl: IDeclaredModuleDeclaration) =
         addOuterAttributeList true moduleDecl
     moduleDecl.AttributeLists[0]
 
+let getRecordFieldDeclarationAttributeList (moduleDecl: IRecordFieldDeclaration) =
+    if moduleDecl.AttributeLists.IsEmpty then
+        addOuterAttributeList true moduleDecl
+    moduleDecl.AttributeLists[0]
+
 let getTypeDeclarationAttributeList (typeDecl: #IFSharpTypeOrExtensionDeclaration) =
     if typeDecl.IsPrimary then
         let attributeLists = typeDecl.AttributeLists

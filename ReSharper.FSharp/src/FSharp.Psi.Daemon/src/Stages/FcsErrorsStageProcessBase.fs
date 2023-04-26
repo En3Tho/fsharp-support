@@ -122,10 +122,11 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
             DocumentRange(document, TextRange(startOffset, endOffset))
 
     let createGenericHighlighting (error: FSharpDiagnostic) range: IHighlighting =
+        let errorString = $"{error.Message} ({error.ErrorNumberText})"
         match error.Severity with
-        | FSharpDiagnosticSeverity.Info -> InfoHighlighting(error.Message, range) :> _
-        | FSharpDiagnosticSeverity.Warning -> WarningHighlighting(error.Message, range) :> _
-        | _ -> ErrorHighlighting(error.Message, range) :> _
+        | FSharpDiagnosticSeverity.Info -> InfoHighlighting(errorString, range) :> _
+        | FSharpDiagnosticSeverity.Warning -> WarningHighlighting(errorString, range) :> _
+        | _ -> ErrorHighlighting(errorString, range) :> _
 
     /// Finds node of the corresponding type in the range.
     let createHighlightingFromNode highlightingCtor range: IHighlighting =

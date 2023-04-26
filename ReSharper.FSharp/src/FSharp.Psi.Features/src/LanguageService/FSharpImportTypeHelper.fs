@@ -115,10 +115,7 @@ type FSharpImportTypeHelper() =
 
                         let isExtensionMemberForQualifiedType (mfv: FSharpMemberOrFunctionOrValue) =
                             if mfv.IsInstanceMember || mfv.Attributes |> containsExtensionAttribute then
-                                if not mfv.IsFunction then
-                                    mfv.FullType.GenericArguments[1].Equals(typeOfQualifiedRef)
-                                else
-                                    mfv.FullType.GenericArguments[0].Equals(typeOfQualifiedRef)
+                                mfv.FullType.GenericArguments[0].Equals(typeOfQualifiedRef)
                             else
                                 // isStatic F# extension
                                 mfv.CompiledName.StartsWith(typeRefName, StringComparison.Ordinal)
@@ -219,6 +216,8 @@ type FSharpImportTypeHelper() =
 
             if isNotNull (InheritMemberNavigator.GetByTypeName(typeReferenceName)) then
                 candidates <- candidates |> Seq.filter (fun c -> c :? IInterface || c :? IClass || c :? IStruct)
+
+            let candidates = candidates |> Seq.toArray
 
             candidates
 

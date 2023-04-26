@@ -80,6 +80,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Event = "ReSharper F# Event Identifier"
 
     let [<Literal>] Method = "ReSharper F# Method Identifier"
+    let [<Literal>] InlineMethod = "ReSharper F# Inline Method Identifier"
     let [<Literal>] ExtensionMethod = "ReSharper F# Extension Method Identifier"
     let [<Literal>] ExtensionProperty = "ReSharper F# Extension Property Identifier"
 
@@ -488,7 +489,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.InlineFunction,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Function,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Values//InlineFunction",
+      RiderPresentableName = "Values//Inline function",
       Layer = HighlighterLayer.SYNTAX,
       EffectType = EffectType.TEXT);
   
@@ -518,6 +519,14 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Maroon", DarkForegroundColor = "Cyan");
 
   RegisterHighlighter(
+      FSharpHighlightingAttributeIds.InlineMethod,
+      FallbackAttributeId = FSharpHighlightingAttributeIds.Method,
+      GroupId = FSharpHighlightingAttributeIds.GroupId,
+      RiderPresentableName = "Members//Inline method",
+      Layer = HighlighterLayer.SYNTAX,
+      EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Maroon", DarkForegroundColor = "Cyan");
+
+  RegisterHighlighter(
       FSharpHighlightingAttributeIds.Operator,
       FallbackAttributeId = DefaultLanguageAttributeIds.OVERLOADED_OPERATOR,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
@@ -529,7 +538,7 @@ type FSharpSettingsNamesProvider() =
       FSharpHighlightingAttributeIds.InlineOperator,
       FallbackAttributeId = FSharpHighlightingAttributeIds.Operator,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
-      RiderPresentableName = "Values//Operator",
+      RiderPresentableName = "Values//Inline operator",
       Layer = HighlighterLayer.SYNTAX,
       EffectType = EffectType.TEXT, ForegroundColor = "DarkCyan:Blue", DarkForegroundColor = "Cyan");
 
