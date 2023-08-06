@@ -101,11 +101,4 @@ let isAtLetExprKeywordOrReferencePattern (dataProvider: IContextActionDataProvid
     | identifier ->
 
     ranges.Then(identifier) |> ignore
-
-    match binding.HeadPattern.GetNextMeaningfulSibling() with
-    | :? IPostfixTypeParameterDeclarationList as list ->
-        ranges.Then(list) |> ignore
-    | _ ->
-        ()
-
     ranges.Contains(dataProvider.SelectedTreeRange)

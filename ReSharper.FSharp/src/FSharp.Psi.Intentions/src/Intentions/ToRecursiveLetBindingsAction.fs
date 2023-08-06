@@ -20,7 +20,7 @@ type ToRecursiveLetBindingsAction(dataProvider: FSharpContextActionDataProvider)
 
         bindings.Count = 1
         && bindings[0].HasParameters
-        && (isAtBindingKeywordOrReferencePatternOrGenericParameters dataProvider letBindings.Bindings[0])
+        && (isAtBindingKeywordOrReferencePattern dataProvider letBindings.Bindings[0])
 
     static member Execute(letBindings: ILetBindings) =
         use writeCookie = WriteLockCookie.Create(letBindings.IsPhysical())

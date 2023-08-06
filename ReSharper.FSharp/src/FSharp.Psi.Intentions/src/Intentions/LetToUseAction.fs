@@ -25,7 +25,7 @@ type LetToUseAction(dataProvider: FSharpContextActionDataProvider) =
         let binding = letExpr.BindingsEnumerable.FirstOrDefault()
 
         isNotNull binding &&
-        isAtBindingKeywordOrReferencePatternOrGenericParameters dataProvider binding &&
+        isAtBindingKeywordOrReferencePattern dataProvider binding &&
         LetDisposableAnalyzer.isApplicable letExpr
 
     override x.ExecutePsiTransaction(_, _) =
