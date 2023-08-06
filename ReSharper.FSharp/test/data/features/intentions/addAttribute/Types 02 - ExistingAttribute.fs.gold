@@ -1,4 +1,0 @@
-module Test =
-    [<Struct; {caret}>]
-    type A(x) =
-        struct end

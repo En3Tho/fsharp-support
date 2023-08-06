@@ -1,4 +1,0 @@
-﻿module Module
-
-let rec f{caret} (x: 'a): 'a = g x
-and g x = x

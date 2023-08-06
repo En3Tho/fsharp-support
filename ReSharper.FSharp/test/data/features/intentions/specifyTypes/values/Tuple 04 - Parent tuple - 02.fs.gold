@@ -1,5 +1,0 @@
-module Module
-
-let f() =
-    let (x: string, y: int, (z1: int, z2: int)){caret} = ("foo", 1, (1,2))
-    ()

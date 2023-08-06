@@ -1,5 +1,0 @@
-module Module
-
-let f() =
-    let x, y, (z1: int{caret}, z2: int) = ("foo", 1, (1,2))
-    ()

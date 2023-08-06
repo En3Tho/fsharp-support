@@ -1,4 +1,0 @@
-module Module
-
-let f{caret} (a: 'a, (b: 'a -> 'b, c:'c, (d: 'd, e: 'a -> 'b -> 'c -> 'd -> 'e'))): unit =
-    e a b c d

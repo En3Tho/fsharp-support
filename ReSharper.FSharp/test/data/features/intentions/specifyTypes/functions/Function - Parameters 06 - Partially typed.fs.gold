@@ -1,3 +1,0 @@
-﻿module Module
-
-let f{caret} (a: 'a list): 'a list = a

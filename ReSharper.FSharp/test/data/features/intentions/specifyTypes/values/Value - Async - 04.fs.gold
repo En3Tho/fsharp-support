@@ -1,6 +1,0 @@
-module Module
-
-let a1 = async {
-    let! (x: string, y: int{caret}) = async.Return ("", 0)
-    ()
-}

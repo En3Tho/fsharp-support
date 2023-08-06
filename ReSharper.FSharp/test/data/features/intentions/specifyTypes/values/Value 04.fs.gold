@@ -1,3 +1,0 @@
-﻿module Module
-
-let v: int list{caret} = [0]

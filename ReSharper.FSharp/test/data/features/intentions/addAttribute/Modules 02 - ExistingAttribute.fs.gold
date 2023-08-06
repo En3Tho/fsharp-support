@@ -1,3 +1,0 @@
-[<AutoOpen; {caret}>]
-module Test =
-    ()

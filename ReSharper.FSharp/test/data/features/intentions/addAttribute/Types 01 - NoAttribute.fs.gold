@@ -1,4 +1,0 @@
-module Test =
-    [<{caret}>]
-    type A() =
-        class end

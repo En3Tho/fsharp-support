@@ -1,8 +1,6 @@
 ﻿module JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FcsTypeUtil
 
-open System
 open FSharp.Compiler.Symbols
-open JetBrains.ReSharper.Plugins.FSharp.Util
 
 let getFunctionReturnType parametersCount (fcsType: FSharpType) =
     let rec skipInnerTypes remaining (fcsType: FSharpType) =
@@ -44,7 +42,7 @@ let getFunctionParameterAt parameterIndex (fcsType: FSharpType) =
 
 let getFunctionTypeArgs includeReturnType fcsType =
     let rec loop (fcsType: FSharpType) acc =
-        if not fcsType.IsFunctionType then [] else
+        if not fcsType.IsFunctionType then [] else 
 
         let args = fcsType.GenericArguments
         let acc = args[0] :: acc

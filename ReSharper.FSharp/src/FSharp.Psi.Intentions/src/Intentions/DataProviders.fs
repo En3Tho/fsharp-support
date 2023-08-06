@@ -55,6 +55,11 @@ let isAtIfExprKeyword (dataProvider: IContextActionDataProvider) (ifExpr: IIfThe
 let isAtTreeNode (dataProvider: IContextActionDataProvider) (node: ITreeNode) =
     isNotNull node && DisjointedTreeTextRange.From(node).Contains(dataProvider.SelectedTreeRange)
 
+let isAtOverridableMemberDeclaration (dataProvider: IContextActionDataProvider) (binding: IOverridableMemberDeclaration) =
+    if isNull binding then false else
+    let ranges = DisjointedTreeTextRange.From(binding.MemberKeyword).Then(binding.Identifier)
+    ranges.Contains(dataProvider.SelectedTreeRange)
+
 let isAtBindingKeywordOrReferencePattern (dataProvider: IContextActionDataProvider) (binding: IBinding) =
     if isNull binding then false else
 
