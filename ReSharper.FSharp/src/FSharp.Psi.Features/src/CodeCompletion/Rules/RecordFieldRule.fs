@@ -27,7 +27,7 @@ open JetBrains.ReSharper.Psi.Tree
 type RecordFieldRule() =
     inherit ItemsProviderOfSpecificContext<FSharpCodeCompletionContext>()
 
-    let [<Literal>] MatchedFieldRelevance =
+    let matchedFieldRelevance =
         CLRLookupItemRelevance.ExpectedTypeMatchInitializer |||
         CLRLookupItemRelevance.ExpectedTypeMatch |||
         CLRLookupItemRelevance.FieldsAndProperties
@@ -172,7 +172,7 @@ type RecordFieldRule() =
                     .WithMatcher(fun _ -> TextualMatcher(info) :> _)
 
             let item =
-                if emphasize then item.WithRelevance(MatchedFieldRelevance) else item
+                if emphasize then item.WithRelevance(matchedFieldRelevance) else item
 
             let tailNodeTypes =
                 [| FSharpTokenType.WHITESPACE

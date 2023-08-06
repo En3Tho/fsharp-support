@@ -3,6 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Diagnostic
 open System
 open System.Collections.Generic
 open JetBrains.Application
+open JetBrains.HabitatDetector
 open JetBrains.ProjectModel.ProjectsHost
 open JetBrains.ProjectModel.ProjectsHost.Diagnostic
 open JetBrains.ProjectModel.ProjectsHost.Impl
@@ -25,8 +26,8 @@ and FSharpTargetsDiagnosticMessage(projectMark, message) =
 
     static let platformName platform =
         match platform with
-        | PlatformUtil.Platform.MacOsX -> "mac"
-        | PlatformUtil.Platform.Linux -> "linux"
+        | JetPlatform.MacOsX -> "mac"
+        | JetPlatform.Linux -> "linux"
         | _ -> "windows"
 
     new (projectMark: IProjectMark) =

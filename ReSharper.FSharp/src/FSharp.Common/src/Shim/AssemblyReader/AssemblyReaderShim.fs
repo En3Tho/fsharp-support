@@ -4,6 +4,7 @@ open System.Collections.Concurrent
 open System.Collections.Generic
 open System.Text
 open FSharp.Compiler.AbstractIL.ILBinaryReader
+open JetBrains.Application.Threading
 open JetBrains.Application.changes
 open JetBrains.DataFlow
 open JetBrains.Lifetimes
@@ -58,10 +59,6 @@ module AssemblyReaderShim =
         let extension = path.ExtensionNoDot
         equalsIgnoreCase "dll" extension || equalsIgnoreCase "exe" extension
 
-    [<CompiledName("IsEnabled")>]
-    let isEnabled settingsStore =
-        SettingsUtil.getValue<FSharpOptions, bool> settingsStore "NonFSharpProjectInMemoryAnalysis"
-
     [<CompiledName("SupportedLanguages")>]
     let supportedLanguages =
         [| CSharpLanguage.Instance :> PsiLanguageType
@@ -74,15 +71,15 @@ module AssemblyReaderShim =
 type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiModules: IPsiModules,
         cache: FcsModuleReaderCommonCache, assemblyInfoShim: AssemblyInfoShim, checkerService: FcsCheckerService,
         fsOptionsProvider: FSharpOptionsProvider, symbolCache: ISymbolCache, solution: ISolution,
-        logger: ILogger) as this =
+        locks: IShellLocks, logger: ILogger) as this =
     inherit AssemblyReaderShimBase(lifetime, changeManager)
 
     // todo: add experimental setting if/when available
     let isEnabledForAssemblies = false
 
     let isEnabled () =
-        FSharpExperimentalFeatureCookie.IsEnabled(ExperimentalFeature.AssemblyReaderShim) ||
-        fsOptionsProvider.NonFSharpProjectInMemoryAnalysis.Value
+        fsOptionsProvider.NonFSharpProjectInMemoryReferences ||
+        FSharpExperimentalFeatureCookie.IsEnabled(ExperimentalFeature.AssemblyReaderShim)
 
     do
         if isEnabledForAssemblies then
@@ -238,7 +235,7 @@ type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiMod
     let markDirty (typePart: TypePart) =
         if not (isEnabled ()) then () else
 
-        use lock = FcsReadWriteLock.WriteCookie.Create()
+        use lock = FcsReadWriteLock.WriteCookie.Create(locks)
 
         let typeElement = typePart.TypeElement
         let psiModule = typeElement.Module
@@ -324,12 +321,12 @@ type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiMod
         member this.IsEnabled = isEnabled ()
 
         member this.GetModuleReader(psiModule) =
-            use lock = FcsReadWriteLock.WriteCookie.Create()
+            use lock = FcsReadWriteLock.WriteCookie.Create(locks)
             invalidateDirty ()
             getOrCreateReaderFromModule psiModule
 
         member this.InvalidateDirty() =
-            use lock = FcsReadWriteLock.WriteCookie.Create()
+            use lock = FcsReadWriteLock.WriteCookie.Create(locks)
             invalidateDirty ()
 
         member this.InvalidateDirty(psiModule) =
@@ -345,11 +342,13 @@ type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiMod
             use cookie = ReadLockCookie.Create()
             use lock = FcsReadWriteLock.ReadCookie.Create()
 
+            if not (isEnabled ()) then "Shim is disabled" else
+
             let builder = StringBuilder()
 
             builder.AppendLine($"Readers by module: {assemblyReadersByModule.Count}") |> ignore
             for psiModule in assemblyReadersByModule.Keys do
-                builder.AppendLine($"  {psiModule.DisplayName}") |> ignore
+                builder.AppendLine($"  {psiModule.DisplayName}, IsValid: {psiModule.IsValid()}") |> ignore
 
             if assemblyReadersByPath.Count > 0 then
                 builder.AppendLine($"Readers by path count: {assemblyReadersByPath.Count}") |> ignore
@@ -404,7 +403,7 @@ type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiMod
             assemblyReadersByPath.ContainsKey(path)
 
         member this.InvalidateAll(reason) =
-            use lock = FcsReadWriteLock.WriteCookie.Create()
+            use lock = FcsReadWriteLock.WriteCookie.Create(locks)
             invalidateAllReason <- Some reason
 
         member this.HasDirtyTypes =
@@ -416,7 +415,7 @@ type AssemblyReaderShim(lifetime: Lifetime, changeManager: ChangeManager, psiMod
         member this.RecordInvalidations with set value =
             recordInvalidations <- value
 
-        member this.MarkTypesDirty(psiModule) =
+        member this.MarkDirty(psiModule) =
             if not (isKnownModule psiModule) then () else
             dirtyTypesInModules.Add(psiModule, "") |> ignore 
 

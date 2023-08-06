@@ -20,9 +20,9 @@ open NUnit.Framework
 
 [<SolutionComponent>]
 type TestAssemblyReaderShim(lifetime, changeManager, psiModules, cache, assemblyInfoShim, checkerService,
-        fsOptionsProvider, symbolCache, solution, logger) =
+        fsOptionsProvider, symbolCache, solution, locks, logger) =
     inherit AssemblyReaderShim(lifetime, changeManager, psiModules, cache, assemblyInfoShim, checkerService,
-        fsOptionsProvider, symbolCache, solution, logger)
+        fsOptionsProvider, symbolCache, solution, locks, logger)
 
     let mutable projectPath = VirtualFileSystemPath.GetEmptyPathFor(InteractionContext.SolutionContext)
     let mutable projectPsiModule = null
@@ -112,6 +112,7 @@ type AssemblyReaderTest() =
     [<Test; Explicit "Can't reference attribute in net451">]
     member x.``Method - Param 01``() = x.DoNamedTest()
 
+    [<Test>] member x.``Property - Implementation 01``() = x.DoNamedTest()
     [<Test>] member x.``Property - Duplicate 01``() = x.DoNamedTest()
     [<Test>] member x.``Property - Explicit impl 01``() = x.DoNamedTest()
     [<Test>] member x.``Property 01``() = x.DoNamedTest()

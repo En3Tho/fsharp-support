@@ -16,6 +16,8 @@
       <DependentUpon>Strings.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <Compile Include="src\ReadLockCookieUtil.fs" />
+    <Compile Include="src\Util\FSharpXmlDocService.fs" />
     <Compile Include="src\Util\StringLiteralsUtil.fs" />
     <Compile Include="src\Util\PsiUtil.fs" />
     <Compile Include="src\Util\ParenPatUtil.fs" />
@@ -60,7 +62,7 @@
     <Compile Include="src\Daemon\Highlightings\FcsErrors.Generated.fs">
       <DependentUpon>FcsErrors.xml</DependentUpon>
     </Compile>
-    <Compile Include="src\Generate\IFSharpGeneratorElement.fs" />
+    <Compile Include="src\Generate\FSharpGeneratorContext.fs" />
     <Compile Include="src\Generate\GenerateOverrides.fs" />
     <Compile Include="src\Generate\GenerateProvider.fs" />
     <Compile Include="src\Refactorings\Rename.fs" />

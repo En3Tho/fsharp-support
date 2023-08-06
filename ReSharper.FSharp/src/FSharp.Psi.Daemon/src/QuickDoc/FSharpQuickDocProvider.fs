@@ -13,12 +13,10 @@ open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.DataContext
 open JetBrains.ReSharper.Psi.Files
-open JetBrains.ReSharper.Psi.Tree
 open JetBrains.UI.RichText
 open JetBrains.Util
 
 module FSharpQuickDoc =
-
     let getFSharpToolTipText (token: IFSharpIdentifier) : ToolTipText option =
         match token.FSharpFile.GetParseAndCheckResults(true, "FSharpQuickDoc") with
         | None -> None
@@ -28,13 +26,14 @@ module FSharpQuickDoc =
         let tokenNames = [token.Name]
 
         let sourceFile = token.GetSourceFile()
-        let coords = sourceFile.Document.GetCoordsByOffset(token.GetTreeEndOffset().Offset)
+        let coords = sourceFile.Document.GetCoordsByOffset(token.NameRange.EndOffset.Offset)
         let lineText = sourceFile.Document.GetLineText(coords.Line)
 
         // todo: provide tooltip for #r strings in fsx, should pass String tag
         let line = int coords.Line + 1
         let column = int coords.Column
         Some(results.CheckResults.GetToolTip(line, column, lineText, tokenNames, FSharpTokenTag.Identifier))
+
 
 type FSharpQuickDocPresenter(xmlDocService: FSharpXmlDocService, identifier: IFSharpIdentifier) =
     let richTextEscapeToHtml (text: RichText) =
@@ -75,18 +74,18 @@ type FSharpQuickDocPresenter(xmlDocService: FSharpXmlDocService, identifier: IFS
                                 yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
 
                               match FSharpIdentifierTooltipProviderExtensions.parseAndGetFSharpEntityByIdentifier identifier with
-                              | Some symbolUse ->
-                                  yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityHeaderIfExtensionMember symbolUse
-                                  yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityHeaderIfAbbreviation symbolUse
-                                  yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
-                                  yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
-                              | _ ->
-                                  ()
+                                | Some symbolUse ->
+                                    yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityHeaderIfExtensionMember symbolUse
+                                    yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityHeaderIfAbbreviation symbolUse
+                                    yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
+                                    yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
+                                | _ ->
+                                    ()
                             ]
                             |> richTextJoin "\n\n"
 
                         let body =
-                            [ match xmlDocService.GetXmlDoc(overload.XmlDoc) with
+                            [ match xmlDocService.GetXmlDoc(overload.XmlDoc, overload.Symbol, identifier.GetPsiModule()) with
                               | null -> ()
                               | xmlDocText -> yield xmlDocText.RichText
 
@@ -128,7 +127,10 @@ type FSharpQuickDocProvider(xmlDocService: FSharpXmlDocService) =
 
         context.GetData(PsiDataConstants.SELECTED_TREE_NODES)
         |> Seq.choose (function
-            | :? IFSharpIdentifier as node when node.GetSourceFile() = sourceFile -> Some node
+            | :? IFSharpIdentifier as node when node.GetSourceFile() = sourceFile ->
+                let activePatternCaseName = ActivePatternCaseNameNavigator.GetByIdentifier(node)
+                let activePatternId = ActivePatternIdNavigator.GetByCase(activePatternCaseName)
+                if isNotNull activePatternId then Some (activePatternId :> IFSharpIdentifier) else Some node
             | _ -> None
         )
         |> Seq.tryExactlyOne

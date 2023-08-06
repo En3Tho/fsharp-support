@@ -1313,11 +1313,23 @@ class FSharpLexerTest : RiderFrontendLexerTest("fs") {
 
   @Test
   fun `testStrings - Interpolated - Triple quote 01`() {
-    doTest("$\"\"\" \"}} \"\"\"", """TRIPLE_QUOTED_STRING ('${'$'}""${'"'} "}} ""${'"'}')""");
+    doTest("$\"\"\" \"}} \"\"\"", """TRIPLE_QUOTE_INTERPOLATED_STRING ('${'$'}""${'"'} "}} ""${'"'}')""");
   }
 
   @Test
   fun `testStrings - Interpolated - Triple quote 02`() {
-    doTest("$\"\"\" \"\"}} \"\"\"", """TRIPLE_QUOTED_STRING ('${'$'}""${'"'} ""}} ""${'"'}')""");
+    doTest("$\"\"\" \"\"}} \"\"\"", """TRIPLE_QUOTE_INTERPOLATED_STRING ('${'$'}""${'"'} ""}} ""${'"'}')""");
+  }
+
+  @Test
+  fun `test shebang 01`() {
+    doTest("#!/bin/sh\nopen System",
+      """
+      SHEBANG ('#!/bin/sh')
+      NEW_LINE ('\n')
+      OPEN ('open')
+      WHITESPACE (' ')
+      IDENT ('System')
+      """.trimIndent());
   }
 }

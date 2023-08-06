@@ -6,25 +6,27 @@
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="src\ReadLockCookieUtil.fs" />
     <Compile Include="src\Util\FSharpVisualElementFactory.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FcsLookupItem.fs" />
-    <Compile Include="src\CodeCompletion\Strategies\FSharpAutocompletionStrategy.fs" />
-    <Compile Include="src\CodeCompletion\Strategies\FSharpOnSpaceAutopopupStrategy.fs" />
+    <Compile Include="src\CodeCompletion\Strategies\FSharpAutopopupStrategies.fs" />
     <Compile Include="src\CodeCompletion\Rules\GenerateLambdaRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\ToRecursiveFunctionRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\FSharpRelevanceRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\UnionCasePatternRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\UnionCaseFieldsRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\RecordFieldRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\RemoveReparsePatternRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\ImportRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\GenerateMatchExprPatternsRule.fs" />
-    <Compile Include="src\CodeCompletion\FSharpScriptNugetReferencesCompletionProvider.fs" />
-    <Compile Include="src\CodeCompletion\FSharpPathCompletionProvider.fs" />
+    <Compile Include="src\CodeCompletion\Rules\NamedUnionCaseFieldsPatRule.fs" />
+    <Compile Include="src\CodeCompletion\FSharpScriptReferenceCompletionProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpKeywordsProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionProviders.fs" />
     <Compile Include="src\CodeStructure\FSharpCodeStructure.fs" />
+    <Compile Include="src\CodeStructure\FSharpGotoClassMemberProvider.fs" />
     <Compile Include="src\Comment\FSharpBlockCommentActionProvider.fs" />
     <Compile Include="src\Comment\FSharpLineCommentActionProvider.fs" />
     <Compile Include="src\Comment\FSharpDocCommentElementsItemsProvider.fs" />
@@ -87,6 +89,8 @@
     <Compile Include="src\Injected\FSharpLiteralInjectionTarget.fs" />
     <Compile Include="src\Injected\FSharpRegexProviders.fs" />
     <Compile Include="src\Injected\FSharpRegexNodeProvider.fs" />
+    <Compile Include="src\Injected\FSharpInjectionTargetsFinderFactory.fs" />
+    <Compile Include="src\AI\FSharpLanguageOrTechnologyChatContextProvider.fs" />
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
   </ItemGroup>

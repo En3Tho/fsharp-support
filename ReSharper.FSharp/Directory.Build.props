@@ -8,8 +8,9 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <FSharpCoreVersion>6.0.6</FSharpCoreVersion>
-    <FantomasBundledVersion>5.2.1</FantomasBundledVersion>
+    <FSharpCompilerServiceVersion>2023.2.2</FSharpCompilerServiceVersion>
+    <FSharpCoreVersion>7.0.200</FSharpCoreVersion>
+    <FantomasBundledVersion>6.0.5</FantomasBundledVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -17,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
   </ItemGroup>
 
   <PropertyGroup>

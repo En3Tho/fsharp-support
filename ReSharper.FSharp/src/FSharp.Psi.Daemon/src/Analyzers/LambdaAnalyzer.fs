@@ -117,8 +117,7 @@ type LambdaAnalyzer() =
         isNotNull exprType && not exprType.IsUnresolved &&
         not exprType.IsGenericParameter && not lambdaReturnType.IsGenericParameter &&
 
-        // TODO: find a better way to compare types, since regular comparison doesn't work in tests
-        exprType.Format(FSharpDisplayContext.Empty) <> lambdaReturnType.Format(FSharpDisplayContext.Empty)
+        exprType <> lambdaReturnType
 
     let tryCreateWarning (ctor: ILambdaExpr * 'a -> #IHighlighting) (lambda: ILambdaExpr, replacementExpr: 'a as arg) isFSharp6Supported =
         if isFSharp6Supported && hasExplicitConversion(lambda) then null else
@@ -144,8 +143,7 @@ type LambdaAnalyzer() =
             let reference = getReference app
             if not (app :? IPrefixAppExpr) || isNull reference then true else
 
-            if isNotNull binaryExpr &&
-               not (hasNamedArgStructure binaryExpr && isTopLevelArg binaryExpr) then true else
+            if isNotNull binaryExpr && not (isNamedArgSyntactically binaryExpr) then true else
 
             match reference.GetFcsSymbol() with
             | :? FSharpMemberOrFunctionOrValue as m when m.IsMember ->

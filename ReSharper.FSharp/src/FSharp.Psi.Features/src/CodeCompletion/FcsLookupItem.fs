@@ -21,6 +21,7 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.ExtensionsAPI
+open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Transactions
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.TextControl
@@ -28,7 +29,7 @@ open JetBrains.UI.RichText
 open JetBrains.Util
 
 [<AllowNullLiteral>]
-type FcsLookupCandidate(fcsTooltip: ToolTipElementData, xmlDocService: FSharpXmlDocService) =
+type FcsLookupCandidate(fcsTooltip: ToolTipElementData, xmlDocService: FSharpXmlDocService, psiModule: IPsiModule) =
     member x.Description = richText fcsTooltip.MainDescription
     member x.XmlDoc = fcsTooltip.XmlDoc
 
@@ -36,7 +37,7 @@ type FcsLookupCandidate(fcsTooltip: ToolTipElementData, xmlDocService: FSharpXml
 
     interface ICandidate with
         member x.GetSignature(_, _, _, _, _) = x.Description
-        member x.GetDescription _ = xmlDocService.GetXmlDocSummary(x.XmlDoc)
+        member x.GetDescription _ = xmlDocService.GetXmlDocSummary(x.XmlDoc, fcsTooltip.Symbol, psiModule)
         member x.Matches _ = true
 
         member x.GetParametersInfo(_, _) = ()
@@ -49,9 +50,9 @@ module FcsLookupCandidate =
     let getOverloads (ToolTipText(tooltips)) =
         tooltips |> List.collect (function ToolTipElement.Group(overloads) -> overloads | _ -> [])
 
-    let getDescription (xmlDocService: FSharpXmlDocService) (fcsTooltip: ToolTipElementData) =
+    let getDescription (xmlDocService: FSharpXmlDocService) (psiModule: IPsiModule) (fcsTooltip: ToolTipElementData) =
         let mainDescription = RichTextBlock(richText fcsTooltip.MainDescription)
-        match xmlDocService.GetXmlDocSummary(fcsTooltip.XmlDoc) with
+        match xmlDocService.GetXmlDocSummary(fcsTooltip.XmlDoc, fcsTooltip.Symbol, psiModule) with
         | null -> ()
         | xmlDoc ->
             if not (RichTextBlock.IsNullOrWhiteSpace(mainDescription) || RichTextBlock.IsNullOrWhiteSpace(xmlDoc)) then
@@ -79,14 +80,14 @@ type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompleti
     inherit TextLookupItemBase()
 
     let [<Literal>] Id = "FcsLookupItem.OnAfterComplete"
-    
+
     member this.FcsSymbolUse = items.SymbolUses.Head 
     member this.FcsSymbol = this.FcsSymbolUse.Symbol
     member this.NamespaceToOpen = items.NamespaceToOpen
 
     member x.Candidates =
         FcsLookupCandidate.getOverloads items.Description
-        |> List.map (fun overload -> FcsLookupCandidate(overload, context.XmlDocService) :> ICandidate)
+        |> List.map (fun overload -> FcsLookupCandidate(overload, context.XmlDocService, context.PsiModule) :> ICandidate)
 
     override x.Image =
         try getIconId x.FcsSymbol
@@ -210,6 +211,6 @@ type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompleti
             | candidate :: _ ->
 
             let candidate = candidate :?> FcsLookupCandidate
-            FcsLookupCandidate.getDescription context.XmlDocService candidate.FcsTooltip
+            FcsLookupCandidate.getDescription context.XmlDocService context.PsiModule candidate.FcsTooltip
 
     interface IRiderAsyncCompletionLookupItem

@@ -15,11 +15,18 @@ open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Resources
 open JetBrains.ReSharper.Psi.Tree
+open JetBrains.Rider.Backend.Features.CodeStructure
 open JetBrains.UI.Icons
 open JetBrains.UI.RichText
 open JetBrains.Util
 
-[<ProjectFileType(typeof<FSharpProjectFileType>)>]
+[<SolutionComponent>]
+type FSharpExtendedFileStructureLanguage() =
+    interface IExtendedFileStructureLanguage with
+        member this.IsValid(languageType) =
+            isNotNull languageType && languageType.Is<FSharpLanguage>()
+
+
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpCodeStructureProvider() =
     let typeExtensionIconId = compose PsiSymbolsThemedIcons.Class.Id FSharpIcons.ExtensionOverlay.Id
@@ -83,6 +90,11 @@ type FSharpCodeStructureProvider() =
             for binding in Seq.cast<ITopBinding> letBindings.Bindings do
                 FSharpDeclarationCodeStructureElement(binding, parent, null) |> ignore
 
+        | :? IBindingSignature as bindingSig ->
+            let refPat = bindingSig.HeadPattern.As<IReferencePat>()
+            if isNotNull refPat then
+                FSharpDeclarationCodeStructureElement(refPat, parent, null) |> ignore
+
         | :? ITypeDeclarationGroup as declarationGroup ->
             for typeDeclaration in declarationGroup.TypeDeclarations do
                 processNode parent null typeDeclaration
@@ -97,13 +109,10 @@ type FSharpCodeStructureProvider() =
         for memberDecl in typeDecl.TypeMembers do
             processNode structureElement null memberDecl
 
-    interface IProjectFileCodeStructureProvider with
-        member x.Build(sourceFile, _) =
-            let fsFile = sourceFile.FSharpFile
-            if isNull fsFile then null else
-
-            let root = CodeStructureRootElement(fsFile)
-            processNode root null fsFile
+    interface IPsiFileCodeStructureProvider with
+        member x.Build(file, _) =
+            let root = CodeStructureRootElement(file)
+            processNode root null file
             root
 
 

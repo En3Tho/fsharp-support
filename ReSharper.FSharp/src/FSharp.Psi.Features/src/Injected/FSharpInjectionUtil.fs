@@ -5,6 +5,7 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.CodeAnnotations
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpMethodInvocationUtil
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
 let getAnnotationInfo<'AnnotationProvider, 'TAnnotationInfo
 when 'AnnotationProvider :> CodeAnnotationInfoProvider<IAttributesOwner, 'TAnnotationInfo>>
@@ -16,18 +17,29 @@ when 'AnnotationProvider :> CodeAnnotationInfoProvider<IAttributesOwner, 'TAnnot
         .GetInfo(attributesOwner)
 
 let getAttributesOwner (expr: IFSharpExpression) =
-    let argsOwner = getArgsOwner expr
+    match BinaryAppExprNavigator.GetByRightArgument(expr) with
+    | binaryExpr when isNamedArgSyntactically binaryExpr ->
+        match tryGetNamedArgRefExpr binaryExpr with
+        | null -> null
+        | namedRef ->
+            namedRef.Reference.Resolve().DeclaredElement.As<IAttributesOwner>()
+    | _ ->
 
-    if isNotNull argsOwner then
-        let parameter = expr.As<IArgument>().MatchingParameter
-        if isNull parameter then ValueNone else
-        parameter.Element :> IAttributesOwner |> ValueOption.ofObj
-    else
+    let matchingParameter = getMatchingParameter expr
+    if isNotNull matchingParameter then matchingParameter :> IAttributesOwner else
 
     let declaration: IDeclaration =
         let typeMemberDecl = MemberDeclarationNavigator.GetByExpression(expr)
         if isNotNull typeMemberDecl then typeMemberDecl else
         TopBindingNavigator.GetByExpression(expr)
 
-    if isNull declaration then ValueNone else
-    declaration.DeclaredElement.As<IAttributesOwner>() |> ValueOption.ofObj
+    if isNull declaration then null else declaration.DeclaredElement.As<IAttributesOwner>()
+
+let tryGetTypeProviderName (expr: IConstExpr) =
+    let providedTypeName =
+        ExprStaticConstantTypeUsageNavigator.GetByExpression(expr)
+        |> PrefixAppTypeArgumentListNavigator.GetByTypeUsage
+        |> TypeReferenceNameNavigator.GetByTypeArgumentList
+
+    if isNotNull providedTypeName then ValueSome (providedTypeName.Identifier.GetSourceName())
+    else ValueNone

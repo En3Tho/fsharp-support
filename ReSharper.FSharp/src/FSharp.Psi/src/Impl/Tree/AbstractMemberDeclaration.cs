@@ -47,14 +47,14 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
       return mfvEntity.Value.MembersFunctionsAndValues.Any(m =>
         m.IsOverrideOrExplicitInterfaceImplementation &&
         logicalName == m.LogicalName &&
-        (m.XmlDocSig == mfv.XmlDocSig ||
+        (m.XmlDocSig == mfv.XmlDocSig && m.ImplementedAbstractSignatures.Count == 0 ||
          mfvType.Equals(m.FullType) &&
-         mfv.ImplementedAbstractSignatures.Count == 1 &&
-         mfv.ImplementedAbstractSignatures[0].DeclaringType.Equals(mfvEntity.Value.AsType())));
+         m.ImplementedAbstractSignatures.Count == 1 &&
+         m.ImplementedAbstractSignatures[0].DeclaringType.Equals(mfvEntity.Value.AsType())));
     }
 
     protected override string DeclaredElementName => NameIdentifier.GetCompiledName(Attributes);
-    public override IFSharpIdentifierLikeNode NameIdentifier => (IFSharpIdentifierLikeNode) Identifier;
+    public override IFSharpIdentifier NameIdentifier => (IFSharpIdentifier) Identifier;
 
     protected override IDeclaredElement CreateDeclaredElement() =>
       !(Parent is IMemberConstraint) && GetFcsSymbol() is { } fcsSymbol

@@ -2,18 +2,24 @@ import com.jetbrains.rd.generator.gradle.RdGenExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.grammarkit.tasks.GenerateLexerTask
 import org.jetbrains.intellij.IntelliJPluginConstants
-import org.jetbrains.intellij.tasks.IntelliJInstrumentCodeTask
+import org.jetbrains.intellij.tasks.InstrumentCodeTask
 import org.jetbrains.intellij.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.tasks.RunIdeTask
 import org.jetbrains.kotlin.daemon.common.toHexString
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-  id("com.jetbrains.rdgen") version "2022.3.1"
-  id("org.jetbrains.intellij") version "1.11.0" // https://github.com/JetBrains/gradle-intellij-plugin/releases
+  id("com.jetbrains.rdgen") version "2023.2.2-preview1"
+  id("org.jetbrains.intellij") version "1.13.3" // https://github.com/JetBrains/gradle-intellij-plugin/releases
   id("org.jetbrains.grammarkit") version "2021.2.2"
   id("me.filippov.gradle.jvm.wrapper") version "0.14.0"
   kotlin("jvm") version "1.8.0"
+}
+
+dependencies {
+  testImplementation("junit:junit:4.13.2")
+  testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.2")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2")
 }
 
 apply {
@@ -26,7 +32,7 @@ repositories {
   maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
-val baseVersion = "2023.1"
+val baseVersion = "2023.2"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
@@ -63,7 +69,15 @@ intellij {
 
   // rider-plugins-appender: workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
   // org.intellij.intelliLang needed for tests with language injection marks
-  plugins.set(listOf("rider-plugins-appender", "org.intellij.intelliLang"))
+  plugins.set(
+    listOf(
+      "rider-plugins-appender",
+      "org.intellij.intelliLang",
+      "DatabaseTools",
+      "css-impl",
+      "javascript-impl"
+    )
+  )
 }
 
 val repoRoot = projectDir.parentFile!!
@@ -106,13 +120,16 @@ val typeProvidersFiles = listOf(
   "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.unix.runtimeconfig.json"
 )
 
-val fantomasFiles = listOf(
-  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.FCS.dll",
-  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Core.dll",
+val fantomasHostFiles = listOf(
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.dll",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.win.runtimeconfig.json",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.unix.runtimeconfig.json"
+)
+
+val fantomasDllFiles = listOf(
+  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.FCS.dll",
+  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Core.dll"
 )
 
 val nugetConfigPath = File(repoRoot, "NuGet.Config")
@@ -206,7 +223,7 @@ tasks {
     }
   }
 
-  withType<IntelliJInstrumentCodeTask> {
+  withType<InstrumentCodeTask> {
     val bundledMavenArtifacts = file("build/maven-artifacts")
     if (bundledMavenArtifacts.exists()) {
       logger.lifecycle("Use ant compiler artifacts from local folder: $bundledMavenArtifacts")
@@ -223,7 +240,8 @@ tasks {
   withType<PrepareSandboxTask> {
     var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
     files = files.map { "$resharperPluginPath/src/$it" }
-    val fantomasFiles = fantomasFiles.map { "$resharperPluginPath/src/$it" }
+    val fantomasHostFiles = fantomasHostFiles.map { "$resharperPluginPath/src/$it" }
+    val fantomasDllFiles = fantomasDllFiles.map { "$resharperPluginPath/src/$it" }
     val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
     if (name == IntelliJPluginConstants.PREPARE_TESTING_SANDBOX_TASK_NAME) {
@@ -239,9 +257,13 @@ tasks {
     }
 
     moveToPlugin(files, "dotnet")
-    moveToPlugin(fantomasFiles, "fantomas")
+    moveToPlugin(fantomasHostFiles, "fantomas")
+    moveToPlugin(fantomasDllFiles, "fantomas/dlls")
     moveToPlugin(typeProvidersFiles, "typeProviders")
     moveToPlugin(listOf("projectTemplates"), "projectTemplates")
+    from("$resharperPluginPath/src/annotations") {
+      into("${intellij.pluginName.get()}/dotnet/Extensions/com.jetbrains.rider.fsharp/annotations")
+    }
 
     doLast {
       fun validateFiles(files: List<String>, destinationFolder: String) {
@@ -252,7 +274,8 @@ tasks {
         }
       }
       validateFiles(files, "dotnet")
-      validateFiles(fantomasFiles, "fantomas")
+      validateFiles(fantomasHostFiles, "fantomas")
+      validateFiles(fantomasDllFiles, "fantomas/dlls")
       validateFiles(typeProvidersFiles, "typeProviders")
     }
   }
@@ -308,11 +331,18 @@ tasks {
     dependsOn(generateFSharpLexer, rdgen)
   }
 
-  withType<Test> {
+  val parserTest by register<Test>("parserTest") {
+    useJUnitPlatform()
+  }
+
+  named<Test>("test") {
+    dependsOn(parserTest)
     useTestNG {
       groupByInstances = true
     }
+  }
 
+  withType<Test> {
     testLogging {
       showStandardStreams = true
       exceptionFormat = TestExceptionFormat.FULL

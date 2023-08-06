@@ -55,17 +55,12 @@ module FSharpFileSystemPathExtensions =
         [<Extension>]
         member this.ToVirtualFileSystemPath() =
             FileSystemPathExtensions.ToVirtualFileSystemPath(this)
-        
+
     type VirtualFileSystemPath with
         [<Extension>]
         member this.ToNativeFileSystemPath() =
             VirtualFileSystemPathExtensions.ToNativeFileSystemPath(this)
 
-    type ValueOption<'a> with
-        static member OfOption(option) =
-            match option with
-            | Some x -> ValueSome x
-            | None -> ValueNone
 
 [<Extension; AutoOpen>]
 module DocumentRangeExtensions =
@@ -97,11 +92,16 @@ module IgnoreAll =
     let ignoreAll = IgnoreAllBuilder()
 
 
+namespace JetBrains.ReSharper.Resources.Shell
+
+type ReadLockCookie = NonCSharpInteropReadLockCookie
+
+
 namespace JetBrains.ReSharper.Plugins.FSharp
 
 open JetBrains.Annotations
 open JetBrains.ProjectModel
-open JetBrains.RdBackend.Common.Features
+open JetBrains.ReSharper.Feature.Services.Protocol
 
 [<AbstractClass; Sealed; Extension>]
 type ProtocolSolutionExtensions =

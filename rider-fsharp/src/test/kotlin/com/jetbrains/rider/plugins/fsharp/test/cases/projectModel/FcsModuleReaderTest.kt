@@ -4,7 +4,7 @@ import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.editor.impl.EditorImpl
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 import com.intellij.openapi.project.Project
-import com.intellij.workspaceModel.ide.WorkspaceModel
+import com.intellij.platform.backend.workspace.WorkspaceModel
 import com.jetbrains.rdclient.testFramework.executeWithGold
 import com.jetbrains.rdclient.testFramework.waitForDaemon
 import com.jetbrains.rdclient.testFramework.waitForNextDaemon
@@ -18,7 +18,7 @@ import com.jetbrains.rider.projectView.workspace.getId
 import com.jetbrains.rider.projectView.workspace.getProjectModelEntity
 import com.jetbrains.rider.test.annotations.TestEnvironment
 import com.jetbrains.rider.test.base.ProjectModelBaseTest
-import com.jetbrains.rider.test.enums.CoreVersion
+import com.jetbrains.rider.test.env.enums.SdkVersion
 import com.jetbrains.rider.test.framework.assertAllProjectsWereLoaded
 import com.jetbrains.rider.test.framework.frameworkLogger
 import com.jetbrains.rider.test.scriptingApi.*
@@ -30,7 +30,7 @@ import java.time.Duration
 
 @Suppress("UnstableApiUsage")
 @Test
-@TestEnvironment(coreVersion = CoreVersion.LATEST_STABLE)
+@TestEnvironment(sdkVersion = SdkVersion.LATEST_STABLE)
 class FcsModuleReaderTest : ProjectModelBaseTest() {
   companion object {
     private var launchCounter = 0

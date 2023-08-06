@@ -42,6 +42,7 @@ type AddMissingInnerPatternsFixTest() =
     [<Test>] member x.``Tuple 03 - Nested``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 04 - Parens``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 05 - Struct``() = x.DoNamedTest()
+    [<Test>] member x.``Tuple 11 - Struct``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 06``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 07``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 08``() = x.DoNamedTest()
@@ -112,6 +113,19 @@ type AddMissingPatternsFixTest() =
     [<Test>] member x.``Array 03``() = x.DoNamedTest()
 
     [<Test>] member x.``Bool 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``List 01``() = x.DoNamedTest()
+    [<Test>] member x.``List 02``() = x.DoNamedTest()
+    [<Test>] member x.``List 03``() = x.DoNamedTest()
+    [<Test>] member x.``List 04``() = x.DoNamedTest()
+    [<Test>] member x.``List 05``() = x.DoNamedTest()
+    [<Test>] member x.``List 06``() = x.DoNamedTest()
+    [<Test>] member x.``List 07``() = x.DoNamedTest()
+    [<Test>] member x.``List 08``() = x.DoNamedTest()
+    [<Test>] member x.``List 09``() = x.DoNamedTest()
+    [<Test>] member x.``List 10``() = x.DoNamedTest()
+    [<Test>] member x.``List 11``() = x.DoNamedTest()
+    [<Test>] member x.``List 12``() = x.DoNamedTest()
 
     [<Test>] member x.``Tuple 01``() = x.DoNamedTest()
     [<Test>] member x.``Tuple 02``() = x.DoNamedTest()

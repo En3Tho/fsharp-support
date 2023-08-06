@@ -26,6 +26,7 @@ let isNamedArgReference (expr: IFSharpExpression) =
     | :? FSharpField as fsField -> fsField.IsUnionCaseField
     | _ -> false
 
+/// Has the 'name = expr' form
 let hasNamedArgStructure (app: IBinaryAppExpr) =
     isNotNull app && app.ShortName = "=" &&
 
@@ -39,6 +40,10 @@ let isTopLevelArg (expr: IFSharpExpression) =
     let parenExpr = ParenExprNavigator.GetByInnerExpression(argExpr)
     let argOwner = FSharpArgumentOwnerNavigator.GetByArgumentExpression(parenExpr)
     isNotNull argOwner
+
+/// IBinaryAppExpr used exactly as a named argument (without taking into account resolve)
+let inline isNamedArgSyntactically (app: IBinaryAppExpr) =
+    hasNamedArgStructure app && isTopLevelArg app
 
 let tryGetNamedArg (expr: IFSharpExpression) =
     match tryGetNamedArgRefExpr expr with
@@ -72,8 +77,8 @@ let getMatchingParameter (expr: IFSharpExpression) =
     let symbolReference = getReference argsOwner
     if isNull symbolReference then null else
 
-    let mfv = symbolReference.GetFcsSymbol().As<FSharpMemberOrFunctionOrValue>()
-    if isNull mfv then null else
+    let fcsSymbol = symbolReference.GetFcsSymbol()
+    if not (fcsSymbol :? FSharpMemberOrFunctionOrValue) && not (fcsSymbol :? FSharpUnionCase) then null else
 
     let paramOwner = symbolReference.Resolve().DeclaredElement.As<IParametersOwner>()
     if isNull paramOwner then null else
@@ -90,7 +95,10 @@ let getMatchingParameter (expr: IFSharpExpression) =
             | Some paramIndex ->
 
             let invokingExtensionMethod =
-                mfv.IsExtensionMember && Some mfv.ApparentEnclosingEntity <> mfv.DeclaringEntity
+                match fcsSymbol with
+                | :? FSharpMemberOrFunctionOrValue as mfv ->
+                    mfv.IsExtensionMember && Some mfv.ApparentEnclosingEntity <> mfv.DeclaringEntity
+                | _ -> false
 
             let offset = if invokingExtensionMethod then 1 else 0
             let paramIndex = paramIndex + offset

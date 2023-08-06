@@ -1,8 +1,8 @@
 package com.jetbrains.rider.plugins.fsharp.test.cases.projectModel
 
 import com.intellij.openapi.editor.impl.EditorImpl
+import com.intellij.platform.backend.workspace.WorkspaceModel
 import com.intellij.testFramework.ProjectViewTestUtil
-import com.intellij.workspaceModel.ide.WorkspaceModel
 import com.jetbrains.rdclient.testFramework.waitForDaemon
 import com.jetbrains.rider.daemon.util.hasErrors
 import com.jetbrains.rider.editors.getProjectModelId
@@ -13,7 +13,7 @@ import com.jetbrains.rider.projectView.workspace.getId
 import com.jetbrains.rider.projectView.workspace.getProjectModelEntity
 import com.jetbrains.rider.test.annotations.TestEnvironment
 import com.jetbrains.rider.test.base.BaseTestWithSolution
-import com.jetbrains.rider.test.enums.CoreVersion
+import com.jetbrains.rider.test.env.enums.SdkVersion
 import com.jetbrains.rider.test.framework.assertAllProjectsWereLoaded
 import com.jetbrains.rider.test.scriptingApi.*
 import com.jetbrains.rider.util.idea.syncFromBackend
@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
 
 @Suppress("UnstableApiUsage")
 @Test
-@TestEnvironment(coreVersion = CoreVersion.LATEST_STABLE)
+@TestEnvironment(sdkVersion = SdkVersion.LATEST_STABLE)
 class FcsProjectProviderTest : BaseTestWithSolution() {
   override fun getSolutionDirectoryName() = throw Exception("Solutions are set in tests below")
 

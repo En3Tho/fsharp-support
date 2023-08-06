@@ -7,12 +7,14 @@ using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.Diagnostics;
 using JetBrains.Metadata.Reader.API;
+using JetBrains.ProjectModel;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Compiled;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Cache2.Parts;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGenerated;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree;
+using JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Util;
@@ -167,11 +169,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static string GetSourceName([CanBeNull] this IIdentifier identifier) =>
       identifier?.Name ?? SharedImplUtil.MISSING_DECLARATION_NAME;
 
-    public static TreeTextRange GetNameRange([CanBeNull] this IFSharpIdentifierLikeNode identifier) =>
+    public static TreeTextRange GetNameRange([CanBeNull] this IFSharpIdentifier identifier) =>
       // todo: fix navigating inside escaped names
       identifier?.NameRange ?? TreeTextRange.InvalidRange;
 
-    public static TreeTextRange GetNameIdentifierRange([CanBeNull] this IFSharpIdentifierLikeNode identifier) =>
+    public static TreeTextRange GetNameIdentifierRange([CanBeNull] this IFSharpIdentifier identifier) =>
       identifier?.GetNameRange() ?? TreeTextRange.InvalidRange;
 
     [NotNull]
@@ -314,7 +316,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       typeElement switch
       {
         IFSharpTypeElement fsTypeElement => fsTypeElement.GetPart<IUnionPart>() != null,
-        ICompiledElement compiled when compiled.IsFromFSharpAssembly() => compiled.IsCompiledUnion(),
+        IFSharpCompiledTypeElement fsCompiledTypeElement => fsCompiledTypeElement.Representation.IsUnion,
         _ => false
       };
 
@@ -382,7 +384,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       if (typeElement is FSharpCompiledModule compiledModule)
         return compiledModule.SourceName;
 
-      if (typeElement.GetAttributeFirstArgValue(FSharpPredefinedType.SourceNameAttrTypeName) is string sourceName &&
+      if (typeElement.GetFirstArgValue(FSharpPredefinedType.SourceNameAttrTypeName) is string sourceName &&
           sourceName != SharedImplUtil.MISSING_DECLARATION_NAME)
         return sourceName;
 
@@ -562,7 +564,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static bool HasAttribute(this TreeNodeCollection<IAttribute> attributes, [NotNull] string shortName) =>
       GetAttribute(attributes, shortName) != null;
 
-    public static void ReplaceIdentifier([CanBeNull] this IFSharpIdentifierLikeNode fsIdentifier, string name)
+    public static void ReplaceIdentifier([CanBeNull] this IFSharpIdentifier fsIdentifier, string name)
     {
       var token = fsIdentifier?.IdentifierToken;
       if (token == null)
@@ -689,6 +691,32 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 
     public static bool RequiresQualifiedAccess([NotNull] this ITypeElement typeElement) =>
       typeElement.GetAccessType() == ModuleMembersAccessKind.RequiresQualifiedAccess;
+
+    public static bool IsAutoImported([NotNull] this IClrDeclaredElement declaredElement)
+    {
+      var psiModule = declaredElement.Module;
+      var autoOpenCache = psiModule.GetSolution().GetComponent<FSharpAssemblyAutoOpenCache>();
+      var autoOpenedModules = autoOpenCache.GetAutoOpenedModules(psiModule);
+
+      // todo: assembly level auto open modules
+      var ns = GetNamespace(declaredElement);
+      return ns != null && autoOpenedModules.Contains(ns.QualifiedName);
+    }
+
+    [CanBeNull]
+    public static INamespace GetNamespace([NotNull] this IClrDeclaredElement declaredElement)
+    {
+      if (declaredElement is ITypeElement typeElement)
+        return typeElement.GetContainingNamespace();
+
+      if (declaredElement.GetContainingType() is { } containingType)
+        return containingType.GetContainingNamespace();
+
+      if (declaredElement is INamespace ns)
+        return ns.GetContainingNamespace();
+
+      return null;
+    }
 
     [CanBeNull]
     private static T GetOutermostNode<T, TMatchingNode>([CanBeNull] this T node, bool singleLevel = false)

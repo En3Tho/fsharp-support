@@ -93,14 +93,7 @@
         <Title resourceName="RedundantInIndexer" resourceType="Strings"/>
         <Description resourceName="CanBeRemovedInIndexers" resourceType="Strings"/>
       </Tag>
-      <Tag name="FSharpEqualityOperatorUsage" default="WARNING">
-        <Title>Consider using custom equality operator with supported collections and IEquatable structs</Title>
-        <Description>Using equality operator result in slow equality for structs and some collections. Consider using custom equality operator.</Description>
-      </Tag>
-      <Tag name="FSharpSuspiciousAliasUsage" default="WARNING">
-        <Title>Suspicious alias usage detected</Title>
-        <Description>Suspicious alias usage detected, this might lead to an unexpected behavior</Description>
-      </Tag>
+
     </Group>
   </SeverityConfiguration>
 
@@ -333,19 +326,4 @@
     <Range>getIndexerDotRange indexerExpr</Range>
     <QuickFix>RemoveIndexerDotFix</QuickFix>
   </Warning>
-
-  <Warning staticGroup="FSharpErrors" name="EqualityOperatorUsage" configurableSeverity="FSharpEqualityOperatorUsage" isSuppressedInTests="true">
-    <Parameter type="IBinaryAppExpr" name="binaryAppExpr"/>
-    <Range>binaryAppExpr.GetHighlightingRange()</Range>
-    <Behavour overlapResolvePolicy="NONE"/>
-    <Message value="Consider using custom equality operator with supported collections and IEquatable structs"/>
-  </Warning>
-
-  <Warning staticGroup="FSharpErrors" name="SuspiciousAliasUsage" configurableSeverity="FSharpSuspiciousAliasUsage" isSuppressedInTests="true">
-    <Parameter type="IFSharpExpression" name="fsharpExpr"/>
-    <Range>fsharpExpr.GetHighlightingRange()</Range>
-    <Behavour overlapResolvePolicy="NONE"/>
-    <Message value="Improper alias usage detected, this might lead to an unexpected behavior"/>
-  </Warning>
-
 </Errors>

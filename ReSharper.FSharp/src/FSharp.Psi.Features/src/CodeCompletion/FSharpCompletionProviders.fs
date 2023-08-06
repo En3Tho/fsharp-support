@@ -10,7 +10,6 @@ open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services.CodeCompletion
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
-open JetBrains.ReSharper.Feature.Services.CodeCompletion.Settings
 open JetBrains.ReSharper.Feature.Services.Lookup
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Checker
@@ -33,6 +32,13 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
     member x.IsAvailable(context: ISpecificCodeCompletionContext) =
         let fsContext = context.As<FSharpCodeCompletionContext>()
         if isNull fsContext then null else
+
+        let isNamedUnionCaseFieldsPat =
+            let reference = fsContext.ReparsedContext.Reference
+            let parametersOwnerPat = FSharpCompletionUtil.getParametersOwnerPatFromReference reference
+            isNotNull parametersOwnerPat && parametersOwnerPat.Parameters.SingleItem :? INamedUnionCaseFieldsPat
+
+        if isNamedUnionCaseFieldsPat then null else
 
         let tokenType = getTokenType fsContext.TokenAtCaret
         let tokenBeforeType = getTokenType fsContext.TokenBeforeCaret
@@ -68,7 +74,7 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
 
             let skipFsiModules =
                 // Workaround for FSI_0123 modules generated in sandboxes
-                fsFile.Language.Is<FSharpScriptLanguage>() &&
+                fsFile.GetSourceFile().LanguageType.Is<FSharpScriptProjectFileType>() &&
                 fsFile.GetPsiModule() :? SandboxPsiModule
 
             let isFsiModuleToSkip (item: RiderDeclarationListItems) =

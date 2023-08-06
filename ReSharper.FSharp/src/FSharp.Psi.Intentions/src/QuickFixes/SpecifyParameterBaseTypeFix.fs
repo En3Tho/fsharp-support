@@ -8,7 +8,6 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.QuickFixes
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions.Intentions.AnnotationActions
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Psi
@@ -106,7 +105,7 @@ type SpecifyParameterBaseTypeFix(refExpr: IReferenceExpr, typeUsage: ITypeUsage)
     override this.IsAvailable _ =
         isNotNull pat &&
 
-        let pat, _ = FSharpPatternUtil.ParentTraversal.makeTuplePatPath pat
+        let pat, _ = FSharpPatternUtil.ParentTraversal.makePatPath pat
         isNotNull (ParametersPatternDeclarationNavigator.GetByPattern(pat)) &&
 
         getFcsEntity typeUsage
@@ -123,7 +122,7 @@ type SpecifyParameterBaseTypeFix(refExpr: IReferenceExpr, typeUsage: ITypeUsage)
         use writeCookie = WriteLockCookie.Create(pat.IsPhysical())
 
         let baseType, displayContext = baseType.Value
-        SpecifyUtil.specifyPattern displayContext baseType false pat
+        SpecifyTypes.specifyParameterType displayContext baseType pat
 
     override this.Execute(solution, textControl) =
         let fcsEntity, displayContext = getFcsEntity typeUsage |> Option.get

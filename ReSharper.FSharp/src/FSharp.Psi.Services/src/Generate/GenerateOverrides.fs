@@ -132,7 +132,8 @@ let noEmptyLineAnchors =
         FSharpTokenType.STRUCT,
         FSharpTokenType.CLASS,
         FSharpTokenType.WITH,
-        FSharpTokenType.EQUALS)
+        FSharpTokenType.EQUALS,
+        FSharpTokenType.LINE_COMMENT)
 
 let getThisOrPreviousMeaningfulSibling (node: ITreeNode) =
     if isNotNull node && node.IsFiltered() then node.GetPreviousMeaningfulSibling() else node
@@ -192,13 +193,15 @@ let canInsertAtNode (node: ITreeNode) =
     isNotNull node && isAtEmptyLine node &&
     canInsertBefore (node.GetNextMeaningfulSibling())
 
-let getAnchorNode (psiView: IPsiView): ITreeNode =
+let getAnchorNode (psiView: IPsiView) (typeDecl: IFSharpTypeDeclaration): ITreeNode =
     let memberDecl = psiView.GetSelectedTreeNode<ITypeBodyMemberDeclaration>()
     if isNotNull memberDecl && canInsertBefore (memberDecl.GetNextMeaningfulSibling()) then memberDecl else
 
     let selectedTreeNode = psiView.GetSelectedTreeNode()
-    if canInsertAtNode selectedTreeNode then selectedTreeNode else
-
+    if canInsertAtNode selectedTreeNode then
+        if isNull typeDecl || typeDecl.Contains(selectedTreeNode) then selectedTreeNode else
+        typeDecl.FindLastTokenIn().GetPreviousMeaningfulToken(true)
+    else    
     let objectTypeRepr = psiView.GetSelectedTreeNode<IObjectModelTypeRepresentation>()
     if isNotNull objectTypeRepr then
         getObjectTypeReprAnchor objectTypeRepr psiView else

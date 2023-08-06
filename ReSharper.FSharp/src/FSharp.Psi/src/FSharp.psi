@@ -469,6 +469,12 @@ interface arrayOrListExpr:
   arrayExpr |
   listExpr;
 
+interface computableExpr:
+  letOrUseExpr |
+  matchExpr |
+  doExpr |
+  yieldOrReturnExpr;
+
 setExpr options { stubBase="UnitExpressionBase"; }:
   fSharpExpression<LEFT_EXPR, LeftExpression>
   LARROW<LARROW, LArrow>
@@ -682,7 +688,7 @@ matchLambdaExpr options { stubBase="FSharpExpressionBase"; } extras {
 matchExpr options { stubBase="FSharpExpressionBase"; } extras {
   get { methodName="ClauseExpressions" path=<matchExpr:MATCH_CLAUSE/matchClause:EXPR> };
 }:
-  MATCH
+  matchKeyword{MATCH, MatchKeyword}
   fSharpExpression<EXPR, Expression>
   WITH<WITH, WithKeyword>
   matchClause<MATCH_CLAUSE, Clauses>*;
@@ -1459,6 +1465,10 @@ private letOrUse{ROLE, Getter}:
   LET_BANG<@ROLE, @Getter> |
   USE_BANG<@ROLE, @Getter> |
   AND_BANG<@ROLE, @Getter>;
+
+private matchKeyword{ROLE, Getter}:
+  MATCH<@ROLE, @Getter> |
+  MATCH_BANG<@ROLE, @Getter>;
 
 private identOrOpName{ROLE, Getter}:
   IDENTIFIER<@ROLE, @Getter> |

@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="src\ReadLockCookieUtil.fs" />
     <Compile Include="src\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
     <Compile Include="src\Tooltips\FSharpIdentifierTooltipProviderExtensions.fs" />
-    <Compile Include="src\Tooltips\FSharpIdentifierTooltipProvider.fs" />
-    <Compile Include="src\Tooltips\ZoneMarker.fs" />
     <Compile Include="src\QuickDoc\FSharpQuickDocProvider.fs" />
+    <Compile Include="src\Syntax\XmlDocSummaryHighlightingVisitor.fs" />
     <Compile Include="src\Stages\FcsErrorsStageProcessBase.fs" />
     <Compile Include="src\Stages\FSharpCompilerWarningProcessor.fs" />
     <Compile Include="src\Stages\FSharpDaemonBehaviour.fs" />
@@ -27,6 +27,7 @@
     <Compile Include="src\Stages\PipeChainTypeHintStage.fs" />
     <Compile Include="src\Stages\InferredTypeCodeVisionProvider.fs" />
     <Compile Include="src\Stages\FSharpSyntaxHighlightingStage.fs" />
+    <Compile Include="src\Stages\ZoneMarker.fs" />
     <Compile Include="src\UsageChecking\FSharpUsageCheckingService.fs" />
     <Compile Include="src\Analyzers\ElementProblemAnalyzerUtil.fs" />
     <Compile Include="src\Analyzers\ReSpellerHelper.fs" />
