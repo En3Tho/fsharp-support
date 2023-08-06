@@ -19,7 +19,6 @@ open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Finder
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Tree
-open JetBrains.ReSharper.Plugins.FSharp
 
 [<Language(typeof<FSharpLanguage>)>]
 type FSharpImportTypeHelper() =
@@ -216,8 +215,6 @@ type FSharpImportTypeHelper() =
 
             if isNotNull (InheritMemberNavigator.GetByTypeName(typeReferenceName)) then
                 candidates <- candidates |> Seq.filter (fun c -> c :? IInterface || c :? IClass || c :? IStruct)
-
-            let candidates = candidates |> Seq.toArray
 
             candidates
 

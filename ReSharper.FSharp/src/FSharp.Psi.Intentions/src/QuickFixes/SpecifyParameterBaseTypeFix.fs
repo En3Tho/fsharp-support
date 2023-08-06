@@ -122,7 +122,7 @@ type SpecifyParameterBaseTypeFix(refExpr: IReferenceExpr, typeUsage: ITypeUsage)
         use writeCookie = WriteLockCookie.Create(pat.IsPhysical())
 
         let baseType, displayContext = baseType.Value
-        SpecifyTypes.specifyParameterType displayContext baseType pat
+        JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions.Intentions.AnnotationActions.SpecifyUtil.specifyPattern displayContext baseType false pat
 
     override this.Execute(solution, textControl) =
         let fcsEntity, displayContext = getFcsEntity typeUsage |> Option.get

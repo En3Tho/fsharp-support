@@ -2,7 +2,6 @@ namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.EditorServices
-open FSharp.Compiler.Symbols
 open FSharp.Compiler.Syntax
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems.Impl
@@ -18,13 +17,10 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
 open JetBrains.ReSharper.Psi
-open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
-open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Transactions
 open JetBrains.ReSharper.Resources.Shell
-open JetBrains.TextControl
 open JetBrains.UI.RichText
 open JetBrains.Util
 
