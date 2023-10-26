@@ -57,11 +57,25 @@ let getDeclaringEntityHeaderIfExtensionMember(symbolUse: FSharpSymbolUse) = [
 ]
 
 let getAbbreviatedEntityHeaderIfAbbreviation(symbolUse: FSharpSymbolUse) = [
+
+    let getAbbreviatedEntityOnce(entity: FSharpEntity) =
+        if entity.IsFSharpAbbreviation && entity.AbbreviatedType.HasTypeDefinition then
+            entity.AbbreviatedType.TypeDefinition
+        else
+            entity
+
+    let getAbbreviatedTypeOnce(ty: FSharpType) =
+        if ty.IsAbbreviation then
+            ty.AbbreviatedType
+        else
+            ty
+
     match symbolUse.Symbol with
     | :? FSharpEntity as entity ->
-        if entity.IsFSharpAbbreviation then
-            let originalEntity = getAbbreviatedEntity(entity)
-            let originalType = getAbbreviatedType(entity.AsType())
+        let mutable entity = entity
+        while entity.IsFSharpAbbreviation do
+            let originalEntity = getAbbreviatedEntityOnce(entity)
+            let originalType = getAbbreviatedTypeOnce(entity.AsType())
             let displayContext = symbolUse.DisplayContext
             let typeText = [|
                 TaggedText(TextTag.Text, "Abbreviated type: ")
@@ -69,6 +83,7 @@ let getAbbreviatedEntityHeaderIfAbbreviation(symbolUse: FSharpSymbolUse) = [
                 yield! originalType.FormatLayout(displayContext)
             |]
             richText typeText
+            entity <- originalEntity
     | _ ->
         ()
 ]

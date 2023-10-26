@@ -33,7 +33,7 @@ function CopyReSharperDlls {
                 Copy-Item "ReSharper.FSharp\src\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.dll" -Destination $path
             }
         }
-    }    
+    }
     $hosts | foreach {
         $current = $_
         $tfms | foreach {
