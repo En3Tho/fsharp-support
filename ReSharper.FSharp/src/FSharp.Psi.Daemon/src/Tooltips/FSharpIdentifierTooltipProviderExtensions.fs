@@ -22,7 +22,7 @@ let (|Literal|_|) (symbolUse: FSharpSymbolUse) =
 
 let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDisplayContext, includeEntityType) =
     let entities = [
-        let entities = List.rev [
+        let entities = [|
 
             if includeEntityType then
                 fsEntity
@@ -32,26 +32,32 @@ let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDispla
                 let declaringEntity = declaringEntityOpt.Value
                 declaringEntityOpt <- declaringEntity.DeclaringEntity
                 declaringEntity
-        ]
+        |]
 
-        for entity in entities do
+        for i = entities.Length - 1 downto 0 do
+            let entity = entities[i]
             let layout = entity.AsType().FormatLayout(displayContext)
             yield! layout
-            TaggedText(TextTag.Punctuation, ".")
+
+            if i > 0 then
+                TaggedText(TextTag.Punctuation, ".")
     ]
     entities |> List.filter (fun text -> text.Tag <> TextTag.UnknownEntity)
 
 let getDeclaringEntityHeaderIfExtensionMember(symbolUse: FSharpSymbolUse) = [
     match symbolUse.Symbol with
     | :? FSharpMemberOrFunctionOrValue as mfv ->
-        if mfv.IsExtensionMember && mfv.DeclaringEntity.IsSome then
-            let entity = mfv.DeclaringEntity.Value
-            let displayContext = symbolUse.DisplayContext
-            let typeText = [|
-                TaggedText(TextTag.Text, "Extension from: ")
-                yield! getToolTipTextForEntity(entity, displayContext, true)
-            |]
-            richText typeText
+        if mfv.IsExtensionMember then
+            match mfv.DeclaringEntity with
+            | Some entity ->
+                let displayContext = symbolUse.DisplayContext
+                let typeText = [|
+                    TaggedText(TextTag.Text, "Extension from: ")
+                    yield! getToolTipTextForEntity(entity, displayContext, true)
+                |]
+                richText typeText
+            | None ->
+                ()
     | _ ->
         ()
 ]
@@ -59,31 +65,42 @@ let getDeclaringEntityHeaderIfExtensionMember(symbolUse: FSharpSymbolUse) = [
 let getAbbreviatedEntityHeaderIfAbbreviation(symbolUse: FSharpSymbolUse) = [
 
     let getAbbreviatedEntityOnce(entity: FSharpEntity) =
-        if entity.IsFSharpAbbreviation && entity.AbbreviatedType.HasTypeDefinition then
-            entity.AbbreviatedType.TypeDefinition
+        if entity.IsFSharpAbbreviation then
+            let abbreviatedType = entity.AbbreviatedType
+            if abbreviatedType.HasTypeDefinition then
+                Some abbreviatedType.TypeDefinition
+            else
+                None
         else
-            entity
+            None
 
     let getAbbreviatedTypeOnce(ty: FSharpType) =
         if ty.IsAbbreviation then
-            ty.AbbreviatedType
+            Some ty.AbbreviatedType
         else
-            ty
+            None
 
     match symbolUse.Symbol with
     | :? FSharpEntity as entity ->
         let mutable entity = entity
-        while entity.IsFSharpAbbreviation do
-            let originalEntity = getAbbreviatedEntityOnce(entity)
-            let originalType = getAbbreviatedTypeOnce(entity.AsType())
-            let displayContext = symbolUse.DisplayContext
-            let typeText = [|
-                TaggedText(TextTag.Text, "Abbreviated type: ")
-                yield! getToolTipTextForEntity(originalEntity, displayContext, false)
-                yield! originalType.FormatLayout(displayContext)
-            |]
-            richText typeText
-            entity <- originalEntity
+        let mutable go = true
+        while go do
+            match getAbbreviatedEntityOnce entity with
+            | Some abbreviatedEntity ->
+                match getAbbreviatedTypeOnce (entity.AsType()) with
+                | Some abbreviatedType ->
+                    let displayContext = symbolUse.DisplayContext
+                    let typeText = [|
+                        TaggedText(TextTag.Text, "Abbreviated type: ")
+                        yield! getToolTipTextForEntity(abbreviatedEntity, displayContext, false)
+                        yield! abbreviatedType.FormatLayout(displayContext)
+                    |]
+                    richText typeText
+                    entity <- abbreviatedEntity
+                | _ ->
+                    go <- false
+            | _ ->
+                go <- false
     | _ ->
         ()
 ]
