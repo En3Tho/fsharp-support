@@ -1,0 +1,212 @@
+namespace rec JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
+
+open FSharp.Compiler.CodeAnalysis
+open FSharp.Compiler.EditorServices
+open FSharp.Compiler.Syntax
+open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
+open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems.Impl
+open JetBrains.ReSharper.Feature.Services.Lookup
+open JetBrains.ReSharper.Feature.Services.ParameterInfo
+open JetBrains.RdBackend.Common.Features.Completion
+open JetBrains.ReSharper.Plugins.FSharp.Psi
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
+open JetBrains.ReSharper.Plugins.FSharp.Util
+open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
+open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.ExtensionsAPI
+open JetBrains.ReSharper.Psi.Modules
+open JetBrains.ReSharper.Psi.Transactions
+open JetBrains.ReSharper.Resources.Shell
+open JetBrains.UI.RichText
+open JetBrains.Util
+
+[<AllowNullLiteral>]
+type FcsLookupCandidate(fcsTooltip: ToolTipElementData, xmlDocService: FSharpXmlDocService, psiModule: IPsiModule) =
+    member x.Description = richText fcsTooltip.MainDescription
+    member x.XmlDoc = fcsTooltip.XmlDoc
+
+    member x.FcsTooltip = fcsTooltip
+
+    interface ICandidate with
+        member x.GetSignature(_, _, _, _, _) = x.Description
+        member x.GetDescription _ = xmlDocService.GetXmlDocSummary(x.XmlDoc, fcsTooltip.Symbol, psiModule)
+        member x.Matches _ = true
+
+        member x.GetParametersInfo(_, _) = ()
+        member x.PositionalParameterCount = 0
+        member x.IsObsolete = false
+        member x.ObsoleteDescription = null
+        member val IsFilteredOut = false with get, set
+
+module FcsLookupCandidate =
+    let getOverloads (ToolTipText(tooltips)) =
+        tooltips |> List.collect (function ToolTipElement.Group(overloads) -> overloads | _ -> [])
+
+    let getDescription (xmlDocService: FSharpXmlDocService) (psiModule: IPsiModule) (fcsTooltip: ToolTipElementData) =
+        let mainDescription = RichTextBlock(richText fcsTooltip.MainDescription)
+        match xmlDocService.GetXmlDocSummary(fcsTooltip.XmlDoc, fcsTooltip.Symbol, psiModule) with
+        | null -> ()
+        | xmlDoc ->
+            if not (RichTextBlock.IsNullOrWhiteSpace(mainDescription) || RichTextBlock.IsNullOrWhiteSpace(xmlDoc)) then
+                mainDescription.AddLines(RichTextBlock(" "))
+            mainDescription.AddLines(xmlDoc)
+        mainDescription
+
+type FcsErrorLookupItem(item: DeclarationListItem) =
+    inherit TextLookupItemBase()
+
+    override x.Image = null
+    override x.Text = item.NameInList
+    override x.Accept(_, _, _, _, _, _) = ()
+
+    interface IDescriptionProvidingLookupItem with
+        member x.GetDescription() =
+            let (ToolTipText(tooltips)) = item.Description
+            tooltips
+            |> List.tryHead
+            |> Option.bind (function | ToolTipElement.CompositionError e -> Some (RichTextBlock(e)) | _ -> None)
+            |> Option.toObj
+
+
+type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompletionContext) =
+    inherit TextLookupItemBase()
+
+    let [<Literal>] Id = "FcsLookupItem.OnAfterComplete"
+
+    member this.FcsSymbolUse = items.SymbolUses.Head 
+    member this.FcsSymbol = this.FcsSymbolUse.Symbol
+    member this.NamespaceToOpen = items.NamespaceToOpen
+
+    member x.Candidates =
+        FcsLookupCandidate.getOverloads items.Description
+        |> List.map (fun overload -> FcsLookupCandidate(overload, context.XmlDocService, context.PsiModule) :> ICandidate)
+
+    override x.Image =
+        try getIconId x.FcsSymbol
+        with _ -> null
+
+    override x.Text =
+        let name = x.FcsSymbol.DisplayNameCore
+        let name = if context.IsInAttributeContext then name.DropAttributeSuffix() else name
+        PrettyNaming.NormalizeIdentifierBackticks name
+
+    override x.DisplayTypeName =
+        try
+            match getReturnType x.FcsSymbol with
+            | Some t -> RichText(t.Format(x.FcsSymbolUse.DisplayContext))
+            | _ -> null
+        with _ -> null
+
+    override x.DisableFormatter = true
+
+    override this.Accept(textControl, nameRange, insertType, suffix, solution, keepCaretStill) =
+        use pinCheckResultsCookie = textControl.GetFSharpFile(solution).PinTypeCheckResults(true, Id)
+        base.Accept(textControl, nameRange, insertType, suffix, solution, keepCaretStill)
+
+    override x.OnAfterComplete(textControl, nameRange, decorationRange, tailType, suffix, caretPositionRangeMarker) =
+        base.OnAfterComplete(textControl, &nameRange, &decorationRange, tailType, &suffix, &caretPositionRangeMarker)
+
+        // todo: 213: exit early if there's no need in additional binding
+        context.BasicContext.Solution.GetPsiServices().Files.CommitAllDocuments()
+
+        let fsFile = context.BasicContext.SourceFile.FSharpFile
+        let psiServices = fsFile.GetPsiServices()
+
+        use writeCookie = WriteLockCookie.Create(fsFile.IsPhysical())
+        use disableFormatter = new DisableCodeFormatter()
+        use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, "Add open")
+
+        let declaredElement = x.FcsSymbol.GetDeclaredElement(context.PsiModule)
+
+        let typeElement =
+            // todo: other declared elements
+            match declaredElement with
+            | :? ITypeElement as typeElement -> typeElement
+            | :? IField as field when (field.ContainingType :? IEnum) -> field.ContainingType
+            | _ -> null
+
+        let ns = items.NamespaceToOpen
+        let moduleToImport =
+            if isNotNull typeElement then
+                let moduleToOpen = getModuleToOpen typeElement
+                ModuleToImport.DeclaredElement(moduleToOpen) else
+
+            let ns = ns |> Array.map PrettyNaming.NormalizeIdentifierBackticks |> String.concat "."
+            ModuleToImport.FullName(ns)
+
+        let offset = context.Ranges.InsertRange.StartOffset
+        // todo: getting reference owner in parse errors, e.g. unfinished `if`
+
+        let referenceOwner = fsFile.GetNode<IFSharpReferenceOwner>(offset)
+        if isNotNull referenceOwner && isNotNull typeElement && not referenceOwner.Reference.IsQualified then
+            let clrDeclaredElement: IClrDeclaredElement =
+                // todo: other elements: union cases
+                match declaredElement with
+                | :? ITypeElement as typeElement -> typeElement :> _
+                | :? IField as field when (field.ContainingType :? IEnum) -> field :> _
+                | _ -> null
+
+            if isNotNull clrDeclaredElement then
+                FSharpReferenceBindingUtil.SetRequiredQualifiers(referenceOwner.Reference, clrDeclaredElement, referenceOwner)
+
+        if ns.IsEmpty() then () else
+        addOpen offset fsFile context.BasicContext.ContextBoundSettingsStore moduleToImport
+
+        // Special case Attribute: if contains parameterless ctor and in attribute list scope then leave alone
+
+        // Ctor and method calls: add () and move caret inside
+        // functions: add a space and shift caret if curried version, fallback to method logic if tupled version
+        // What is the right scope for this? E.g. can be passed as lambda/object
+
+        // TODO: make this work?
+
+        // let attrDecl = fsFile.GetNode<IAttribute>(offset)
+        // if attrDecl <> null && attrDecl.ArgExpression = null then
+        //     let parameterCtorExist =
+        //         (x.FcsSymbolUse.Symbol :?> FSharpEntity).MembersFunctionsAndValues
+        //         |> Seq.exists (fun mem ->
+        //             if mem.CompiledName <> ".ctor" then false else
+        //                 let mutable firstArgTypeDef = mem.FullType.GenericArguments[0].TypeDefinition
+        //                 while firstArgTypeDef.IsFSharpAbbreviation do
+        //                     firstArgTypeDef <- firstArgTypeDef.AbbreviatedType.TypeDefinition
+        //                 firstArgTypeDef.CompiledName = "Unit"
+        //         )
+        //     if not parameterCtorExist then
+        //         let factory = attrDecl.CreateElementFactory()
+        //         let expr = factory.CreateExpr("()")
+        //         let expr = ModificationUtil.AddChildAfter(attrDecl, expr)
+        //         let attrOffset = attrDecl.LastChild.GetDocumentStartOffset()
+        //         let exprOffset = expr.FirstChild.GetDocumentStartOffset()
+        //         textControl.Caret.MoveTo(exprOffset, CaretVisualPlacement.Generic)
+        //         // TODO: not sure how to do this properly.
+        //         caretPositionRangeMarker.IsValid <- false
+
+    override x.GetDisplayName() =
+        let name = LookupUtil.FormatLookupString(items.Name, x.TextColor)
+
+        let ns = items.NamespaceToOpen
+        if not (ns.IsEmpty()) then
+            let ns = String.concat "." ns
+            LookupUtil.AddInformationText(name, $"(in {ns})")
+
+        name
+
+    interface IParameterInfoCandidatesProvider with
+        member x.HasCandidates = x.Candidates.Length > 1
+        member x.CreateCandidates _ = x.Candidates :> _
+
+    interface IDescriptionProvidingLookupItem with
+        /// Called when x.HasCandidates is false.
+        member x.GetDescription() =
+            match x.Candidates with
+            | [] -> null
+            | candidate :: _ ->
+
+            let candidate = candidate :?> FcsLookupCandidate
+            FcsLookupCandidate.getDescription context.XmlDocService context.PsiModule candidate.FcsTooltip
+
+    interface IRiderAsyncCompletionLookupItem

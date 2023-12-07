@@ -1,4 +1,4 @@
-﻿# 324 ITEMS #
+﻿# 325 ITEMS #
 
 + Field    int
 #I
@@ -279,7 +279,7 @@ return
 return!
 round    ^T
 sbyte    sbyte
-seq    seq<'T>
+seq    'T seq
 set    Set<'T>
 sig
 sign    int
@@ -321,6 +321,7 @@ voidptr
 voption
 when
 while
+while!
 with
 yield
 yield!

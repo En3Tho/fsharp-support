@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <InternalBuild Condition="Exists('ManagedProject.Generated.Targets')">True</InternalBuild>
+    <InternalBuild Condition="$(InternalBuild) == ''">False</InternalBuild>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="JetBrains.NET.Sdk" Version="0.0.4" Condition="$(InternalBuild)" />
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition="!$(InternalBuild)" />
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <RootNamespace>JetBrains.ReSharper.Plugins.FSharp</RootNamespace>
+    <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Common</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\Util\FSharpGlobalUtil.fs" />
+    <Compile Include="src\Util\Util.fs" />
+    <Compile Include="src\Util\FSharpPredefinedType.fs" />
+    <Compile Include="src\Util\FSharpRangeUtil.fs" />
+    <Compile Include="src\Util\FSharpCompilerAttributesUtil.fs" />
+    <Compile Include="src\Util\FSharpAssemblyUtil.fs" />
+    <Compile Include="src\Util\RdTypeProvidersUtil.fs" />
+    <Compile Include="src\Metadata\FSharpMetadataFlags.fs" />
+    <Compile Include="src\Metadata\FSharpDeclaredName.fs" />
+    <Compile Include="src\Metadata\FSharpCompiledTypeRepresentation.fs" />
+    <Compile Include="src\ProjectModel\FSharpProjectLanguage.fs" />
+    <Compile Include="src\ProjectModel\FSharpLanguageVersion.fs" />
+    <Compile Include="src\ProjectModel\ProjectProperties.fs" />
+    <Compile Include="src\ProjectModel\FSharpLanguageLevelProvider.fs" />
+    <Compile Include="src\ProjectModel\Host\FSharpLanguageSpecificItemsProvider.fs" />
+    <Compile Include="src\ProjectModel\Host\ZoneMarker.fs" />
+    <Compile Include="src\ProjectModel\Host\ProjectItems\FSharpItemsContainer.fs" />
+    <Compile Include="src\ProjectModel\Host\ProjectItems\ProjectStructure.fs" />
+    <Compile Include="src\ProjectModel\FSharpProjectModelUtil.fs" />
+    <Compile Include="src\Settings\FSharpOptionsPageBase.fs" />
+    <Compile Include="src\Settings\FSharpOptions.fs" />
+    <Compile Include="src\Settings\ZoneMarker.fs" />
+    <Compile Include="src\Util\FSharpAttributesUtil.fs" />
+    <Compile Include="src\Util\FSharpSymbolUtil.fs" />
+    <Compile Include="src\Util\CacheUtil.fs" />
+    <Compile Include="src\Util\FSharpHighlightingAttributeIds.fs" />
+    <Compile Include="src\Util\FcsExpressionUtil.fs" />
+    <Compile Include="src\Util\FSharpExperimentalFeatures.fs" />
+    <Compile Include="src\Util\FcsTaggedText.fs" />
+    <Compile Include="src\Util\XmlDocUtil.fs" />
+    <Compile Include="src\Shim\AssemblyReader\IFcsAssemblyReaderShim.fs" />
+    <Compile Include="src\Shim\AssemblyReader\FcsModuleReaderCommonCache.fs" />
+    <Compile Include="src\Shim\AssemblyReader\ProjectFcsModuleReader.fs" />
+    <Compile Include="src\Checker\FSharpAssemblyContentProvider.fs" />
+    <Compile Include="src\Checker\FSharpCheckerExtensions.fs" />
+    <Compile Include="src\Checker\FcsCheckerService.fs" />
+    <Compile Include="src\Checker\ZoneMarker.fs" />
+    <Compile Include="src\ProjectModel\FSharpScriptPsiModuleFactory.fs" />
+    <Compile Include="src\ProjectModel\FSharpFileService.fs" />
+    <Compile Include="src\ProjectModel\FSharpProjectPresenter.fs" />
+    <Compile Include="src\ProjectModel\ProjectLoadDiagnostics.fs" />
+    <Compile Include="src\ProjectModel\ZoneMarker.fs" />
+    <Compile Include="src\Shim\FileSystem\FSharpSourceCache.fs" />
+    <Compile Include="src\Shim\FileSystem\AssemblyInfoShim.fs" />
+    <Compile Include="src\Shim\AssemblyReader\AssemblyReaderShim.fs" />
+    <Compile Include="src\Shim\TypeProviders\TypeProvidersManager.fs" />
+    <Compile Include="src\Shim\TypeProviders\ExtensionTypingProviderShim.fs" />
+    <Compile Include="src\Shim\TypeProviders\ZoneMarker.fs" />
+    <Compile Include="src\Checker\ScriptFcsProjectProvider.fs" />
+    <Compile Include="src\Checker\FcsProjectBuilder.fs" />
+    <Compile Include="src\Checker\FcsProjectProvider.fs" />
+    <Compile Include="src\PaketRestoreTargetsAnalyzer.fs" />
+    <Compile Include="src\ZoneMarker.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="JetBrains.HabitatDetector" />
+    <PackageReference Include="JetBrains.Lifetimes" />
+    <PackageReference Include="JetBrains.RdFramework" />
+  </ItemGroup>
+
+  <Target Name="CopyFSharpCoreXmlDoc" AfterTargets="AfterBuild">
+    <PropertyGroup>
+      <FSharpCoreVersion Condition="'%(PackageLock.Identity)'=='FSharp.Core'">%(PackageLock.Version)</FSharpCoreVersion>
+      <FSharpCoreXmlDocRelativePath>fsharp.core\$(FSharpCoreVersion)\lib\netstandard2.0\FSharp.Core.xml</FSharpCoreXmlDocRelativePath>
+    </PropertyGroup>
+    <Copy SourceFiles="$([System.IO.Path]::Combine($(NugetPackageRoot), $(FSharpCoreXmlDocRelativePath)))" DestinationFolder="$(OutDir)" Condition="!$(InternalBuild)" />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FSharp.ProjectModelBase\FSharp.ProjectModelBase.csproj" />
+    <ProjectReference Include="..\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" /> <!--needed for completion to work -->
+  </ItemGroup>
+
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
+
+  <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
+
+  <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
+
+  <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
+  <Import Project="Sdk.targets" Sdk="JetBrains.NET.Sdk" Version="0.0.4" Condition="$(InternalBuild)" />
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="!$(InternalBuild)" />
+</Project>

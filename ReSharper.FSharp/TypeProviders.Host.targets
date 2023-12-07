@@ -9,9 +9,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj"/>
+        <ProjectReference Include="$(MSBuildThisFileDirectory)\src\FSharp\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj"/>
     </ItemGroup>
 
-    <Import Project="$(RdBackendCommonSubplatform)" Condition="Exists('$(RdBackendCommonSubplatform)')"/>
+    <ItemGroup>
+        <PackageReference Include="FSharp.Core" />
+        <PackageReference Include="JetBrains.FSharp.Compiler.Service" />
+    </ItemGroup>
 
 </Project>

@@ -36,7 +36,10 @@ open System.Diagnostics.CodeAnalysis
 open JetBrains.Annotations
 
 
-type C =
+type C() =
+    [<LanguageInjection(InjectedLanguage.JSON)>]
+    let [<Literal>] literal = """{ "key": "value" }"""
+
     [<StringSyntax("json")>]
     member x.JsonProperty0 = "[ { \"key\": \"value\" } ]"
 
@@ -102,6 +105,9 @@ type C =
                    <tag2 attr="{0}"/>
                  </tag1>
                  """
+
+    [<LanguageInjection(InjectedLanguage.XML)>]
+    member x.XmlField6 = $$"""<tag1><tag2 attr=""{1} {{s1}}""/></tag1>"""
 
 
     member x.Foo0([<StringSyntax("css")>] _arg) = x.Foo0(".my-awesome-class {}")

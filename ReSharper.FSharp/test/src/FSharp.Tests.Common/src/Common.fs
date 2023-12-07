@@ -3,6 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Tests
 open System
 open System.Collections.Generic
 open FSharp.Compiler.CodeAnalysis
+open JetBrains.Application.BuildScript.Application.Zones
 open JetBrains.Application.Components
 open JetBrains.Application.platforms
 open JetBrains.DataFlow
@@ -17,6 +18,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Modules
 open JetBrains.ReSharper.Psi.Util
@@ -52,6 +54,10 @@ type FSharpTestAttribute(extension) =
     new () =
         FSharpTestAttribute(FSharpProjectFileType.FsExtension)
 
+    interface ITestLibraryReferencesProvider with
+        member this.GetReferences _ = JetBrains.Util.EmptyArray.Instance
+        member this.Inherits = false
+        
     interface ITestTargetFrameworkIdProvider with
         member x.GetTargetFrameworkId() = FSharpTestAttribute.targetFrameworkId
         member this.Inherits = false
@@ -128,18 +134,20 @@ type FSharpExperimentalFeatureAttribute(feature: ExperimentalFeature) =
 
 
 [<SolutionComponent>]
-type TestFSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, assemblyReaderShim, scriptModuleProvider, locks) =
-    inherit FcsResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, assemblyReaderShim, scriptModuleProvider, locks)
+[<ZoneMarker(typeof<ITestFSharpPluginZone>)>]
+type TestFSharpResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, scriptModuleProvider, locks) =
+    inherit FcsResolvedSymbolsCache(lifetime, checkerService, psiModules, fcsProjectProvider, scriptModuleProvider, locks)
 
     override x.Invalidate _ =
-        x.PsiModulesCaches.Clear()
+        x.ProjectSymbolsCaches.Clear()
 
     interface IHideImplementation<FcsResolvedSymbolsCache>
 
 
 [<SolutionComponent>]
-type TestFcsProjectBuilder(lifetime, checkerService, modulePathProvider, fileSystemTracker, logger) =
-    inherit FcsProjectBuilder(lifetime, checkerService, Mock<_>().Object, modulePathProvider, fileSystemTracker, logger)
+[<ZoneMarker(typeof<ITestFSharpPluginZone>)>]
+type TestFcsProjectBuilder(checkerService, modulePathProvider, logger, psiModules) =
+    inherit FcsProjectBuilder(checkerService, Mock<_>().Object, modulePathProvider, logger, psiModules)
 
     override x.GetProjectItemsPaths(project, targetFrameworkId) =
         project.GetAllProjectFiles()
@@ -151,6 +159,7 @@ type TestFcsProjectBuilder(lifetime, checkerService, modulePathProvider, fileSys
 
 
 [<SolutionComponent>]
+[<ZoneMarker(typeof<ITestFSharpPluginZone>)>]
 type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerService,
         fcsProjectBuilder: FcsProjectBuilder, scriptFcsProjectProvider: IScriptFcsProjectProvider) as this =
     do
@@ -160,8 +169,8 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
     let mutable currentFcsProject = None
 
     let getNewFcsProject (psiModule: IPsiModule) =
-        let fcsProject = fcsProjectBuilder.BuildFcsProject(psiModule, psiModule.ContainingProjectModule.As<IProject>())
-        fcsProjectBuilder.AddReferences(fcsProject, getReferencedModules psiModule)
+        let projectKey = FcsProjectKey.Create(psiModule)
+        fcsProjectBuilder.BuildFcsProject(projectKey)
 
     // todo: referenced projects
     // todo: unify with FcsProjectProvider check
@@ -252,10 +261,9 @@ type TestFcsProjectProvider(lifetime: Lifetime, checkerService: FcsCheckerServic
             | true, index -> index
             | _ -> -1
 
-        member x.InvalidateDirty() = ()
-        member x.ModuleInvalidated = new Signal<_>("Todo") :> _
+        member x.ProjectRemoved = new Signal<_>("Todo") :> _
 
-        member x.InvalidateReferencesToProject(_, _) = false
+        member x.InvalidateReferencesToProject _ = false
         member x.HasFcsProjects = false
         member this.GetAllFcsProjects() = []
 

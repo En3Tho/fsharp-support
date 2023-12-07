@@ -25,8 +25,9 @@
 
     <lang.parserDefinition language="F#" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.FSharpParserDefinition" />
     <lang.syntaxHighlighter language="F#" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.highlighting.FSharpSyntaxHighlighter"/>
-    <lang.altEnter language="F#" implementationClass="com.jetbrains.rider.intentions.altEnter.ReSharperBulbMenuModelFactory" />
+    <lang.altEnter language="F#" implementationClass="com.jetbrains.rider.intentions.altEnter.ReSharperAltEnterMenuModelFactory" />
     <lang.elementManipulator forClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.psi.FSharpStringLiteralExpression" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.psi.FSharpStringElementManipulator"/>
+    <lang.commenter language="F#" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.psi.FSharpCommenter"/>
     <psi.referenceContributor language="F#" implementation="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.psi.FSharpWebReferenceContributor" />
 
     <backend.typedHandler language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.editorActions.FSharpTypedHandler" />
@@ -40,7 +41,7 @@
     <codeInsight.parameterInfo language="F#" implementationClass="com.jetbrains.rdclient.parameterInfo.FrontendParameterInfoHandler" />
     <breadcrumbsInfoProvider implementation="com.jetbrains.rider.plugins.fsharp.breadcrumbs.FSharpBreadcrumbsInfoProvider"/>
     <langCodeStyleSettingsProvider implementation="com.jetbrains.rider.settings.FSharpCodeStyleSettingsProvider" />
-    <lang.documentationProvider language="F#" implementationClass="com.jetbrains.rdclient.quickDoc.FrontendDocumentationProvider"/>
+    <lang.documentationProvider language="F#" implementationClass="com.jetbrains.rider.quickDoc.FrontendDocumentationProvider"/>
     <rider.debuggerSupportPolicy language="F#" implementationClass="com.jetbrains.rider.debugger.RiderDebuggerSupportPolicy" />
     <lineIndentProvider implementation="com.jetbrains.rider.plugins.fsharp.actions.FSharpDummyLineIndentProvider"/>
     <scratch.creationHelper language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.actions.FSharpScratchCreationHelper" />

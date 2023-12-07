@@ -106,6 +106,7 @@ type FSharpRenameTest() =
     [<Test>] member x.``Types - Exception 01``() = x.DoNamedTest()
     [<Test>] member x.``Types - Abbreviations 01``() = x.DoNamedTest()
     [<Test>] member x.``Types - Measure 01``() = x.DoNamedTest()
+    [<Test>] member x.``Types - Measure 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Attribute - Arg 01 - Record field``() = x.DoNamedTest()
     [<Test>] member x.``Attribute - Attribute type 01``() = x.DoNamedTest()
@@ -253,3 +254,9 @@ type FSharpRenameTest() =
     [<Test>] member x.``Sig - Union 01``() = x.DoNamedTestFsiFsProgram()
     [<Test>] member x.``Sig - Union 02``() = x.DoNamedTestFsiFsProgram()
     [<Test>] member x.``Sig - Union 03 - Struct``() = x.DoNamedTestFsiFsProgram()
+
+    [<Test>] member x.``Not allowed - Dot lambda - Shorthand``() = x.DoNamedTest()
+
+    [<Test>] member x.``Dot lambda 01 - Property``() = x.DoNamedTest()
+
+    [<Test>] member x.``Hash type usage 01``() = x.DoNamedTest()

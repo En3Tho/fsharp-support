@@ -193,6 +193,7 @@ val
 void
 when
 while
+while!
 with
 yield
 AbstractClassAttribute
@@ -276,6 +277,7 @@ Operators
 OptimizedClosures
 Option
 OptionalArgumentAttribute
+Primitives
 Printf
 PrintfFormat
 ProjectionParameterAttribute
@@ -297,6 +299,7 @@ StructuralComparisonAttribute
 StructuralEqualityAttribute
 StructuredFormatDisplayAttribute
 System
+Text
 Unchecked
 UnverifiableAttribute
 ValueOption

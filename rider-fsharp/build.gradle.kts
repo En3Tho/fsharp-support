@@ -32,7 +32,7 @@ repositories {
   maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
-val baseVersion = "2023.2"
+val baseVersion = "2023.3"
 val buildCounter = ext.properties["build.number"] ?: "9999"
 version = "$baseVersion.$buildCounter"
 
@@ -89,48 +89,57 @@ extra["rdLibDirectory"] = rdLibDirectory
 val buildConfiguration = ext.properties["BuildConfiguration"] ?: "Debug"
 val primaryTargetFramework = "net472"
 val outputRelativePath = "bin/$buildConfiguration/$primaryTargetFramework"
+val ktOutputRelativePath = "src/main/java/com/jetbrains/rider/plugins/fsharp/protocol"
+
+val productMonorepoDir = getProductMonorepoRoot()
+val monorepoPreGeneratedRootDir by lazy { productMonorepoDir?.resolve("Plugins/_ReSharperFSharp.Pregenerated") ?: error("Building not in monorepo") }
+val monorepoPreGeneratedFrontendDir by lazy {  monorepoPreGeneratedRootDir.resolve("Frontend") }
+val monorepoPreGeneratedBackendDir by lazy {  monorepoPreGeneratedRootDir.resolve("BackendModel") }
+val ktOutputMonorepoRoot by lazy { monorepoPreGeneratedFrontendDir.resolve(ktOutputRelativePath) }
 
 val libFiles = listOf(
-  "FSharp.Common/$outputRelativePath/FSharp.Core.dll",
-  "FSharp.Common/$outputRelativePath/FSharp.Core.xml",
-  "FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
-  "FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
-  "FSharp.Common/$outputRelativePath/FSharp.Compiler.Interactive.Settings.dll"
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Core.dll",
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Core.xml",
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Compiler.Service.dll", // todo: add pdb after next repack
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.DependencyManager.Nuget.dll",
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Compiler.Interactive.Settings.dll"
 )
 
 val pluginFiles = listOf(
-  "FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
-  "FSharp.Common/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Common",
-  "FSharp.Psi/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi",
-  "FSharp.Psi.Services/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Services",
-  "FSharp.Psi.Daemon/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon",
-  "FSharp.Psi.Intentions/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions",
-  "FSharp.Psi.Features/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Features",
-  "FSharp.Fantomas.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol",
-  "FSharp.TypeProviders.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol"
+  "FSharp/FSharp.ProjectModelBase/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.ProjectModelBase",
+  "FSharp/FSharp.Common/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Common",
+  "FSharp/FSharp.Psi/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi",
+  "FSharp/FSharp.Psi.Services/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Services",
+  "FSharp/FSharp.Psi.Daemon/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon",
+  "FSharp/FSharp.Psi.Intentions/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Intentions",
+  "FSharp/FSharp.Psi.Features/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Psi.Features",
+  "FSharp/FSharp.Fantomas.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Protocol",
+  "FSharp/FSharp.TypeProviders.Protocol/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Protocol"
 )
 
 val typeProvidersFiles = listOf(
-  "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
-  "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
-  "FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
-  "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.dll",
-  "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.pdb",
-  "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.win.runtimeconfig.json",
-  "FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.unix.runtimeconfig.json"
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Core.dll",
+  "FSharp/FSharp.Common/$outputRelativePath/FSharp.Core.xml",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.pdb",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host/$outputRelativePath/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.exe.config",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.dll",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/JetBrains.ReSharper.Plugins.FSharp.TypeProviders.Host.NetCore.pdb",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.win.runtimeconfig.json",
+  "FSharp.TypeProviders.Host/FSharp.TypeProviders.Host.NetCore/bin/$buildConfiguration/netcoreapp3.1/tploader.unix.runtimeconfig.json"
 )
 
 val fantomasHostFiles = listOf(
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.dll",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.pdb",
+  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/JetBrains.ReSharper.Plugins.FSharp.Fantomas.Host.deps.json",
+  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Core.dll",
+  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.FCS.dll",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.win.runtimeconfig.json",
   "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Host.unix.runtimeconfig.json"
 )
 
-val fantomasDllFiles = listOf(
-  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.FCS.dll",
-  "FSharp.Fantomas.Host/bin/$buildConfiguration/net6.0/Fantomas.Core.dll"
-)
+val externalAnnotationsDirectory = "$resharperPluginPath/src/FSharp/annotations"
 
 val nugetConfigPath = File(repoRoot, "NuGet.Config")
 val dotNetSdkPathPropsPath = File("build", "DotNetSdkPath.generated.props")
@@ -157,23 +166,50 @@ tasks {
   }
 
   configure<RdGenExtension> {
-    val csOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.ProjectModelBase/src/Protocol")
-    val ktOutput = File(repoRoot, "rider-fsharp/src/main/java/com/jetbrains/rider/plugins/fsharp/protocol")
+    val inMonorepo = productMonorepoDir != null
+    logger.info("Configuring rdgen with inMonorepo=$inMonorepo")
 
-    val typeProviderClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Client")
-    val typeProviderServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.TypeProviders.Protocol/src/Server")
+    val csOutput =
+      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.ProjectModelBase/src/Protocol")
+      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.ProjectModelBase/src/Protocol")
+    val ktOutput =
+      if (inMonorepo) File(monorepoPreGeneratedFrontendDir, ktOutputRelativePath)
+      else File(repoRoot, "rider-fsharp/$ktOutputRelativePath")
 
-    val fantomasServerOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Server")
-    val fantomasClientOutput = File(repoRoot, "ReSharper.FSharp/src/FSharp.Fantomas.Protocol/src/Client")
+    val typeProviderClientOutput =
+      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.TypeProviders.Protocol/src/Client")
+      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.TypeProviders.Protocol/src/Client")
+    val typeProviderServerOutput =
+      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.TypeProviders.Protocol/src/Server")
+      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.TypeProviders.Protocol/src/Server")
+
+    val fantomasServerOutput =
+      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.Fantomas.Protocol/src/Server")
+      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.Fantomas.Protocol/src/Server")
+    val fantomasClientOutput =
+      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.Fantomas.Protocol/src/Client")
+      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.Fantomas.Protocol/src/Client")
 
     verbose = true
     hashFolder = "build/rdgen"
     logger.info("Configuring rdgen params")
-    classpath({
-      logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${rdLibDirectory().canonicalPath}")
-      rdLibDirectory().resolve("rider-model.jar").canonicalPath
-    })
-    sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
+    // *** Classpath and sources ***
+    if (inMonorepo) {
+      sources(
+        listOf(
+          File("$productMonorepoDir/Rider/Frontend/rider/model/sources"),
+          File("$productMonorepoDir/Rider/ultimate/remote-dev/rd-ide-model-sources"),
+          File(repoRoot, "rider-fsharp/protocol/src/kotlin/model")
+        )
+      )
+    }
+    else {
+      classpath({
+        logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${rdLibDirectory().canonicalPath}")
+        rdLibDirectory().resolve("rider-model.jar").canonicalPath
+      })
+      sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
+    }
     packages = "model"
 
     generator {
@@ -182,6 +218,7 @@ tasks {
       root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
       namespace = "com.jetbrains.rider.model"
       directory = "$ktOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
 
     generator {
@@ -190,6 +227,7 @@ tasks {
       root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
       namespace = "JetBrains.Rider.Model"
       directory = "$csOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
 
     generator {
@@ -198,6 +236,7 @@ tasks {
       root = "model.RdFSharpTypeProvidersModel"
       namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Client"
       directory = "$typeProviderClientOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
     generator {
       language = "csharp"
@@ -205,6 +244,7 @@ tasks {
       root = "model.RdFSharpTypeProvidersModel"
       namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Server"
       directory = "$typeProviderServerOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
 
     generator {
@@ -213,6 +253,7 @@ tasks {
       root = "model.RdFantomasModel"
       namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Client"
       directory = "$fantomasClientOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
     generator {
       language = "csharp"
@@ -220,6 +261,7 @@ tasks {
       root = "model.RdFantomasModel"
       namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Server"
       directory = "$fantomasServerOutput"
+      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
     }
   }
 
@@ -241,7 +283,6 @@ tasks {
     var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
     files = files.map { "$resharperPluginPath/src/$it" }
     val fantomasHostFiles = fantomasHostFiles.map { "$resharperPluginPath/src/$it" }
-    val fantomasDllFiles = fantomasDllFiles.map { "$resharperPluginPath/src/$it" }
     val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
     if (name == IntelliJPluginConstants.PREPARE_TESTING_SANDBOX_TASK_NAME) {
@@ -258,12 +299,9 @@ tasks {
 
     moveToPlugin(files, "dotnet")
     moveToPlugin(fantomasHostFiles, "fantomas")
-    moveToPlugin(fantomasDllFiles, "fantomas/dlls")
     moveToPlugin(typeProvidersFiles, "typeProviders")
     moveToPlugin(listOf("projectTemplates"), "projectTemplates")
-    from("$resharperPluginPath/src/annotations") {
-      into("${intellij.pluginName.get()}/dotnet/Extensions/com.jetbrains.rider.fsharp/annotations")
-    }
+    moveToPlugin(listOf(externalAnnotationsDirectory), "dotnet/Extensions/com.jetbrains.rider.fsharp/annotations")
 
     doLast {
       fun validateFiles(files: List<String>, destinationFolder: String) {
@@ -275,8 +313,8 @@ tasks {
       }
       validateFiles(files, "dotnet")
       validateFiles(fantomasHostFiles, "fantomas")
-      validateFiles(fantomasDllFiles, "fantomas/dlls")
       validateFiles(typeProvidersFiles, "typeProviders")
+      validateFiles(listOf(externalAnnotationsDirectory), "dotnet/Extensions/com.jetbrains.rider.fsharp/annotations")
     }
   }
 
@@ -312,19 +350,41 @@ tasks {
 
   val copyBackendLexerSources = create<Copy>("copyBackendLexerSources") {
     dependsOn(resetLexerDirectory)
-    from("$resharperPluginPath/src/FSharp.Psi/src/Parsing/Lexing") {
+    from("$resharperPluginPath/src/FSharp/FSharp.Psi/src/Parsing/Lexing") {
       include("*.lex")
     }
     into(backendLexerSources)
   }
 
-  val generateFSharpLexer = task<GenerateLexerTask>("generateFSharpLexer") {
+  fun generateLexer(inMonorepo: Boolean, taskName: String) = register<GenerateLexerTask>(taskName) {
     dependsOn(copyBackendLexerSources, copyUnicodeLex)
     source.set("src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer/_FSharpLexer.flex")
-    targetDir.set("src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer")
-    targetClass.set("_FSharpLexer")
+
+    val relTargetDir = "src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer"
+    val targetName = "_FSharpLexer"
+    val targetDirAbs =
+      if (inMonorepo) monorepoPreGeneratedFrontendDir.resolve(relTargetDir)
+      else File(repoRoot, "rider-fsharp/$relTargetDir")
+    targetDir.set(targetDirAbs.toString())
+    targetClass.set(targetName)
     purgeOldFiles.set(true)
+    outputs.upToDateWhen { false }
+
+    if (inMonorepo) {
+      // The generated file contains not constant comment with a source file abs path
+      // remove it to prevent changes on each generation
+      // Also, line endings may depend on the platform, so unify it to LF
+      doLast {
+        val targetFile = targetDirAbs.resolve("$targetName.java")
+        if (!targetFile.exists()) error("Lexer file $targetFile was not generated")
+
+        removeFirstMatchLineByRegexAndNormalizeEndings(targetFile, Regex("^( \\* from the specification file .*)\$"))
+      }
+    }
   }
+
+  val generateFSharpLexer = generateLexer(false, "generateFSharpLexer")
+  val generateFSharpLexerMonorepo = generateLexer(true, "generateFSharpLexerMonorepo")
 
   withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "17"
@@ -394,7 +454,7 @@ tasks {
 
   val prepare = create("prepare") {
     group = riderFSharpTargetsGroup
-    dependsOn(rdgen, writeNuGetConfig, writeDotNetSdkPathProps)
+    dependsOn(rdgen, writeNuGetConfig, writeDotNetSdkPathProps, generateFSharpLexer)
   }
 
   create("buildReSharperPlugin") {
@@ -407,5 +467,43 @@ tasks {
       }
     }
   }
+
+  create("prepareMonorepo") {
+    dependsOn(generateFSharpLexerMonorepo, "rdgen")
+  }
+
   defaultTasks(prepare)
+}
+
+fun getProductMonorepoRoot(): File? {
+  var currentDir = repoRoot
+
+  while (currentDir.parent != null) {
+    if (currentDir.listFiles()?.any { it.name == ".dotnet-products.root.marker" } == true) {
+      return currentDir
+    }
+    currentDir = currentDir.parentFile
+  }
+
+  return null
+}
+
+fun removeFirstMatchLineByRegexAndNormalizeEndings(file: File, removeRegex: Regex) {
+  val tempFile = File.createTempFile("${file.name}.temp", null)
+  var found = false
+  file.useLines { lines ->
+    tempFile.bufferedWriter().use { writer ->
+      lines.forEach { line ->
+        if (!found && removeRegex.matches(line)) {
+          // do not write the line if it is matched with the regex
+          found = true
+        } else {
+          // rewrite the line with LF
+          writer.write(line + "\n")
+        }
+      }
+    }
+  }
+  file.delete()
+  tempFile.renameTo(file)
 }

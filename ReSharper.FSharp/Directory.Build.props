@@ -1,4 +1,6 @@
 <Project>
+  <Sdk Name="JetBrains.Build.VersionLockFileTargets" Version="0.0.4" />
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>TRACE;DEBUG;JET_MODE_ASSERT</DefineConstants>
   </PropertyGroup>
@@ -8,17 +10,11 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <FSharpCompilerServiceVersion>2023.2.3</FSharpCompilerServiceVersion>
-    <FSharpCoreVersion>7.0.200</FSharpCoreVersion>
-    <FantomasBundledVersion>6.0.5</FantomasBundledVersion>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <CSharpLanguageVersion>9</CSharpLanguageVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -27,7 +23,7 @@
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)resharper-fsharp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props" />
+  <Import Project="$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props" Condition="Exists('$(MSBuildThisFileDirectory)..\rider-fsharp\build\DotNetSdkPath.generated.props')" />
 
   <PropertyGroup>
     <Subplatform>$(DotNetSdkPath)\Build\SubplatformReference</Subplatform>

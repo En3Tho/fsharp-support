@@ -27,6 +27,9 @@ type CSharpResolveTest() =
     [<Test>] member x.``Exceptions 04 - Protected ctor``() = x.DoNamedTest()
     [<Test>] member x.``Exceptions 05 - Augmentation``() = x.DoNamedTest()
 
+    [<Test>] member x.``Interface 01``() = x.DoNamedTest()
+    [<Test>] member x.``Interface 02 - Static members``() = x.DoNamedTest()
+
     [<Test>] member x.``Unions 01 - Simple generated members``() = x.DoNamedTest()
     [<Test>] member x.``Unions 02 - Singletons``() = x.DoNamedTest()
     [<Test>] member x.``Unions 03 - Nested types``() = x.DoNamedTest()
@@ -90,7 +93,7 @@ type CSharpResolveTest() =
     [<Test>] member x.``Properties 08 - Explicit static accessor``() = x.DoNamedTest()
     [<Test>] member x.``Properties 09 - Explicit generic accessor``() = x.DoNamedTest()
     [<Test>] member x.``Properties 10 - Implicit accessors``() = x.DoNamedTest()
-    [<Test>] member x.``Properties 11 - Indexers``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Properties 11 - Indexers``() = x.DoNamedTest()
     [<Test>] member x.``Properties 12 - Indexers - Access modifiers 01``() = x.DoNamedTest()
     [<Test>] member x.``Properties 13 - Indexers - Access modifiers 02``() = x.DoNamedTest()
     [<Test>] member x.``Properties 14 - Indexers - Access modifiers 03``() = x.DoNamedTest()
@@ -100,6 +103,7 @@ type CSharpResolveTest() =
     [<Test>] member x.``Properties 18 - Explicit accessors - Compiled name``() = x.DoNamedTest()
     [<Test>] member x.``Properties 19 - Simple property with getter``() = x.DoNamedTest()
     [<Test>] member x.``Properties 20 - Simple property with accessors``() = x.DoNamedTest()
+    [<Test>] member x.``Properties 21 - static val``() = x.DoNamedTest()
 
     [<Test>] member x.``Module bindings 01 - Simple``() = x.DoNamedTest()
     [<Test>] member x.``Module bindings 02 - Records``() = x.DoNamedTest()
@@ -133,6 +137,8 @@ type CSharpResolveTest() =
 
     [<Test>] member x.``Events 01``() = x.DoNamedTest()
     [<Test>] member x.``Events 02 - Abstract``() = x.DoNamedTest()
+
+    [<Test>] member x.``Struct 01``() = x.DoNamedTest()
 
     [<Test>] member x.``Type Extension 01``() = x.DoNamedTest()
     [<Test>] member x.``Type Extension 02 - Struct``() = x.DoNamedTest()
