@@ -27,7 +27,7 @@
     <Compile Include="src\ReadLockCookieUtil.fs" />
     <Compile Include="src\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
-    <Compile Include="src\Tooltips\FSharpIdentifierTooltipProviderExtensions.fs" />
+    <Compile Include="src\QuickDoc\FSharpIdentifierTooltipProviderExtensions.fs" />
     <Compile Include="src\QuickDoc\FSharpQuickDocProvider.fs" />
     <Compile Include="src\Syntax\XmlDocSummaryHighlightingVisitor.fs" />
     <Compile Include="src\Stages\FcsErrorsStageProcessBase.fs" />
@@ -73,12 +73,9 @@
     <Compile Include="src\Analyzers\IndexerExprAnalyzer.fs" />
     <Compile Include="src\Analyzers\XmlDocAnalyzer.fs" />
     <Compile Include="src\Analyzers\RecordExprAnalyzer.fs" />
-    <Compile Include="ZoneMarker.fs" />
     <Compile Include="src\Analyzers\OperatorUsageAnalyzer.fs" />
-    <Compile Include="src\Analyzers\ILoggerLikeUsageAnalyzer.fs" />
     <Compile Include="src\Analyzers\SuspiciousAliasUsageAnalyzer.fs" />
-    <Compile Include="src\Analyzers\DisposablesAnalyzer.fs" />
-    <Compile Include="src\Analyzers\InferredObjGenericAnalyzer.fs" />
+    <Compile Include="ZoneMarker.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />

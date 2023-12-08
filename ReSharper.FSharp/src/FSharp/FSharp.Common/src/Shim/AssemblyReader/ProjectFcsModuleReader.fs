@@ -954,7 +954,7 @@ type ProjectFcsModuleReader(psiModule: IPsiModule, cache: FcsModuleReaderCommonC
 
         result.ToArray()
 
-
+    
     let getOrCreateNestedTypes (table: FcsTypeDefMembers) (typeName: IClrTypeName) defaultValue reader =
         use _ = usingWriteLock ()
 

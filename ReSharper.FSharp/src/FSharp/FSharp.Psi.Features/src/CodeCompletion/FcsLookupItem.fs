@@ -156,35 +156,6 @@ type FcsLookupItem(items: RiderDeclarationListItems, context: FSharpCodeCompleti
         if ns.IsEmpty() then () else
         addOpen offset fsFile context.BasicContext.ContextBoundSettingsStore moduleToImport
 
-        // Special case Attribute: if contains parameterless ctor and in attribute list scope then leave alone
-
-        // Ctor and method calls: add () and move caret inside
-        // functions: add a space and shift caret if curried version, fallback to method logic if tupled version
-        // What is the right scope for this? E.g. can be passed as lambda/object
-
-        // TODO: make this work?
-
-        // let attrDecl = fsFile.GetNode<IAttribute>(offset)
-        // if attrDecl <> null && attrDecl.ArgExpression = null then
-        //     let parameterCtorExist =
-        //         (x.FcsSymbolUse.Symbol :?> FSharpEntity).MembersFunctionsAndValues
-        //         |> Seq.exists (fun mem ->
-        //             if mem.CompiledName <> ".ctor" then false else
-        //                 let mutable firstArgTypeDef = mem.FullType.GenericArguments[0].TypeDefinition
-        //                 while firstArgTypeDef.IsFSharpAbbreviation do
-        //                     firstArgTypeDef <- firstArgTypeDef.AbbreviatedType.TypeDefinition
-        //                 firstArgTypeDef.CompiledName = "Unit"
-        //         )
-        //     if not parameterCtorExist then
-        //         let factory = attrDecl.CreateElementFactory()
-        //         let expr = factory.CreateExpr("()")
-        //         let expr = ModificationUtil.AddChildAfter(attrDecl, expr)
-        //         let attrOffset = attrDecl.LastChild.GetDocumentStartOffset()
-        //         let exprOffset = expr.FirstChild.GetDocumentStartOffset()
-        //         textControl.Caret.MoveTo(exprOffset, CaretVisualPlacement.Generic)
-        //         // TODO: not sure how to do this properly.
-        //         caretPositionRangeMarker.IsValid <- false
-
     override x.GetDisplayName() =
         let name = LookupUtil.FormatLookupString(items.Name, x.TextColor)
 
