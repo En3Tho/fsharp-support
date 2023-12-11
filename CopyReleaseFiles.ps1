@@ -23,14 +23,19 @@ $tfms =
     "net472",
     "net6.0"
 
+$pathPrefix = "ReSharper.FSharp\src\FSharp"
+$hostPathPrefix = "ReSharper.FSharp\src"
+
 function CopyReSharperDlls {
     $projects | foreach {
         $current = $_
         $tfms | foreach {
             $tfm = $_
-            $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+            $path = "$pathPrefix\$current\bin\Debug\$tfm\"
             if ((Test-Path -Path $path) -eq $True) {
-                Copy-Item "ReSharper.FSharp\src\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.dll" -Destination $path
+                Copy-Item "$pathPrefix\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.dll" -Destination $path
+            } else {
+                Write-Host "Path not found: $path"
             }
         }
     }
@@ -38,9 +43,11 @@ function CopyReSharperDlls {
         $current = $_
         $tfms | foreach {
             $tfm = $_
-            $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+            $path = "$hostPathPrefix\$current\bin\Debug\$tfm\"
             if ((Test-Path -Path $path) -eq $True) {
-                Copy-Item "ReSharper.FSharp\src\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.exe" -Destination $path
+                Copy-Item "$hostPathPrefix\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.exe" -Destination $path
+            } else {
+                Write-Host "Path not found: $path"
             }
         }
         
@@ -50,13 +57,28 @@ function CopyReSharperDlls {
 function CopyFSharpDlls {
     $dlls | foreach {
         $dll = $_
-        ($projects + $hosts) | foreach {
+        $projects | foreach {
             $current = $_
             $tfms | foreach {
                 $tfm = $_
-                $path = "ReSharper.FSharp\src\$current\bin\Debug\$tfm\"
+                $path = "$pathPrefix\$current\bin\Debug\$tfm\"
                 if ((Test-Path -Path $path)-eq $True) {
-                    Copy-Item "..\visualfsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
+                    Copy-Item "..\..\dotnet\fsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
+                } else {
+                    Write-Host "Path not found: $path"
+                }
+            }
+        }
+
+        $hosts | foreach {
+            $current = $_
+            $tfms | foreach {
+                $tfm = $_
+                $path = "$hostPathPrefix\$current\bin\Debug\$tfm\"
+                if ((Test-Path -Path $path)-eq $True) {
+                    Copy-Item "..\..\dotnet\fsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
+                } else {
+                    Write-Host "Path not found: $path"
                 }
             }
         }

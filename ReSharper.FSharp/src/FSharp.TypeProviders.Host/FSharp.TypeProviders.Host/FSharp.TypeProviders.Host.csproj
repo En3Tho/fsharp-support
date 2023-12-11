@@ -24,9 +24,8 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="FSharp.Core" Version="8.0.100-dev" />
     <PackageReference Include="JetBrains.Annotations" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" />
     <PackageReference Include="JetBrains.Lifetimes" />
     <PackageReference Include="JetBrains.RdFramework" />
   </ItemGroup>
@@ -34,6 +33,7 @@
     <ProjectReference Include="..\..\FSharp\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj" />
   </ItemGroup>
   <Import Project="../../../TypeProviders.Host.targets" />
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
   <Import Project="$(RdBackendCommonSubplatform)" Condition="Exists('$(RdBackendCommonSubplatform)') and !$(InternalBuild)" />
   <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
   <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />

@@ -71,7 +71,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" />
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.HabitatDetector" />
     <PackageReference Include="JetBrains.Lifetimes" />

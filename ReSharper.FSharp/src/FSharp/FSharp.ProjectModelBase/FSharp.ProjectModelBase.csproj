@@ -14,13 +14,13 @@
     <LangVersion>$(CSharpLanguageVersion)</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" />
-    <PackageReference Include="JetBrains.FSharp.Compiler.Service" />
+  <ItemGroup>    
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.Lifetimes" />
   </ItemGroup>
 
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
+  
   <Import Project="$(PsiFeaturesSubplatform)" Condition="Exists('$(PsiFeaturesSubplatform)')" />
 
   <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />

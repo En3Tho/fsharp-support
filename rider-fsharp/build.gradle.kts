@@ -60,7 +60,7 @@ intellij {
     version.set("$baseVersion-SNAPSHOT")
   }
 
-  version.set("2023.2")
+  version.set("2023.3")
   instrumentCode.set(false)
   downloadSources.set(false)
 
