@@ -14,7 +14,7 @@
     <LangVersion>$(CSharpLanguageVersion)</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup>    
+  <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.Lifetimes" />
   </ItemGroup>

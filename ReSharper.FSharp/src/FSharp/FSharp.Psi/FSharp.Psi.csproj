@@ -30,9 +30,7 @@
     <ProjectReference Include="..\FSharp.TypeProviders.Protocol\FSharp.TypeProviders.Protocol.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core">
-      <Version>8.0.100-dev</Version>
-    </PackageReference>
+    <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.Lifetimes" />
     <PackageReference Include="System.Collections.Immutable" />

@@ -131,10 +131,10 @@
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="8.0.100-dev" />
+    <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
     <PackageReference Include="JetBrains.Lifetimes" />
   </ItemGroup>
-    <Import Project="$(SolutionDir)/CustomFSharp.targets" />
+  <Import Project="$(SolutionDir)/CustomFSharp.targets" />
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />
   <Import Project="$(SolutionDir)/GitHubActions.targets" Condition="$(RunningOnGitHubActions) == 'true'" />
   <Import Project="ManagedProject.Generated.Targets" Condition="$(InternalBuild)" />
