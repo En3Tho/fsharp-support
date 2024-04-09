@@ -29,7 +29,6 @@
       <PackageReference Include="Fantomas.FCS" />
       <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
       <PackageReference Include="JetBrains.Lifetimes" />
-      <PackageReference Include="JetBrains.NuGet.Versioning" />
       <PackageReference Include="JetBrains.RdFramework" />
       <PackageReference Include="System.Diagnostics.DiagnosticSource" />
       <PackageReference Include="System.Runtime.Loader" />
@@ -37,6 +36,7 @@
       <PackageReference Include="System.Memory" />
       <PackageReference Include="Microsoft.NETCore.Platforms" />
       <PackageReference Include="Microsoft.NETCore.Targets" />
+      <PackageReference Include="JetBrains.NuGet.Versioning" Version="6.9.20240222.127" />
     </ItemGroup>
 
     <ItemGroup>

@@ -33,6 +33,7 @@ function CopyReSharperDlls {
             $tfm = $_
             $path = "$pathPrefix\$current\bin\Debug\$tfm\"
             if ((Test-Path -Path $path) -eq $True) {
+                Write-Host "Path found: $path"
                 Copy-Item "$pathPrefix\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.dll" -Destination $path
             } else {
                 Write-Host "Path not found: $path"
@@ -45,6 +46,7 @@ function CopyReSharperDlls {
             $tfm = $_
             $path = "$hostPathPrefix\$current\bin\Debug\$tfm\"
             if ((Test-Path -Path $path) -eq $True) {
+                Write-Host "Path found: $path"
                 Copy-Item "$hostPathPrefix\$current\bin\Release\$tfm\JetBrains.ReSharper.Plugins.$current.exe" -Destination $path
             } else {
                 Write-Host "Path not found: $path"
@@ -63,6 +65,7 @@ function CopyFSharpDlls {
                 $tfm = $_
                 $path = "$pathPrefix\$current\bin\Debug\$tfm\"
                 if ((Test-Path -Path $path)-eq $True) {
+                    Write-Host "Path found: $path"
                     Copy-Item "..\..\dotnet\fsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
                 } else {
                     Write-Host "Path not found: $path"
@@ -76,6 +79,7 @@ function CopyFSharpDlls {
                 $tfm = $_
                 $path = "$hostPathPrefix\$current\bin\Debug\$tfm\"
                 if ((Test-Path -Path $path)-eq $True) {
+                    Write-Host "Path found: $path"
                     Copy-Item "..\..\dotnet\fsharp\artifacts\bin\$dll\Release\netstandard2.0\$dll.dll" -Destination $path
                 } else {
                     Write-Host "Path not found: $path"
