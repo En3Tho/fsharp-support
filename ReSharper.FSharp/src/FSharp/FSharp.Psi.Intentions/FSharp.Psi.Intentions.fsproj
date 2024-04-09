@@ -131,7 +131,6 @@
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
     <PackageReference Include="JetBrains.Lifetimes" />
   </ItemGroup>
   <Import Project="$(SolutionDir)/CustomFSharp.targets" />

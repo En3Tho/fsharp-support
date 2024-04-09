@@ -24,7 +24,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.Lifetimes" />
     <PackageReference Include="JetBrains.RdFramework" />

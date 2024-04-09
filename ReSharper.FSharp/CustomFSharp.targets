@@ -3,7 +3,7 @@
 
     <ItemGroup>
         <PackageReference Include="FSharp.Compiler.Service" Version="2024.1.1-dev"/>
-        <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
+<!--        <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />-->
         <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
         <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
         <PackageReference Include="System.Reflection" Version="4.3.0" />
