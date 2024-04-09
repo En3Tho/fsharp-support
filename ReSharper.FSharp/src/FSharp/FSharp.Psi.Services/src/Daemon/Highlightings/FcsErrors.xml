@@ -162,6 +162,17 @@
     <QuickFix>ToUpcastFix</QuickFix>
   </Warning>
 
+  <Error staticGroup="FSharpErrors" name="AbstractTypeCannotBeInstantiated" ID="FS0759: Abstract type cannot be instantiated">
+    <Parameter type="IFSharpExpression" name="expr"/>
+    <Parameter type="string" name="fcsMessage"/>
+    <Message resourceName="Message" resourceType="Strings">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <Range>expr.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix>ToObjectExpressionFix</QuickFix>
+  </Error>
+
   <Error staticGroup="FSharpErrors" name="FieldRequiresAssignment" ID="FS0764: Field requires assignment">
     <Parameter type="IRecordExpr" name="expr"/>
     <Parameter type="string" name="fcsMessage"/>
@@ -328,7 +339,7 @@
   </Error>
 
   <Error staticGroup="FSharpErrors" name="NoImplementationGivenInTypeWithSuggestion" ID="FS0366: No implementation given">
-    <Parameter type="IFSharpTypeDeclaration" name="typeDecl"/>
+    <Parameter type="IFSharpTypeElementDeclaration" name="typeDecl"/>
     <Parameter type="string" name="fcsMessage"/>
     <Message resourceName="Message" resourceType="Strings">
       <Argument>fcsMessage</Argument>
@@ -512,6 +523,20 @@
     <Range>refExpr.Identifier.GetHighlightingRange()</Range>
     <Behavour overlapResolvePolicy="NONE"/>
     <QuickFix>ReplaceWithTypeRefExprFix</QuickFix>
+  </Error>
+
+  <Error staticGroup="FSharpErrors" name="InvalidUseOfTypeName" ID="FS0800: Invalid use of type name">
+    <Parameter type="FSharpSymbolReference" name="reference"/>
+    <!-- todo: change to IReference? -->
+    <Parameter type="string" name="fcsMessage"/>
+    <Message resourceName="Message" resourceType="Strings">
+      <Argument>fcsMessage</Argument>
+    </Message>
+    <!--todo: identifier null check-->
+    <Range>reference.GetElement().FSharpIdentifier.GetHighlightingRange()</Range>
+    <Behavour overlapResolvePolicy="NONE"/>
+    <QuickFix arguments="h.Reference">FSharpImportTypeFix</QuickFix>
+    <QuickFix arguments="h.Reference">FSharpReferenceModuleAndTypeFix</QuickFix>
   </Error>
 
   <Error staticGroup="FSharpErrors" name="PropertyIsStatic" ID="FS0809: Static propery used on instance">

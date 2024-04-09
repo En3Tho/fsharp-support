@@ -13,7 +13,6 @@
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="src\ZoneMarkerServices.fs" />
     <EmbeddedResource Update="Resources\Strings.resx">
       <Generator>JetResourceGenerator</Generator>
       <LastGenOutput>Strings.Designer.fs</LastGenOutput>
@@ -23,12 +22,12 @@
       <DependentUpon>Strings.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <Compile Include="src\ReadLockCookieUtil.fs" />
+    <Compile Include="src\ZoneMarkerServices.fs" />
     <EmbeddedResource Include="src\FileTemplates\FileTemplates.xml">
       <LogicalName>JetBrains.ReSharper.Plugins.FSharp.Templates.FileTemplates.xml</LogicalName>
     </EmbeddedResource>
-    <Compile Include="src\ReadLockCookieUtil.fs" />
     <Compile Include="src\Util\FSharpVisualElementFactory.fs" />
-    <Compile Include="src\CodeCompletion\FSharpCompletionUtil.fs" />
     <Compile Include="src\CodeCompletion\FSharpCodeCompletionContext.fs" />
     <Compile Include="src\CodeCompletion\FcsLookupItem.fs" />
     <Compile Include="src\CodeCompletion\Strategies\FSharpAutopopupStrategies.fs" />
@@ -42,8 +41,10 @@
     <Compile Include="src\CodeCompletion\Rules\ImportRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\GenerateMatchExprPatternsRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\NamedUnionCaseFieldsPatRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\LocalValuesRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\FSharpKeywordsRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\OverrideMemberRule.fs" />
     <Compile Include="src\CodeCompletion\FSharpScriptReferenceCompletionProvider.fs" />
-    <Compile Include="src\CodeCompletion\FSharpKeywordsProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionProviders.fs" />
     <Compile Include="src\CodeStructure\FSharpCodeStructure.fs" />
     <Compile Include="src\CodeStructure\FSharpGotoClassMemberProvider.fs" />
@@ -61,7 +62,6 @@
     <Compile Include="src\Foldings\FSharpCodeFoldings.fs" />
     <Compile Include="src\Search\FSharpItemOccurrenceKind.fs" />
     <Compile Include="src\Search\FSharpPathReference.fs" />
-    <Compile Include="src\Search\FSharpSearchGuru.fs" />
     <Compile Include="src\Search\FSharpGeneratedElementsSearch.fs" />
     <Compile Include="src\Search\RecordCtorSearch.fs" />
     <Compile Include="src\ExtendSelection\FSharpExtendSelectionProvider.fs" />
@@ -87,6 +87,8 @@
     <Compile Include="src\PostfixTemplates\PostfixTemplates.fs" />
     <Compile Include="src\PostfixTemplates\NotTemplate.fs" />
     <Compile Include="src\PostfixTemplates\LetPostfixTemplate.fs" />
+    <Compile Include="src\PostfixTemplates\NewRecordPostfixTemplate.fs" />
+    <Compile Include="src\PostfixTemplates\NewObjPostfixTemplate.fs" />
     <Compile Include="src\PostfixTemplates\MatchPostfixTemplate.fs" />
     <Compile Include="src\PostfixTemplates\ForPostfixTemplate.fs" />
     <Compile Include="src\PostfixTemplates\WithPostfixTemplate.fs" />
@@ -103,6 +105,7 @@
     <Compile Include="src\LanguageService\FSharpQuickDefinitionService.fs" />
     <Compile Include="src\LanguageService\SandboxDocumentLanguageSupportFSharpScript.fs" />
     <Compile Include="src\LanguageService\FSharpLanguageSpecificCopyPasteBehavior.fs" />
+    <Compile Include="src\StickyLines\FSharpStickyLinesProcessorFactory.fs" />
     <Compile Include="src\Internal\FSharpInternalActionGroup.fs" />
     <Compile Include="src\Injected\FSharpInjectionUtil.fs" />
     <Compile Include="src\Injected\FSharpLiteralInjectionTarget.fs" />
@@ -113,6 +116,8 @@
     <Compile Include="src\AI\FSharpLanguageOrTechnologyChatContextProvider.fs" />
     <Compile Include="src\AI\ZoneMarker.fs" />
     <Compile Include="src\AI\FSharpDocGenSupportProvider.fs" />
+    <Compile Include="src\AI\FSharpFileSummarizer.fs" />
+    <Compile Include="src\AI\FSharpCodeSetNodesFactory.fs" />
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
   </ItemGroup>

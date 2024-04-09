@@ -3,7 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.PostfixTemplates
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates.Contexts
 open JetBrains.ReSharper.Plugins.FSharp.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion.FSharpCompletionUtil
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
@@ -23,7 +23,7 @@ type MatchPostfixTemplate() =
 
     override this.IsApplicable(node) =
         let expr = node.As<IFSharpExpression>()
-        FSharpPostfixTemplates.canBecomeStatement expr
+        FSharpPostfixTemplates.canBecomeStatement true expr
 
     override this.IsEnabled _ = true
 

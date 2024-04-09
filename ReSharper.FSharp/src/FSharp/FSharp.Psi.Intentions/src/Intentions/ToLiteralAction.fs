@@ -11,7 +11,7 @@ open JetBrains.ReSharper.Resources.Shell
 module ToLiteralAction =
     let [<Literal>] Description = "Make value literal (const) by adding Literal attribute"
 
-[<ContextAction(Name = "ToLiteral", Group = "F#", Description = ToLiteralAction.Description)>]
+[<ContextAction(Name = "ToLiteral", GroupType = typeof<FSharpContextActions>, Description = ToLiteralAction.Description)>]
 type ToLiteralAction(dataProvider: FSharpContextActionDataProvider) =
     inherit FSharpContextActionBase(dataProvider)
 
@@ -48,6 +48,7 @@ type ToLiteralAction(dataProvider: FSharpContextActionDataProvider) =
         if not (isValid binding && binding.GetNameRange().Contains(dataProvider.SelectedTreeRange)) then false else
 
         if not (isSimplePattern binding.HeadPattern) then false else
+        if not (Seq.isEmpty binding.ParameterPatternsEnumerable) then false else
         if hasLiteralAttribute binding.AttributesEnumerable then false else
 
         let expr = binding.Expression

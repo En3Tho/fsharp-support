@@ -12,10 +12,9 @@ open JetBrains.ReSharper.Feature.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Intentions.Deconstruction
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpPatternUtil
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpPatternUtil.ParentTraversal
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.MatchTree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
@@ -41,14 +40,16 @@ type UnionCaseFieldsBehaviour(info) =
         let parametersOwnerPat = TextControlToPsi.GetElement<IParametersOwnerPat>(solution, nameRange.EndOffset)
         let psiServices = parametersOwnerPat.GetPsiServices()
 
-        use prohibitTypeCheckCookie = ProhibitTypeCheckCookie.Create()
-        use writeCookie = WriteLockCookie.Create(parametersOwnerPat.IsPhysical())
-        use cookie = CompilationContextCookie.GetOrCreate(parametersOwnerPat.GetPsiModule().GetContextFromModule())
-        use transactionCookie =
-            PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, nameof UnionCaseFieldsBehaviour)
+        let action =
+            use prohibitTypeCheckCookie = ProhibitTypeCheckCookie.Create()
+            use writeCookie = WriteLockCookie.Create(parametersOwnerPat.IsPhysical())
+            use cookie = CompilationContextCookie.GetOrCreate(parametersOwnerPat.GetPsiModule().GetContextFromModule())
+            use transactionCookie =
+                PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, nameof UnionCaseFieldsBehaviour)
 
-        let pat = parametersOwnerPat.ParametersEnumerable.FirstOrDefault()
-        let action = FSharpDeconstruction.deconstruct false parametersOwnerPat info.Deconstruction pat
+            let pat = parametersOwnerPat.ParametersEnumerable.FirstOrDefault()
+            FSharpDeconstruction.deconstruct false parametersOwnerPat info.Deconstruction pat
+
         if isNotNull action then
             action.Invoke(textControl)
 
@@ -94,12 +95,12 @@ type UnionCaseFieldsPatternRule() =
         let matchExpr = MatchExprNavigator.GetByClause(matchClause)
         isNotNull matchExpr &&
 
-        let topLevelPattern, patternPath = ParentTraversal.makePatPath parametersOwnerPat
+        let topLevelPattern, patternPath = makePatPath parametersOwnerPat
         topLevelPattern == matchClause.Pattern &&
 
-        let matchType = MatchTree.getMatchExprMatchType matchExpr
+        let matchType = getMatchExprMatchType matchExpr
         let matchValue = { Type = matchType; Path = [] }
-        let pattern = MatchTree.ofMatchClause matchValue matchClause
+        let pattern = ofMatchClause matchValue matchClause
         let matchNode = MatchNode.Create(matchValue, pattern)
 
         let rec navigatePath (path: PatternParentTraverseStep list) (matchNode: MatchNode) =
@@ -113,7 +114,7 @@ type UnionCaseFieldsPatternRule() =
                 |> List.tryItem i
                 |> Option.bind (navigatePath restPath)
 
-            | PatternParentTraverseStep.Or(i, _), (MatchTest.Or _, nodes) ->
+            | PatternParentTraverseStep.Or(i, _), (MatchTest.Or, nodes) ->
                 nodes
                 |> List.tryItem i
                 |> Option.bind (navigatePath restPath)

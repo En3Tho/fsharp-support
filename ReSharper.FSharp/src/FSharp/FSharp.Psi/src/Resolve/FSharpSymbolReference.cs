@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using FSharp.Compiler.CodeAnalysis;
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
@@ -13,6 +14,7 @@ using JetBrains.ReSharper.Psi.ExtensionsAPI;
 using JetBrains.ReSharper.Psi.ExtensionsAPI.Resolve;
 using JetBrains.ReSharper.Psi.Resolve;
 using JetBrains.ReSharper.Resources.Shell;
+using JetBrains.Util;
 using JetBrains.Util.DataStructures;
 using Microsoft.FSharp.Core;
 
@@ -53,10 +55,27 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
         return ResolveResultWithInfo.Ignore;
 
       var element = GetDeclaredElement();
+      if (element == null)
+        return ResolveResultWithInfo.Ignore;
 
-      return element != null
-        ? new ResolveResultWithInfo(new SimpleResolveResult(element), ResolveErrorType.OK) // todo: add substitutions
-        : ResolveResultWithInfo.Ignore;
+      if (element is ITypeElement typeElement && GetFcsSymbol() is FSharpEntity { GenericArguments: var inst } && !inst.IsEmpty())
+      {
+        var types = inst.Select(fcsTypeArg => fcsTypeArg.MapType(myOwner)).ToList();
+        var substitution = typeElement.IdSubstitution.Extend(typeElement.TypeParameters, types);
+
+        var resolveResult = new SimpleResolveResultWithSubstitution(element, substitution);
+        return new ResolveResultWithInfo(resolveResult, ResolveErrorType.OK);
+      }
+
+      return new ResolveResultWithInfo(new SimpleResolveResult(element), ResolveErrorType.OK);
+    }
+
+    public IDeclaredType ResolveType()
+    {
+      var resolveResult = Resolve();
+      return resolveResult.DeclaredElement is ITypeElement typeElement
+        ? TypeFactory.CreateType(typeElement, resolveResult.Substitution)
+        : null;
     }
 
     protected virtual IDeclaredElement GetDeclaredElement()

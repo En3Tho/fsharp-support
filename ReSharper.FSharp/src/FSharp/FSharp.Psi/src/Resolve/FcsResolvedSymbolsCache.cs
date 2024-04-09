@@ -69,8 +69,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
     private void Invalidate(FcsProjectKey projectKey)
     {
-      myLocks.AssertWriteAccessAllowed();
-
       InvalidateReferencingModules(projectKey);
       if (ProjectSymbolsCaches.TryGetValue(projectKey, out var symbols) && symbols.FcsProject is { } fcsProject)
       {
@@ -186,6 +184,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 
       foreach (var sourceFile in myDirtyFiles)
       {
+        if (!sourceFile.IsValid())
+          continue;
+
         if (IsFSharpFile(sourceFile))
           Invalidate(sourceFile);
         else

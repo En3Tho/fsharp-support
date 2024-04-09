@@ -1,0 +1,6 @@
+﻿// ${COMPLETE_ITEM:override ToString()}
+module Module
+
+type A() =
+    override this.ToString() = failwith "todo"{caret}
+    member _.Bar = 1

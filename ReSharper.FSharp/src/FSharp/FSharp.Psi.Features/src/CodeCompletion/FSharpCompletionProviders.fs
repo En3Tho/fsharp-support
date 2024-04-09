@@ -16,6 +16,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Util
@@ -67,9 +68,10 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
         obj()
 
     member x.AddLookupItems(context: FSharpCodeCompletionContext, collector: IItemsCollector) =
-        let fcsContext = context.FcsCompletionContext
+        let reparsedContext = context.ReparsedContext
+        let reparsedFcsContext = reparsedContext.GetFcsContext()
 
-        match fcsContext.CompletionContext with
+        match reparsedFcsContext.CompletionContext with
         | Some(CompletionContext.Invalid) -> false
         | _ ->
 
@@ -89,6 +91,7 @@ type FSharpLookupItemsProviderBase(logger: ILogger, filterResolved, getAllSymbol
                 item.Name.StartsWith(PrettyNaming.FsiDynamicModulePrefix, StringComparison.Ordinal)
 
             let parseResults = fsFile.ParseResults
+            let fcsContext = context.FcsCompletionContext
             let line = int fcsContext.Coords.Line + 1
 
             let isAttributeReferenceContext = context.IsInAttributeContext
@@ -168,6 +171,9 @@ type FSharpLibraryScopeLookupItemsProvider(logger: ILogger, assemblyContentProvi
 
         member x.GetDefaultRanges(context) = base.GetDefaultRanges(context)
         member x.AddLookupItems(context, collector, _) =
+            let basicContext = context.BasicContext
+            if FSharpCodeCompletionContext.isFullEvaluationDisabled basicContext then false else
+
             base.AddLookupItems(context :?> FSharpCodeCompletionContext, collector)
 
         member x.TransformItems(_, _, _) = ()

@@ -185,12 +185,18 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
                 else x.Mark()
 
             x.ProcessAttributeLists(attrs)
-            x.ProcessImplicitCtorSimplePats(args)
+            x.ProcessPrimaryCtorParams(args)
             x.ProcessCtorSelfId(selfId)
 
             x.Done(range, mark, ElementType.PRIMARY_CONSTRUCTOR_DECLARATION)
 
         | _ -> failwithf "Expecting primary constructor, got: %A" typeMember
+
+    member x.ProcessPrimaryCtorParams(pat: SynPat) =
+        let range = pat.Range
+        let paramMark = x.Mark(range)
+        x.ProcessPat(pat, true, false)
+        x.Done(range, paramMark, ElementType.PARAMETERS_PATTERN_DECLARATION)
 
     member x.ProcessTypeMember(typeMember: SynMemberDefn) =
         match typeMember with
@@ -313,7 +319,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
                 match lid with
                 | [_] ->
                     match valData with
-                    | SynValData(Some(flags), _, selfId, _) when flags.MemberKind = SynMemberKind.Constructor ->
+                    | SynValData(Some(flags), _, selfId) when flags.MemberKind = SynMemberKind.Constructor ->
                         x.ProcessPatternParams(memberParams, true, true) // todo: should check isLocal
                         x.ProcessCtorSelfId(selfId)
 
@@ -323,7 +329,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
                     | _ ->
                         match accessorId with
                         | Some _ ->
-                            x.ProcessAccessor(range, memberParams, expr, attrLists, accessorsStart)
+                            x.ProcessAccessor(range, memberParams, expr, attrLists, accessorsStart, returnInfo)
                             ElementType.MEMBER_DECLARATION
                         | _ ->
 
@@ -338,7 +344,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
 
                     match accessorId with
                     | Some _ ->
-                        x.ProcessAccessor(range, memberParams, expr, attrLists, accessorsStart)
+                        x.ProcessAccessor(range, memberParams, expr, attrLists, accessorsStart, returnInfo)
                         ElementType.MEMBER_DECLARATION
                     | _ ->
 
@@ -355,7 +361,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             | _ -> ElementType.MEMBER_DECLARATION
 
         match valData with
-        | SynValData(Some(flags), _, _, _) when
+        | SynValData(Some(flags), _, _) when
                 flags.MemberKind = SynMemberKind.PropertyGet || flags.MemberKind = SynMemberKind.PropertySet ->
             if expr.Range.End <> range.End then
                 unfinishedDeclaration <- Some(mark, range, ElementType.MEMBER_DECLARATION)
@@ -364,7 +370,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
 
         elType
 
-    member x.ProcessAccessor(range: range, memberParams, expr, attrLists, accessorsStart) =
+    member x.ProcessAccessor(range: range, memberParams, expr, attrLists, accessorsStart, returnInfo) =
         let attrs =
             match accessorsStart with
             | Some pos -> attrLists |> List.skipWhile (fun attrList -> Position.posLt attrList.Range.Start pos)
@@ -384,6 +390,7 @@ type FSharpImplTreeBuilder(lexer, document, decls, lifetime, path, projectedOffs
             | _ -> memberParams
 
         x.ProcessPatternParams(memberParams, true, true)
+        x.ProcessReturnInfo(returnInfo)
         x.MarkChameleonExpression(expr)
         x.Done(mark, ElementType.ACCESSOR_DECLARATION)
 
@@ -984,6 +991,11 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             let expr = match expr with | SynExpr.ComputationExpr(expr = expr) -> expr | _ -> expr
             x.PushRangeAndProcessExpression(expr, range, if isArray then ElementType.ARRAY_EXPR else ElementType.LIST_EXPR)
 
+        | SynExpr.ComputationExpr(_, SynExpr.New(_, synType, argExpr, _), range) ->
+            x.PushRange(range, ElementType.OBJ_EXPR)
+            x.PushExpression(argExpr)
+            x.ProcessTypeAsTypeReferenceName(synType)
+
         | SynExpr.ComputationExpr(_, expr, _) ->
             x.PushRangeAndProcessExpression(expr, range, ElementType.COMPUTATION_EXPR)
 
@@ -1374,10 +1386,12 @@ type FSharpExpressionTreeBuilder(lexer, document, lifetime, path, projectedOffse
             x.PushExpressionList(rest)
             x.ProcessExpression(expr)
 
-    member x.ProcessInterfaceImplementation(SynInterfaceImpl(interfaceType, _, _, memberDefns, range)) =
-        x.PushRange(range, ElementType.INTERFACE_IMPLEMENTATION)
+    member x.ProcessInterfaceImplementation(SynInterfaceImpl(interfaceType, withKeyword, _, memberDefns, range)) =
+        x.AdvanceToStart(range)
+        x.PushStep({ Mark = x.Mark(); ElementType = ElementType.INTERFACE_IMPLEMENTATION }, endNodeProcessor)
         x.PushStep((), finishObjectExpressionMemberListProcessor)
         x.ProcessTypeAsTypeReferenceName(interfaceType)
+        withKeyword |> Option.iter x.AdvanceToEnd
         x.PushStepList(memberDefns, objectExpressionMemberListProcessor)
 
     member x.ProcessRecordFieldBindingList(fields: SynExprRecordField list) =

@@ -9,9 +9,9 @@ open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.AspectLo
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupItems
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI
@@ -65,7 +65,7 @@ type GenerateMatchExprPatternsBehavior(info) =
 
             MatchTree.generateClauses matchExpr value nodes deconstructions
 
-        let range = matchExpr.Clauses[0].Expression.GetNavigationRange()
+        let range = matchExpr.Clauses[0].Expression.GetDocumentRange()
         textControl.Caret.MoveTo(range.EndOffset, CaretVisualPlacement.DontScrollIfVisible)
         textControl.Selection.SetRange(range)
 

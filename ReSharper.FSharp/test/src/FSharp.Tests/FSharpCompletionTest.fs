@@ -6,6 +6,7 @@ open JetBrains.ReSharper.Feature.Services.CSharp.CodeCompletion.Settings
 open JetBrains.ReSharper.FeaturesTestFramework.Completion
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion.Rules
 open JetBrains.ReSharper.Plugins.FSharp.Services.Formatter
 open JetBrains.ReSharper.Plugins.FSharp.Settings
 open JetBrains.ReSharper.Plugins.FSharp.Tests
@@ -48,8 +49,23 @@ type FSharpCompletionTest() =
 
     [<Test>] member x.``Local val - Binary op 01``() = x.DoNamedTest()
     [<Test>] member x.``Local val - Binary op 02``() = x.DoNamedTest()
-    [<Test; Explicit("Needs reparse")>] member x.``Local val - New line 01``() = x.DoNamedTest()
-    [<Test; Explicit("Needs reparse")>] member x.``Local val - New line 02``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 01``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 02``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 03``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 04``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 05``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 06``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 07``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 08``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 09``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 10``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 11``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 12``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 13``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 14``() = x.DoNamedTest()
+    [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 15``() = x.DoNamedTest()
+    [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 16``() = x.DoNamedTest()
+    [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 17``() = x.DoNamedTest()
 
     [<Test; Explicit>] member x.``Lambda - Arg - Curried - Expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Lambda - Arg - Curried - Tuple 01 - First``() = x.DoNamedTest()
@@ -202,6 +218,26 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Interpolated string 03 - Middle``() = x.DoNamedTest()
     [<Test>] member x.``Interpolated string 03 - End``() = x.DoNamedTest()
 
+    [<Test>] member x.``Override member - ObjExpr - Interface 01`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - ObjExpr 01`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - ObjExpr 02`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - ObjExpr 03`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - ObjExpr 04`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - Property 01`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - Property 02`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - Property 03`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member - Property 04`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 01`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 02`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 03`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 04`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 05`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 06`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 07`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 08`` () = x.DoNamedTest()
+    [<Test>] member x.``Override member 09`` () = x.DoNamedTest()
+
+
 [<FSharpTest; FSharpExperimentalFeature(ExperimentalFeature.PostfixTemplates)>]
 type FSharpPostfixCompletionTest() =
     inherit CodeCompletionTestBase()
@@ -324,6 +360,17 @@ type FSharpPostfixCompletionTest() =
     [<Test>] member x.``Match - Bool 02``() = x.DoNamedTest()
     [<Test>] member x.``Match - Tuple 01``() = x.DoNamedTest()
     [<Test>] member x.``Match - Tuple 02``() = x.DoNamedTest()
+
+    [<Test>] member x.``New 01``() = x.DoNamedTest()
+
+    [<Test>] member x.``Obj - Class - Generic 01``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Class - Generic 02``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Class 01``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Class 02``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Class 03``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Interface - Generic 01``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Interface 01``() = x.DoNamedTest()
+    [<Test>] member x.``Obj - Interface 02``() = x.DoNamedTest()
 
     [<Test>] member x.``Not available - Let - Open 01``() = x.DoNamedTest()
     [<Test>] member x.``Not available - Let - Namespace 01``() = x.DoNamedTest()
@@ -562,6 +609,7 @@ type FSharpCodeCompletionTypingTest() =
     [<Test>] member x.``Space - NamedUnionCaseField 01`` () = x.DoNamedTest()
     [<Test>] member x.``Space - NamedUnionCaseField 02`` () = x.DoNamedTest()
     [<Test>] member x.``Space - NamedUnionCaseField 03`` () = x.DoNamedTest()
+
 
 [<FSharpTest>]
 type FSharpSelectionCompletionTest() =

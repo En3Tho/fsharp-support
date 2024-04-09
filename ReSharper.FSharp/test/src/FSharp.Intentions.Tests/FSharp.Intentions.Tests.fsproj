@@ -58,6 +58,8 @@
     <Compile Include="src\Intentions\RenameFileToMatchTypeNameTest.fs" />
     <Compile Include="src\Intentions\DeconstructPatternTest.fs" />
     <Compile Include="src\Intentions\UseNamedAccessTest.fs" />
+    <Compile Include="src\Intentions\ToPositionalFieldPatternsTest.fs" />
+    <Compile Include="src\Intentions\DisableWarningTest.fs" />
     <Compile Include="src\QuickFixes\FSharpQuickFixTestBase.fs" />
     <Compile Include="src\QuickFixes\ReplaceUseWithLetTest.fs" />
     <Compile Include="src\QuickFixes\RemoveUnusedSelfIdVariableFix.fs" />
@@ -128,6 +130,7 @@
     <Compile Include="src\QuickFixes\UpdateMutabilityInSignatureFixTest.fs" />
     <Compile Include="src\QuickFixes\UseNestedRecordFieldSyntaxTest.fs" />
     <Compile Include="src\QuickFixes\ReplaceWithDotLambdaTest.fs" />
+    <Compile Include="src\QuickFixes\ToObjectExprTest.fs" />
     <Compile Include="src\QuickDoc\QuickDocTest.fs" />
   </ItemGroup>
 
@@ -138,6 +141,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <PackageReference Include="FSharp.Core" />
     <PackageReference Include="JetBrains.FSharp.Compiler.Service" />
     <PackageReference Include="JetBrains.Lifetimes" />
     <PackageReference Include="JetBrains.NuGet.Packaging" />

@@ -726,14 +726,14 @@ whileExpr options { stubBase="UnitExpressionBase"; }:
 objExpr options { stubBase="FSharpTypeElementDeclarationBase"; } extras {
   get { methodName="InterfaceMembers" path=<objExpr:INTERFACE_IMPL/interfaceImplementation:MEMBER_DECL> };
 }:
-  LBRACE
-  NEW
+  LBRACE<LEFT_BRACE, LeftBrace>
+  NEW<NEW, NewKeyword>
   typeReferenceName<TYPE_REFERENCE, TypeName>
   fSharpExpression<ARG_EXPR, ArgExpression>
   WITH<WITH, WithKeyword>
   overridableMemberDeclaration<MEMBER_DECL, MemberDeclarations>*
   interfaceImplementation<INTERFACE_IMPL, InterfaceImplementations>*
-  RBRACE;
+  RBRACE<RIGHT_BRACE, RightBrace>;
 
 computationExpr options { stubBase="FSharpExpressionBase"; }:
   LBRACE
@@ -1480,6 +1480,7 @@ accessorDeclaration options { stubBase="FSharpProperTypeMemberDeclarationBase"; 
   IDENTIFIER<IDENTIFIER, Identifier>
   (
     parametersPatternDeclaration<PARAMETERS_DECL, ParametersDeclarations>*
+    returnTypeInfo<RETURN_INFO, ReturnTypeInfo>
     EQUALS<FSHARP_EQUALS, EqualsToken>
     chameleonExpression<CHAMELEON_EXPR, BodyExpression>
   )?;

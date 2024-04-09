@@ -5,7 +5,6 @@ open System.Linq
 open FSharp.Compiler.Symbols
 open JetBrains.Application.Threading
 open JetBrains.ProjectModel
-open JetBrains.ReSharper.Feature.Services.Bulbs
 open JetBrains.ReSharper.Feature.Services.LiveTemplates.Hotspots
 open JetBrains.ReSharper.Feature.Services.Navigation.CustomHighlighting
 open JetBrains.ReSharper.Feature.Services.PostfixTemplates
@@ -98,7 +97,7 @@ type ForPostfixTemplate() =
         fcsType.IsGenericParameter && Seq.isEmpty fcsType.AllInterfaces
 
     let isApplicable (expr: IFSharpExpression) =
-        if not (FSharpPostfixTemplates.canBecomeStatement expr) then false else
+        if not (FSharpPostfixTemplates.canBecomeStatement true expr) then false else
 
         let wholeExpr =
             expr
@@ -187,7 +186,7 @@ and ForPostfixTemplateBehavior(info: ForPostfixTemplateInfo) =
             forEachExpr.SetPattern(pat) |> ignore
         ) |> ignore
 
-        let dummy () =
+        let createHotspots () =
             use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, id)
             use writeCookie = WriteLockCookie.Create(node.IsPhysical())
             use disableFormatter = new DisableCodeFormatter()
@@ -198,14 +197,16 @@ and ForPostfixTemplateBehavior(info: ForPostfixTemplateInfo) =
             let endOffset = forEachExpr.DoExpression.GetDocumentStartOffset()
             ModificationUtil.DeleteChild(forEachExpr.DoExpression)
 
-            BulbActionUtils.ExecuteHotspotSession(hotspotsRegistry, endOffset).Invoke(textControl)
+            // do after transaction
+            fun () -> FSharpPostfixTemplates.showHotspots textControl hotspotsRegistry endOffset
+
 
         match fcsType with
-        | None -> dummy ()
+        | None -> createHotspots () ()
         | Some fcsType ->
 
         match FSharpDeconstruction.tryGetDeconstruction forEachExpr fcsType with
-        | None -> dummy ()
+        | None -> createHotspots () ()
         | Some(deconstruction) ->
 
         textControl.Caret.MoveTo(forEachExpr.Pattern.GetDocumentEndOffset(), CaretVisualPlacement.DontScrollIfVisible)
@@ -224,18 +225,21 @@ and ForPostfixTemplateBehavior(info: ForPostfixTemplateInfo) =
             if isNull selectedOccurrence then () else
 
             let deconstruction = selectedOccurrence.Entities.FirstOrDefault()
-            if isNull deconstruction then dummy () else
+            if isNull deconstruction then createHotspots () () else
 
-            use writeCookie = WriteLockCookie.Create(node.IsPhysical())
-            use disableFormatter = new DisableCodeFormatter()
-            use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, id)
-            use cookie = CompilationContextCookie.GetOrCreate(node.GetPsiModule().GetContextFromModule())
+            let hotspotsRegistry, endOffset =
+                use writeCookie = WriteLockCookie.Create(node.IsPhysical())
+                use disableFormatter = new DisableCodeFormatter()
+                use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, id)
+                use cookie = CompilationContextCookie.GetOrCreate(node.GetPsiModule().GetContextFromModule())
 
-            match FSharpDeconstructionImpl.deconstructImpl false deconstruction forEachExpr.Pattern with
-            | Some(hotspotsRegistry, _) ->
-                let endOffset = forEachExpr.DoExpression.GetDocumentStartOffset()
-                ModificationUtil.DeleteChild(forEachExpr.DoExpression)
+                match FSharpDeconstructionImpl.deconstructImpl false deconstruction forEachExpr.Pattern with
+                | Some(hotspotsRegistry, _) ->
+                    let endOffset = forEachExpr.DoExpression.GetDocumentStartOffset()
+                    ModificationUtil.DeleteChild(forEachExpr.DoExpression)
 
-                BulbActionUtils.ExecuteHotspotSession(hotspotsRegistry, endOffset).Invoke(textControl)
-            | _ -> failwith id
+                    hotspotsRegistry, endOffset
+                | _ -> failwith id
+
+            FSharpPostfixTemplates.showHotspots textControl hotspotsRegistry endOffset
         )

@@ -14,8 +14,8 @@ open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.LookupIt
 open JetBrains.ReSharper.Feature.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
@@ -24,6 +24,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Resources
 open JetBrains.ReSharper.Psi.Transactions
+open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.TextControl
 
@@ -78,7 +79,7 @@ type EnumCaseLikePatternBehavior<'T when 'T :> FSharpSymbol>(info: EnumCaseLikeP
 
             FSharpPatternUtil.bindFcsSymbol pat info.Case UnionCasePatternInfo.Id
 
-        textControl.Caret.MoveTo(pat.GetNavigationRange().EndOffset, CaretVisualPlacement.DontScrollIfVisible)
+        textControl.Caret.MoveTo(pat.GetDocumentRange().EndOffset, CaretVisualPlacement.DontScrollIfVisible)
 
 
 type UnionCasePatternBehavior(info) =

@@ -8,10 +8,10 @@ open JetBrains.ProjectModel
 open JetBrains.ReSharper.Intentions.QuickFixes
 open JetBrains.ReSharper.Plugins.FSharp.Checker
 open JetBrains.ReSharper.Plugins.FSharp.Psi
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Search
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Plugins.FSharp.Util
@@ -156,9 +156,9 @@ type FSharpImportTypeHelper() =
             let factory = importTypeCacheFactory.Invoke(context)
 
             let canReferenceInsideProject typeElement =
-                let searchGuru = psiModule.GetSolution().GetComponent<FSharpSearchGuru>() :> ISearchGuru
-                let elementId = searchGuru.GetElementId(typeElement)
-                searchGuru.CanContainReferences(sourceFile, elementId)
+                let searchFilter = psiModule.GetSolution().GetComponent<FSharpSearchFilter>() :> ISearchFilter
+                let elementKey = searchFilter.TryGetKey(typeElement)
+                searchFilter.CanContainReferences(sourceFile, elementKey)
 
             let fsAssemblyAutoOpenCache = psiModule.GetSolution().GetComponent<FSharpAssemblyAutoOpenCache>()
 

@@ -252,6 +252,7 @@ type FSharpParserTest() =
     [<Test>] member x.``Expr - CompExpr - Arg 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - Let 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - LetAnd 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - CompExpr - New 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - Range 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr - Range 02 - Step``() = x.DoNamedTest()
     [<Test>] member x.``Expr - CompExpr 01 - Return``() = x.DoNamedTest()
@@ -619,6 +620,8 @@ type FSharpParserTest() =
     [<Test>] member x.``Type member - Member - Property - Accessors 06``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property - Accessors 07``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property - Accessors 08 - Attributes``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 10 - Return``() = x.DoNamedTest()
+    [<Test>] member x.``Type member - Member - Property - Accessors 11 - Return``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 01``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 02 - Static``() = x.DoNamedTest()
     [<Test>] member x.``Type member - Member - Property 03 - Access modifier``() = x.DoNamedTest()
@@ -850,6 +853,8 @@ type FSharpErrorsParserTest() =
     [<Test>] member x.``Expr - Interpolated string - Unfinished 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Interpolated string - Unfinished 02``() = x.DoNamedTest()
 
+    [<Test>] member x.``Expr - Object expr - Interface 01``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Object expr - Interface 02``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Object expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Object expr 02``() = x.DoNamedTest()
 

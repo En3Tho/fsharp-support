@@ -58,21 +58,21 @@ type GenerateInterfaceMembersFix(impl: IInterfaceImplementation) =
         use writeCookie = WriteLockCookie.Create(impl.IsPhysical())
         use disableFormatter = new DisableCodeFormatter()
 
-        let typeDeclaration =
+        let typeDeclaration: IFSharpTypeElementDeclaration =
             match FSharpTypeDeclarationNavigator.GetByTypeMember(impl) with
             | null ->
-                let repr = ObjectModelTypeRepresentationNavigator.GetByTypeMember(impl)
-                FSharpTypeDeclarationNavigator.GetByTypeRepresentation(repr)
+                match ObjExprNavigator.GetByInterfaceImplementation(impl) with
+                | null ->
+                    let repr = ObjectModelTypeRepresentationNavigator.GetByTypeMember(impl)
+                    FSharpTypeDeclarationNavigator.GetByTypeRepresentation(repr)
+                | objExpr -> objExpr
             | decl -> decl
 
         let psiModule = typeDeclaration.GetPsiModule()
         let typeElement = typeDeclaration.DeclaredElement
-        let fcsEntity = typeDeclaration.GetFcsSymbol() :?> FSharpEntity
-
-        let interfaceType = 
-            fcsEntity.DeclaredInterfaces |> Seq.find (fun e ->
-                e.HasTypeDefinition && e.TypeDefinition.IsEffectivelySameAs(impl.FcsEntity))
-
+        let fcsEntity = impl.FcsEntity
+        let inst = Seq.zip fcsEntity.GenericParameters fcsEntity.GenericArguments |> List.ofSeq
+        let interfaceType = fcsEntity.AsType().Instantiate(inst)
         let existingMemberDecls = impl.TypeMembers
 
         let getXmlDocId (typeMember: ITypeMember) =
@@ -171,8 +171,9 @@ type GenerateInterfaceMembersFix(impl: IInterfaceImplementation) =
                 existingMemberDecls.Last().Indent
 
         let generatedMembers =
+            let mayHaveBaseCalls = GenerateOverrides.mayHaveBaseCalls typeDeclaration
             membersToGenerate
-            |> List.map (GenerateOverrides.generateMember impl indent)
+            |> List.map (GenerateOverrides.generateMember impl mayHaveBaseCalls indent)
             |> List.collect (withNewLineAndIndentBefore indent)
 
         let existingMembers = impl.TypeMembers

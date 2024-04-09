@@ -13,6 +13,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement.CompilerGenerated
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Searching
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
@@ -237,9 +238,9 @@ type FSharpDeclaredElementForRenameProvider() =
 type SingleUnionCaseRenameEvaluator() =
     interface IDerivedRenamesEvaluator with
         member x.SuggestedElementsHaveDerivedName = false
-        member x.CreateFromReference(_, _) = EmptyList.Instance :> _
+        member x.CreateFromReference(_, _, _) = EmptyList.Instance :> _
 
-        member x.CreateFromElement(initialElement, _) =
+        member x.CreateFromElement(initialElement, _, _) =
             let isApplicable (typeElement: ITypeElement) =
                 typeElement.IsUnion() &&
 
@@ -265,9 +266,9 @@ type SingleUnionCaseRenameEvaluator() =
 type AssociatedTypeRenameEvaluator() =
     interface IDerivedRenamesEvaluator with
         member x.SuggestedElementsHaveDerivedName = false
-        member x.CreateFromReference(_, _) = EmptyList.Instance :> _
+        member x.CreateFromReference(_, _, _) = EmptyList.Instance :> _
 
-        member x.CreateFromElement(initialElement, _) =
+        member x.CreateFromElement(initialElement, _, _) =
             match initialElement.FirstOrDefault() with
             | :? IFSharpModule as fsModule ->
                 let associatedTypeElement = fsModule.AssociatedTypeElement
@@ -295,3 +296,11 @@ type AssociatedTypeRenameEvaluator() =
                 associatedModule |> Option.toList |> Seq.cast
 
             | _ -> [] :> _
+
+[<SolutionComponent>]
+type FSharpSuspiciousReferenceSearchService(searchFilter: FSharpSearchFilter) =
+    inherit SuspiciousReferencesSearchService()
+
+    override this.TryGetKey(declaredElement, newName) = searchFilter.TryGetKey(declaredElement)
+    override this.CanContainSuspiciousReferences(sourceFile, key) = searchFilter.CanContainReferences(sourceFile, key)
+

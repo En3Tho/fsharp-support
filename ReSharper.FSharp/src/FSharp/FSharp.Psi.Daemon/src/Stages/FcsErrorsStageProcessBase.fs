@@ -11,10 +11,12 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Stages
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.Tree
 open JetBrains.Util
 
 #nowarn "57"
@@ -79,8 +81,10 @@ module FSharpErrors =
     let [<Literal>] ConstructRequiresListArrayOrSequence = 747
     let [<Literal>] ConstructRequiresComputationExpression = 748
     let [<Literal>] ObjectOfIndeterminateTypeUsedRequireTypeConstraint = 752
+    let [<Literal>] AbstractTypeCannotBeInstantiated = 759
     let [<Literal>] FieldRequiresAssignment = 764
     let [<Literal>] EmptyRecordInvalid = 789
+    let [<Literal>] InvalidUseOfTypeName = 800
     let [<Literal>] PropertyIsStatic = 809
     let [<Literal>] PropertyCannotBeSet = 810
     let [<Literal>] LocalClassBindingsCannotBeInline = 894
@@ -370,7 +374,7 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
                 error
         
         | NoImplementationGiven ->
-            let node = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
+            let node = nodeSelectionProvider.GetExpressionInRange<ITreeNode>(fsFile, range, false, null)
             match node.Parent with
             | :? IFSharpTypeDeclaration as typeDecl when typeDecl.Identifier == node ->
                 NoImplementationGivenInTypeError(typeDecl, error.Message) :> _
@@ -383,10 +387,20 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
                 let impl = InterfaceImplementationNavigator.GetByTypeName(typeName)
                 NoImplementationGivenInInterfaceError(impl, error.Message) :> _
 
+            | _ ->
+                
+            match node with
+            | :? IObjExpr as objExpr -> NoImplementationGivenInTypeWithSuggestionError(objExpr, error.Message) :> _
             | _ -> createGenericHighlighting error range
 
         | NoImplementationGivenWithSuggestion ->
-            let node = nodeSelectionProvider.GetExpressionInRange(fsFile, range, false, null)
+            let token = fsFile.FindTokenAt(range.StartOffset + 1)
+            let impl = (getParent token).As<IInterfaceImplementation>()
+            if getTokenType token == FSharpTokenType.INTERFACE &&
+                    isNotNull (ObjExprNavigator.GetByInterfaceImplementation(impl)) then
+                NoImplementationGivenInInterfaceWithSuggestionError(impl, error.Message) :> _ else
+
+            let node = nodeSelectionProvider.GetExpressionInRange<ITreeNode>(fsFile, range, false, null)
             match node.Parent with
             | :? IFSharpTypeDeclaration as typeDecl when typeDecl.Identifier == node ->
                 NoImplementationGivenInTypeWithSuggestionError(typeDecl, error.Message) :> _
@@ -399,7 +413,16 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
                 let impl = InterfaceImplementationNavigator.GetByTypeName(typeName)
                 NoImplementationGivenInInterfaceWithSuggestionError(impl, error.Message) :> _
 
-            | _ -> createGenericHighlighting error range
+            | _ ->
+
+            match node with
+            | :? IInterfaceImplementation as impl when
+                    isNotNull (ObjExprNavigator.GetByInterfaceImplementation(impl)) ->
+                NoImplementationGivenInInterfaceWithSuggestionError(impl, error.Message) :> _
+            | :? IObjExpr as objExpr ->
+                NoImplementationGivenInTypeWithSuggestionError(objExpr, error.Message) :> _
+            | _ ->
+                createGenericHighlighting error range
 
         | MemberIsNotAccessible ->
             createHighlightingFromNode MemberIsNotAccessibleError range
@@ -418,6 +441,13 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
         | UseBindingsIllegalInImplicitClassConstructors ->
             createHighlightingFromNode UseKeywordIllegalInPrimaryCtorError range
+
+        | InvalidUseOfTypeName ->
+            let identifier = fsFile.GetNode(range)
+            let referenceOwner = FSharpReferenceOwnerNavigator.GetByIdentifier(identifier)
+            if isNotNull referenceOwner then InvalidUseOfTypeNameError(referenceOwner.Reference, error.Message) :> _ else
+
+            createGenericHighlighting error range
 
         | PropertyIsStatic ->
             createHighlightingFromNode PropertyIsStaticError range
@@ -458,6 +488,9 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
         | ObjectOfIndeterminateTypeUsedRequireTypeConstraint ->
             createHighlightingFromNode IndexerIndeterminateTypeError range
+
+        | AbstractTypeCannotBeInstantiated ->
+            createHighlightingFromNodeWithMessage AbstractTypeCannotBeInstantiatedError range error
 
         | FieldRequiresAssignment ->
             createHighlightingFromNodeWithMessage FieldRequiresAssignmentError range error
