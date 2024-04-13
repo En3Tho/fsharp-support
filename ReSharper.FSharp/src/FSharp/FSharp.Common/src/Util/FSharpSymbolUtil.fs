@@ -234,20 +234,20 @@ let hasMeasureParameter(entity: FSharpEntity) =
     entity.GenericParameters.Count > 0 && entity.GenericParameters[0].IsMeasure;
 
 [<Extension; CompiledName("IsDisposable")>]
-let isDisposableEntity (entity: FSharpEntity) =
-    entity.AllInterfaces |> Seq.exists (fun x ->
-        match x.BasicQualifiedName with
-        | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
-        | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
-        | _ -> false)
+let rec isDisposableType (type': FSharpType) =
+    let isDisposable =
+        type'.AllInterfaces |> Seq.exists (fun x ->
+            match x.BasicQualifiedName with
+            | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
+            | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
+            | _ -> false)
+
+    isDisposable
+    || type'.BaseType |> Option.exists isDisposableType
 
 [<Extension; CompiledName("IsDisposable")>]
-let isDisposableType (type': FSharpType) =
-    type'.AllInterfaces |> Seq.exists (fun x ->
-        match x.BasicQualifiedName with
-        | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
-        | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
-        | _ -> false)
+let isDisposableEntity (entity: FSharpEntity) =
+    isDisposableType (entity.AsType())
 
 [<Extension; CompiledName("IsException")>]
 let isExceptionEntity (entity: FSharpEntity) =

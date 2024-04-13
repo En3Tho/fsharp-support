@@ -44,17 +44,25 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       if (entity.IsInterface)
         return FSharpHighlightingAttributeIdsModule.Interface;
 
-      if (entity.IsException())
-        return FSharpHighlightingAttributeIdsModule.Exception;
-
       if (entity.IsAttributeType)
         return FSharpHighlightingAttributeIdsModule.Attribute;
 
+      if (entity.IsException())
+        return FSharpHighlightingAttributeIdsModule.Exception;
+
       if (entity.IsClass)
-        return FSharpHighlightingAttributeIdsModule.Class;
+      {
+        return entity.IsDisposable()
+          ? FSharpHighlightingAttributeIdsModule.DisposableClass
+          : FSharpHighlightingAttributeIdsModule.Class;
+      }
 
       if (entity.IsValueType || entity.HasMeasureParameter())
-        return FSharpHighlightingAttributeIdsModule.Struct;
+      {
+        return entity.IsDisposable()
+          ? FSharpHighlightingAttributeIdsModule.DisposableStruct
+          : FSharpHighlightingAttributeIdsModule.Struct;
+      }
 
       if (entity.IsFSharpAbbreviation)
       {
