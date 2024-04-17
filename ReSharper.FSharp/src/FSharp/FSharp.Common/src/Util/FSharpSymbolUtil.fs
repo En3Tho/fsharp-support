@@ -235,15 +235,11 @@ let hasMeasureParameter(entity: FSharpEntity) =
 
 [<Extension; CompiledName("IsDisposable")>]
 let rec isDisposableType (type': FSharpType) =
-    let isDisposable =
-        type'.AllInterfaces |> Seq.exists (fun x ->
-            match x.BasicQualifiedName with
-            | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
-            | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
-            | _ -> false)
-
-    isDisposable
-    || type'.BaseType |> Option.exists isDisposableType
+    type'.AllInterfaces |> Seq.exists (fun x ->
+        match x.BasicQualifiedName with
+        | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
+        | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
+        | _ -> false)
 
 [<Extension; CompiledName("IsDisposable")>]
 let isDisposableEntity (entity: FSharpEntity) =
