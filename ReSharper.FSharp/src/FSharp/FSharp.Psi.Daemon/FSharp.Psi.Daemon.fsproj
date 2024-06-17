@@ -13,6 +13,7 @@
     <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources\Intrinsics.txt" />
     <Compile Include="PsiFeaturesNamespaceZoneMarker.fs" />
     <Compile Include="PsiNamespaceZoneMarker.fs" />
     <EmbeddedResource Update="Resources\Strings.resx">
@@ -27,6 +28,7 @@
     <Compile Include="src\ReadLockCookieUtil.fs" />
     <Compile Include="src\Highlightings\TypeHintHighlighting.fs" />
     <Compile Include="src\ContextHighlighters\FSharpMatchingBraceContextHighlighter.fs" />
+    <Compile Include="src\QuickDoc\IntrinsicsTable.fs" />
     <Compile Include="src\QuickDoc\FSharpIdentifierTooltipProviderExtensions.fs" />
     <Compile Include="src\QuickDoc\FSharpQuickDocProvider.fs" />
     <Compile Include="src\Syntax\XmlDocSummaryHighlightingVisitor.fs" />

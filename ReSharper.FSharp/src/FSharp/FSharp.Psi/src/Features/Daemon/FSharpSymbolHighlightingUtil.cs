@@ -1,3 +1,4 @@
+using System;
 using FSharp.Compiler.Symbols;
 using JetBrains.Annotations;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon.Highlightings;
@@ -42,7 +43,11 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
         return FSharpHighlightingAttributeIdsModule.UnitOfMeasure;
 
       if (entity.IsInterface)
-        return FSharpHighlightingAttributeIdsModule.Interface;
+      {
+        return entity.IsDisposable()
+          ? FSharpHighlightingAttributeIdsModule.DisposableInterface
+          : FSharpHighlightingAttributeIdsModule.Interface;
+      }
 
       if (entity.IsAttributeType)
         return FSharpHighlightingAttributeIdsModule.Attribute;
@@ -98,7 +103,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
             return FSharpHighlightingAttributeIdsModule.DisposableStruct;
           if (declaringEntity.IsInterface)
             return FSharpHighlightingAttributeIdsModule.DisposableInterface;
-          return FSharpHighlightingAttributeIdsModule.DisposableLocalValue; // fallback?
+          return FSharpHighlightingAttributeIdsModule.DisposableValue; // fallback?
         }
 
         if (declaringEntity.IsException())
@@ -118,7 +123,9 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
           if (mfv.IsProperty || mfv.IsPropertyGetterMethod || mfv.IsPropertySetterMethod)
             return mfv.IsExtensionMember
               ? FSharpHighlightingAttributeIdsModule.ExtensionProperty
-              : (mfv.HasSetterMethod || declaringEntity.ContainsMatchingSetterProperty(mfv))
+              : ((mfv.HasSetterMethod && mfv.SetterMethod.Accessibility.IsPublic)
+                || (mfv.IsPropertySetterMethod && mfv.Accessibility.IsPublic)
+                || declaringEntity.ContainsMatchingSetterProperty(mfv))
                 && !mfv.Attributes.ContainsIsExternalInitAttribute()
                 ? FSharpHighlightingAttributeIdsModule.MutableProperty
                 : FSharpHighlightingAttributeIdsModule.Property;
@@ -163,12 +170,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Daemon
       }
 
       if (fsType.IsDisposable() && !mfv.IsModuleValueOrMember && !mfv.IsMemberThisValue && !mfv.IsConstructorThisValue)
-        return FSharpHighlightingAttributeIdsModule.DisposableLocalValue;
+        return FSharpHighlightingAttributeIdsModule.DisposableValue;
 
       if (mfv.IsMutable || mfv.IsRefCell())
         return FSharpHighlightingAttributeIdsModule.MutableValue;
 
-      if (fsType.HasTypeDefinition && fsType.TypeDefinition is var mfvTypeEntity && mfvTypeEntity.IsByRef)
+      if (fsType.HasTypeDefinition && fsType.TypeDefinition is var mfvTypeEntity && mfvTypeEntity.IsByRef && !mfvTypeEntity.DisplayName.Equals("inref", StringComparison.Ordinal))
         return FSharpHighlightingAttributeIdsModule.MutableValue;
 
       if (mfv.IsModuleValueOrMember)

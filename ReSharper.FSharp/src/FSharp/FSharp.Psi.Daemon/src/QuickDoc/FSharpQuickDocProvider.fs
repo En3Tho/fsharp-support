@@ -4,7 +4,6 @@ open FSharp.Compiler.EditorServices
 open FSharp.Compiler.Tokenization
 open JetBrains.Application.DataContext
 open JetBrains.DocumentModel.DataContext
-open JetBrains.ReSharper.Daemon
 open JetBrains.ReSharper.Daemon.Tooltips
 open JetBrains.ReSharper.Feature.Services.QuickDoc
 open JetBrains.ReSharper.Plugins.FSharp.Psi
@@ -16,7 +15,6 @@ open JetBrains.ReSharper.Psi.DataContext
 open JetBrains.ReSharper.Psi.Files
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.UI.RichText
-open JetBrains.Util
 
 module FSharpQuickDoc =
     let getFSharpToolTipText (token: IFSharpIdentifier) : ToolTipText option =
@@ -76,18 +74,19 @@ type FSharpQuickDocPresenter(xmlDocService: FSharpXmlDocService, identifier: IFS
                                 yield overload.TypeMapping |> List.map richText |> richTextJoin "\n"
 
                               match FSharpIdentifierTooltipProviderExtensions.parseAndGetFSharpEntityByIdentifier identifier with
-                                | Some symbolUse ->
-                                    yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityHeaderIfExtensionMember symbolUse
-                                    yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityHeaderIfAbbreviation symbolUse
-                                    yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
-                                    yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
-                                | _ ->
-                                    ()
+                              | Some symbolUse ->
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getDeclaringEntityIfExtensionMember symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getAbbreviatedEntityIfAbbreviation symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getHexRepresentationIfIntConstant symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getLengthIfStringConstant symbolUse
+                                  yield! FSharpIdentifierTooltipProviderExtensions.getDescriptionIfRuntimeIntrinsic xmlDocService overload.XmlDoc symbolUse
+                              | _ ->
+                                  ()
                             ]
                             |> richTextJoin "\n\n"
 
                         let body =
-                            [ match xmlDocService.GetXmlDoc(overload.XmlDoc, overload.Symbol, identifier.GetPsiModule()) with
+                            [ match xmlDocService.GetXmlDoc2(overload.XmlDoc) with
                               | null -> ()
                               | xmlDocText -> yield xmlDocText.RichText
 

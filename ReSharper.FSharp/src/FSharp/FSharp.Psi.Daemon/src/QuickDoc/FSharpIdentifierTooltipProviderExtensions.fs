@@ -1,15 +1,107 @@
 module JetBrains.ReSharper.Plugins.FSharp.Psi.Daemon.FSharpIdentifierTooltipProviderExtensions
 
+open System
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Symbols
 open FSharp.Compiler.Text
 open JetBrains.ReSharper.Plugins.FSharp.Checker
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Util.FcsTaggedText
-open JetBrains.ReSharper.Plugins.FSharp.Util.FSharpSymbolUtil
 open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.Tree
 open JetBrains.ReSharper.Psi.Modules
+
+type OptionCode<'T> = unit -> 'T voption
+
+type OptionBuilderBase() =
+
+    member inline _.Zero() : OptionCode<unit> =
+        fun() -> ValueSome ()
+
+    member inline _.Delay([<InlineIfLambda>] f: unit -> OptionCode<'T>) : OptionCode<'T> =
+        fun () -> (f())()
+
+    member inline _.Combine([<InlineIfLambda>] task1: OptionCode<unit>, [<InlineIfLambda>] task2: OptionCode<'T>) : OptionCode<'T> =
+        fun () ->
+            match task1() with
+            | ValueNone -> ValueNone
+            | ValueSome() -> task2()
+
+    member inline _.Bind(res1: 'T1 option, [<InlineIfLambda>] task2: 'T1 -> OptionCode<'T>) : OptionCode<'T> =
+        fun () ->
+            match res1 with
+            | None -> ValueNone
+            | Some v -> (task2 v)()
+
+    member inline _.Bind(res1: 'T1 voption, [<InlineIfLambda>] task2: 'T1 -> OptionCode<'T>) : OptionCode<'T> =
+        fun () ->
+            match res1 with
+            | ValueNone -> ValueNone
+            | ValueSome v -> (task2 v)()
+
+    member inline _.While([<InlineIfLambda>] condition: unit -> bool, [<InlineIfLambda>] body: OptionCode<unit>) : OptionCode<unit> =
+        fun () ->
+            let mutable proceed = true
+            while proceed && condition() do
+                match body() with
+                | ValueNone -> proceed <- false
+                | ValueSome () -> ()
+            ValueSome(())
+
+    member inline _.TryWith([<InlineIfLambda>] body: OptionCode<'T>, [<InlineIfLambda>] catch: exn -> OptionCode<'T>) : OptionCode<'T> =
+        fun () ->
+            try
+                body()
+            with exn ->
+                (catch exn)()
+
+    member inline _.TryFinally([<InlineIfLambda>] body: OptionCode<'T>, [<InlineIfLambda>] compensation: unit -> unit) : OptionCode<'T> =
+        fun () ->
+            try
+                body()
+            finally
+                compensation()
+
+    member inline this.Using(disp: #IDisposable, [<InlineIfLambda>] body: #IDisposable -> OptionCode<'T>) : OptionCode<'T> =
+        this.TryFinally(
+            (fun () -> (body disp)()),
+            (fun () -> if not (isNull (box disp)) then disp.Dispose()))
+
+    member inline this.For(sequence: seq<'TElement>, [<InlineIfLambda>] body : 'TElement -> OptionCode<unit>) : OptionCode<unit> =
+        this.Using (
+            sequence.GetEnumerator(),
+            (fun e -> this.While((fun () -> e.MoveNext()),
+            (fun () -> (body e.Current)()))))
+
+    member inline _.Return (value: 'T) : OptionCode<'T> =
+        fun () ->
+            ValueSome value
+
+    member inline this.ReturnFrom (source: option<'T>) : OptionCode<'T> =
+        fun () ->
+            match source with Some x -> ValueSome x | None -> ValueNone
+
+    member inline this.ReturnFrom (source: voption<'T>) : OptionCode<'T> =
+        fun () ->
+            source
+
+type OptionBuilder() =
+    inherit OptionBuilderBase()
+
+    member inline _.Run([<InlineIfLambda>] code: OptionCode<'T>) : 'T option =
+         match code() with
+         | ValueNone -> None
+         | ValueSome v -> Some v
+
+type ValueOptionBuilder() =
+    inherit OptionBuilderBase()
+
+    member inline _.Run([<InlineIfLambda>] code: OptionCode<'T>) : 'T voption =
+        code()
+
+let option = OptionBuilder()
+let voption = ValueOptionBuilder()
 
 let (|Literal|_|) (symbolUse: FSharpSymbolUse) =
     match symbolUse.Symbol with
@@ -19,6 +111,26 @@ let (|Literal|_|) (symbolUse: FSharpSymbolUse) =
         field.LiteralValue
     | _ ->
         None
+
+let [<Literal>] IntrinsicsNamespace = "System.Runtime.Intrinsics"
+let (|RuntimeIntrinsic|_|) (symbolUse: FSharpSymbolUse) = option {
+    match symbolUse.Symbol with
+    | :? FSharpMemberOrFunctionOrValue as mfv ->
+        if mfv.IsMember && mfv.IsMethod then
+            let! entity = mfv.DeclaringEntity
+            let entityType = entity.AsType()
+            let! qualifiedName = entityType.TryBasicQualifiedName
+            if qualifiedName.StartsWith(IntrinsicsNamespace)
+                && (let nextChar = qualifiedName[IntrinsicsNamespace.Length + 1] // + '.' + char
+                    nextChar = 'X' || nextChar = 'A' || nextChar = 'W') then
+                return mfv
+            else
+                return! None
+        else
+            return! None
+    | _ ->
+        return! None
+}
 
 let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDisplayContext, includeEntityType) =
     let entities = [
@@ -44,7 +156,7 @@ let getToolTipTextForEntity(fsEntity: FSharpEntity, displayContext: FSharpDispla
     ]
     entities |> List.filter (fun text -> text.Tag <> TextTag.UnknownEntity)
 
-let getDeclaringEntityHeaderIfExtensionMember(symbolUse: FSharpSymbolUse) = [
+let getDeclaringEntityIfExtensionMember(symbolUse: FSharpSymbolUse) = [
     match symbolUse.Symbol with
     | :? FSharpMemberOrFunctionOrValue as mfv ->
         if mfv.IsExtensionMember then
@@ -62,7 +174,7 @@ let getDeclaringEntityHeaderIfExtensionMember(symbolUse: FSharpSymbolUse) = [
         ()
 ]
 
-let getAbbreviatedEntityHeaderIfAbbreviation(symbolUse: FSharpSymbolUse) = [
+let getAbbreviatedEntityIfAbbreviation(symbolUse: FSharpSymbolUse) = [
 
     let getAbbreviatedEntityOnce(entity: FSharpEntity) =
         if entity.IsFSharpAbbreviation then
@@ -142,6 +254,35 @@ let getLengthIfStringConstant(symbolUse: FSharpSymbolUse) = [
             TaggedText(TextTag.Text, ")")
         |]
         richText typeText
+    | _ ->
+        ()
+]
+
+// this is what we're looking at
+// <summary>
+//   <para>__m256 _mm256_mul_ps (__m256 a, __m256 b)</para>
+//   <para>VMULPS ymm, ymm, ymm/m256</para>
+// </summary>
+// <param name="left" />
+// <param name="right" />
+// public static Vector256<float> Multiply(Vector256<float> left, Vector256<float> right)
+let getDescriptionIfRuntimeIntrinsic (xmlDocService: FSharpXmlDocService) (xmlDoc: FSharpXmlDoc) (symbolUse: FSharpSymbolUse) = [
+    match symbolUse with
+    | RuntimeIntrinsic _ ->
+        match xmlDocService.GetXmlDocSummary2(xmlDoc) with
+        | Some value ->
+            let firstPara = value.SelectSingleNode("para")
+            if firstPara <> null then
+                let line = firstPara.InnerText
+                let indexOfSpaceBeforeMnemonic = line.IndexOf(" ")
+                if indexOfSpaceBeforeMnemonic > 0 then
+                    let indexOfSpaceAfterMnemonic = line.IndexOf(" ", indexOfSpaceBeforeMnemonic + 1)
+                    if indexOfSpaceAfterMnemonic > 0 then
+                        let mnemonic = line.Substring(indexOfSpaceBeforeMnemonic + 1, indexOfSpaceAfterMnemonic - indexOfSpaceBeforeMnemonic - 1)
+                        match IntrinsicsTable.getIntrinsicInfo mnemonic with
+                        | Some description -> description
+                        | _ -> ()
+        | _ -> ()
     | _ ->
         ()
 ]

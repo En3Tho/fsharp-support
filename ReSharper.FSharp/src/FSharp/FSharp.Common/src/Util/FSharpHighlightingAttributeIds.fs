@@ -34,7 +34,7 @@ module FSharpHighlightingAttributeIds =
     let [<Literal>] Enum = "ReSharper F# Enum Identifier"
     let [<Literal>] TypeParameter = "ReSharper F# Type Parameter Identifier"
 
-    let [<Literal>] DisposableLocalValue = "ReSharper F# Disposable Value Identifier"
+    let [<Literal>] DisposableValue = "ReSharper F# Disposable Value Identifier"
     let [<Literal>] DisposableStruct = "ReSharper F# Disposable Struct Identifier"
     let [<Literal>] DisposableClass = "ReSharper F# Disposable Class Identifier"
     let [<Literal>] DisposableUnion = "ReSharper F# Disposable Union Identifier"
@@ -244,7 +244,7 @@ type FSharpSettingsNamesProvider() =
       EffectType = EffectType.TEXT, ForegroundColor = "DarkBlue", DarkForegroundColor = "LightBlue");
 
   RegisterHighlighter(
-      FSharpHighlightingAttributeIds.DisposableLocalValue,
+      FSharpHighlightingAttributeIds.DisposableValue,
       FallbackAttributeId = DefaultLanguageAttributeIds.LOCAL_VARIABLE,
       GroupId = FSharpHighlightingAttributeIds.GroupId,
       RiderPresentableName = "Values//Disposable local value",

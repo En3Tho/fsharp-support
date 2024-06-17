@@ -189,7 +189,8 @@ let rec containsMatchingSetterProperty (entity: FSharpEntity, mfv: FSharpMemberO
         let memberMfv = members[i]
         if (memberMfv.IsProperty && memberMfv.HasSetterMethod || memberMfv.IsPropertySetterMethod)
             && memberMfv.DisplayName.Equals(mfv.DisplayName, StringComparison.Ordinal) then
-            contains <- true
+                contains <- (memberMfv.HasSetterMethod && memberMfv.SetterMethod.Accessibility.IsPublic) || (memberMfv.IsPropertySetterMethod && memberMfv.Accessibility.IsPublic)
+                i <- count
         i <- i + 1
     contains
 
@@ -231,15 +232,29 @@ let tryGetAbbreviatedTypeEntity (fcsType: FSharpType) =
 
 [<Extension; CompiledName("HasMeasureParameter")>]
 let hasMeasureParameter(entity: FSharpEntity) =
-    entity.GenericParameters.Count > 0 && entity.GenericParameters[0].IsMeasure;
+    entity.GenericParameters.Count > 0 && entity.GenericParameters[0].IsMeasure
 
 [<Extension; CompiledName("IsDisposable")>]
 let rec isDisposableType (type': FSharpType) =
-    type'.AllInterfaces |> Seq.exists (fun x ->
-        match x.BasicQualifiedName with
-        | qbn when qbn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
-        | qbn when qbn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
-        | _ -> false)
+
+    let mutable isOwned = false
+    let mutable isRented = false
+
+    if type'.IsAbbreviation then
+        match type'.TryBasicQualifiedName with
+        | Some bqn when bqn.Equals("En3Tho.FSharp.Extensions.Core+Owned`1") -> isOwned <- true
+        | Some bqn when bqn.Equals("En3Tho.FSharp.Extensions.Core+Rented`1") -> isRented <- true
+        | _ -> ()
+
+    if isRented then
+        false
+    else
+        let typeToCheck = if isOwned then type'.GenericArguments[0] else type'
+        typeToCheck.AllInterfaces |> Seq.exists (fun x ->
+            match x.BasicQualifiedName with
+            | bqn when bqn.Equals(typeof<IDisposable>.FullName, StringComparison.Ordinal) -> true
+            | bqn when bqn.Equals(typeof<IAsyncDisposable>.FullName, StringComparison.Ordinal) -> true
+            | _ -> false)
 
 [<Extension; CompiledName("IsDisposable")>]
 let isDisposableEntity (entity: FSharpEntity) =

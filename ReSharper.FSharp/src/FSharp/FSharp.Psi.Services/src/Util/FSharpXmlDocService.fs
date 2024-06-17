@@ -88,6 +88,30 @@ type FSharpXmlDocService(psiServices: IPsiServices, xmlDocThread: XmlIndexThread
 
         xmlNode |> Option.filter (fun x -> not (x.InnerText.IsNullOrWhitespace()))
 
+    let getXmlNode2 fsXmlDoc =
+        let xmlNode =
+            match fsXmlDoc with
+            | FSharpXmlDoc.FromXmlText(xmlDoc) ->
+                let xmlDocument = XmlDocument()
+                try
+                    xmlDocument.LoadXml("<root>" + xmlDoc.GetXmlText() + "</root>")
+                    Some(xmlDocument.SelectSingleNode("root"))
+                with e ->
+                    xmlDocument.LoadXml("<summary>" + e.Message + "</summary>")
+                    Some xmlDocument
+
+            | FSharpXmlDoc.FromXmlFile(dllFile, memberName) ->
+                getIndex dllFile
+                |> Option.bind (fun index ->
+                    index.GetXml(memberName)
+                    |> fst
+                    |> Option.ofObj
+                )
+
+            | FSharpXmlDoc.None -> None
+
+        xmlNode |> Option.filter (fun x -> not (x.InnerText.IsNullOrWhitespace()))
+
     [<CanBeNull>]
     member x.GetXmlDoc(fsXmlDoc: FSharpXmlDoc, symbol: FSharpSymbol option, psiModule: IPsiModule) =
         getXmlNode fsXmlDoc symbol psiModule
@@ -101,3 +125,15 @@ type FSharpXmlDocService(psiServices: IPsiServices, xmlDocThread: XmlIndexThread
         |> Option.map XMLDocUtil.ExtractSummary
         |> Option.map (fun x -> XmlDocRichTextPresenter.Run(x, false, FSharpLanguage.Instance))
         |> Option.toObj
+
+    [<CanBeNull>]
+    member x.GetXmlDoc2(fsXmlDoc: FSharpXmlDoc) =
+        getXmlNode2 fsXmlDoc
+        |> Option.map formatXmlDoc
+        |> Option.map RichTextBlock
+        |> Option.toObj
+
+    [<CanBeNull>]
+    member x.GetXmlDocSummary2(fsXmlDoc: FSharpXmlDoc) =
+        getXmlNode2 fsXmlDoc
+        |> Option.map XMLDocUtil.ExtractSummary
