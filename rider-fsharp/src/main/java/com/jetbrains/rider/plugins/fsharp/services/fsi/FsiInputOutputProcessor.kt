@@ -3,17 +3,22 @@ package com.jetbrains.rider.plugins.fsharp.services.fsi
 import com.intellij.execution.console.LanguageConsoleImpl
 import com.intellij.execution.impl.ConsoleViewUtil
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.LineNumberConverter
 import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.util.concurrency.ThreadingAssertions
 import com.jetbrains.rider.ideaInterop.fileTypes.fsharp.highlighting.FSharpSyntaxHighlighter
+import com.jetbrains.rider.ideaInterop.fileTypes.fsharp.highlighting.FsiOutputSyntaxHighlighter
+import com.jetbrains.rider.plugins.fsharp.services.fsi.consoleRunners.FsiConsoleRunnerBase
 
-class FsiInputOutputProcessor(private val fsiRunner: FsiConsoleRunner) {
+class FsiInputOutputProcessor(val fsiRunner: FsiConsoleRunnerBase) {
   private var isInitialText = true
   private var nextOutputTextIsFirst = true
 
-  private val fSharpSyntaxHighlighter = FSharpSyntaxHighlighter()
+  private val fSharpSyntaxHighlighter = FSharpSyntaxHighlighter.Instance
+  private val fsiOutputSyntaxHighlighter = FsiOutputSyntaxHighlighter.Instance
 
   private fun fsiIconWithTooltipOnOutputText(outputType: ConsoleViewContentType): IconWithTooltip? {
     if (nextOutputTextIsFirst) {
@@ -26,8 +31,23 @@ class FsiInputOutputProcessor(private val fsiRunner: FsiConsoleRunner) {
     return null
   }
 
-  fun printInputText(text: String, outputType: ConsoleViewContentType) {
+  fun printInputText(text: String, outputType: ConsoleViewContentType, lineStart: Int) {
     ThreadingAssertions.assertEventDispatchThread()
+
+    (fsiRunner.consoleView as LanguageConsoleImpl).flushDeferredText()
+    val historyViewer = fsiRunner.consoleView.historyViewer
+    val lastLine = maxOf(historyViewer.document.lineCount - 1, 0)
+    val linesToAddCount = 1 + text.count { it == '\n' }
+
+    historyViewer.settings.isLineNumbersShown = true
+    historyViewer.gutter.setLineNumberConverter(object : LineNumberConverter.Increasing {
+      override fun convert(p0: Editor, index: Int) = lineStart + (index - lastLine) - 1
+      override fun getMaxLineNumber(editor: Editor) = linesToAddCount
+      override fun convertLineNumberToString(editor: Editor, lineNumber: Int) =
+        if (lineNumber <= lastLine || lineNumber > lastLine + linesToAddCount) null
+        else super.convertLineNumberToString(editor, lineNumber)
+    })
+
     printText(text + "\n", FsiIcons.COMMAND_MARKER, fSharpSyntaxHighlighter, outputType)
     EditorUtil.scrollToTheEnd(fsiRunner.consoleView.historyViewer)
 
@@ -43,7 +63,7 @@ class FsiInputOutputProcessor(private val fsiRunner: FsiConsoleRunner) {
 
       when (outputType) {
         ConsoleViewContentType.NORMAL_OUTPUT ->
-          printText(text, fsiResultIconWithTooltip, fSharpSyntaxHighlighter, outputType)
+          printText(text, fsiResultIconWithTooltip, fsiOutputSyntaxHighlighter, outputType)
 
         ConsoleViewContentType.ERROR_OUTPUT ->
           printText(text, fsiResultIconWithTooltip, null, outputType)

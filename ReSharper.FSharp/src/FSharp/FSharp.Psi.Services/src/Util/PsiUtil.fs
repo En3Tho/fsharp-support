@@ -80,28 +80,27 @@ type ITreeNode with
     member x.IsChildOf(node: ITreeNode) =
         if isNull node then false else node.Contains(x)
 
-    member x.GetIndent(document: IDocument) =
-        let startOffset = x.GetDocumentStartOffset().Offset
-        let startCoords = document.GetCoordsByOffset(startOffset)
-        startOffset - document.GetLineStartOffset(startCoords.Line)
+    member x.GetIndent() =
+        let startOffset = x.GetDocumentStartOffset()
+        let startCoords = startOffset.ToDocumentCoords()
+        startOffset - startOffset.Document.GetLineStartDocumentOffset(startCoords.Line)
 
     member x.Indent =
         match x.GetSourceFile() with
         | null -> FormatterHelper.CalcNodeIndent(x, x.GetCodeFormatter()).Length
-        | sourceFile -> x.GetIndent(sourceFile.Document)
+        | sourceFile -> x.GetIndent()
 
-    member x.GetStartLine(document: IDocument) =
-        document.GetCoordsByOffset(x.GetDocumentStartOffset().Offset).Line
+    member x.GetStartLine() =
+        x.GetDocumentStartOffset().ToDocumentCoords().Line
 
-    member x.GetEndLine(document: IDocument) =
-        document.GetCoordsByOffset(x.GetDocumentEndOffset().Offset).Line
+    member x.GetEndLine() =
+        x.GetDocumentEndOffset().ToDocumentCoords().Line
 
-    member x.StartLine = x.GetStartLine(x.GetSourceFile().Document)
-    member x.EndLine = x.GetEndLine(x.GetSourceFile().Document)
+    member x.StartLine = x.GetStartLine()
+    member x.EndLine = x.GetEndLine()
 
     member x.IsSingleLine =
-        let document = x.GetSourceFile().Document
-        x.GetStartLine(document) = x.GetEndLine(document)
+        x.GetStartLine() = x.GetEndLine()
 
 let getNode<'T when 'T :> ITreeNode and 'T: not struct and 'T: null> (fsFile: IFSharpFile) (range: DocumentRange) =
     // todo: use IExpressionSelectionProvider
@@ -119,12 +118,19 @@ let getPrevSibling (node: ITreeNode) =
 let getNextSibling (node: ITreeNode) =
     if isNotNull node then node.NextSibling else null
 
+let getPrevToken (node: ITreeNode) =
+    if isNotNull node then node.GetPreviousToken() else null
 
+let getNextToken (node: ITreeNode) =
+    if isNotNull node then node.GetNextToken() else null
+
+[<return: Struct>]
 let (|TokenType|_|) tokenType (treeNode: ITreeNode) =
-    if getTokenType treeNode == tokenType then Some treeNode else None
+    if getTokenType treeNode == tokenType then ValueSome treeNode else ValueNone
 
+[<return: Struct>]
 let (|Whitespace|_|) (treeNode: ITreeNode) =
-    if getTokenType treeNode == FSharpTokenType.WHITESPACE then Some treeNode else None
+    if getTokenType treeNode == FSharpTokenType.WHITESPACE then ValueSome treeNode else ValueNone
 
 let inline (|IgnoreParenPat|) (fsPattern: IFSharpPattern) =
     fsPattern.IgnoreParentParens()
@@ -170,6 +176,8 @@ let isLastChild (node: ITreeNode) =
     isNotNull parent && parent.LastChild == node
 
 let skipMatchingNodesAfter predicate (node: ITreeNode): ITreeNode =
+    if isNull node then node else
+
     let nextSibling = node.NextSibling
     if isNull nextSibling then node else
 
@@ -181,32 +189,53 @@ let skipMatchingNodesAfter predicate (node: ITreeNode): ITreeNode =
 
     skip nextSibling
 
-let skipMatchingNodesBefore predicate (node: ITreeNode) =
-    let prevSibling = node.PrevSibling
-    if isNull prevSibling then node else
+let private skipMatchingNodesBeforeF getPrevNode predicate (node: ITreeNode) =
+    if isNull node then node else
+
+    let prevNode = getPrevNode node
+    if isNull prevNode then node else
 
     let rec skip (node: ITreeNode) =
         if predicate node then
-            skip node.PrevSibling
+            let prevNode = getPrevNode node
+            skip prevNode
         else
             node
 
-    skip prevSibling
+    skip prevNode
+
+let skipMatchingNodesBefore predicate (node: ITreeNode) =
+    skipMatchingNodesBeforeF getPrevSibling predicate node
+
+let skipMatchingTokensBefore predicate (node: ITreeNode) =
+    skipMatchingNodesBeforeF getPrevToken predicate node
 
 
 let rec getLastMatchingNodeAfter predicate (node: ITreeNode) =
+    if isNull node then node else
+
     let nextSibling = node.NextSibling
     if predicate nextSibling then
         getLastMatchingNodeAfter predicate nextSibling
     else
         node
 
-let rec getFirstMatchingNodeBefore (predicate: ITreeNode -> bool) (node: ITreeNode) =
-    let prevSibling = node.PrevSibling
-    if predicate prevSibling then
-        getFirstMatchingNodeBefore predicate prevSibling
+
+let rec private getFirstMatchingNodeBeforeF getPrevNode (predicate: ITreeNode -> bool) (node: ITreeNode) =
+    if isNull node then node else
+
+    let prevNode = getPrevNode node
+    if predicate prevNode then
+        getFirstMatchingNodeBeforeF getPrevNode predicate prevNode
     else
         node
+
+let getFirstMatchingNodeBefore predicate node =
+    getFirstMatchingNodeBeforeF getPrevSibling predicate node
+
+let getFirstMatchingTokenBefore predicate node =
+    getFirstMatchingNodeBeforeF getPrevToken predicate node
+
 
 let rec getThisOrNextTokenOfType tokenType (node: ITreeNode) =
     if getTokenType node == tokenType then node else

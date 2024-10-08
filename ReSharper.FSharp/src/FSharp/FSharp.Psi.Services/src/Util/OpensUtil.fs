@@ -7,6 +7,7 @@ open JetBrains.DocumentModel
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
@@ -38,6 +39,10 @@ let toQualifiedList (declaredElement: IClrDeclaredElement) =
 
     loop [] declaredElement
 
+let getQualifiedName (element: IClrDeclaredElement) =
+    match toQualifiedList element with
+    | [] -> "global"
+    | names -> names |> List.map (fun el -> el.GetSourceName()) |> String.concat "."
 
 [<RequireQualifiedAccess>]
 type ModuleToImport =
@@ -92,10 +97,10 @@ let getContainingEntity (typeElement: ITypeElement): IClrDeclaredElement =
     | null -> typeElement.GetContainingNamespace() :> _
     | containingType -> containingType :> _
 
-let rec getModuleToOpen (typeElement: ITypeElement): IClrDeclaredElement =
-    match typeElement.GetContainingType() with
+let rec getModuleToOpen (declaredElement: IClrDeclaredElement): IClrDeclaredElement =
+    match declaredElement.GetContainingType() with
     | null ->
-        typeElement.GetContainingNamespace() :> _
+        declaredElement.GetNamespace()
 
     | containingType ->
         if containingType.IsModule() && containingType.GetAccessType() = ModuleMembersAccessKind.Normal then
@@ -318,13 +323,14 @@ let addOpen (offset: DocumentOffset) (fsFile: IFSharpFile) (settings: IContextBo
 
     insertAfterAnchor ns anchor indent
 
-let addOpens (reference: FSharpSymbolReference) (typeElement: ITypeElement) =
-    if typeElement.IsAutoImported() then reference else
+let addOpens (reference: FSharpSymbolReference) (declaredElement: IClrDeclaredElement) =
+    let containingType = declaredElement.GetContainingType()
+    if isNotNull containingType && containingType.IsAutoImported() then reference else
 
     let referenceOwner = reference.GetElement()
     use writeCookie = WriteLockCookie.Create(referenceOwner.IsPhysical())
 
-    let moduleToOpen = getModuleToOpen typeElement
+    let moduleToOpen = getModuleToOpen declaredElement
     let fsFile = referenceOwner.FSharpFile
 
     let qualifiedModuleToOpen = toQualifiedList moduleToOpen
@@ -368,41 +374,38 @@ module OpenScope =
         else
             scopes |> Seq.exists (includesOffset offset)
 
-type OpenedModulesProvider(fsFile: IFSharpFile) =
+type OpenedModulesProvider(fsFile: IFSharpFile, autoOpenCache: FSharpAutoOpenCache) =
     let map = OneToListMap<string, OpenScope>()
 
     let document = fsFile.GetSourceFile().Document
     let psiModule = fsFile.GetPsiModule()
-    let symbolScope = getModuleOnlySymbolScope psiModule false
-
-//    let getQualifiedName (element: IClrDeclaredElement) =
-//        match toQualifiedList element with
-//        | [] -> "global"
-//        | names -> names |> List.map (fun el -> el.GetSourceName()) |> String.concat "."
+    // todo: use scope with references?
+    let symbolScope = getSymbolScope psiModule false
 
     let import scope (element: IClrDeclaredElement) =
-        map.Add(element.GetSourceName(), scope)
-        for autoImportedModule in getNestedAutoImportedModules element symbolScope do
-            map.Add(autoImportedModule.GetSourceName(), scope)
+        map.Add(getQualifiedName element, scope)
+        for autoImportedModule in autoOpenCache.GetAutoImportedElements(element, symbolScope) do
+            map.Add(getQualifiedName autoImportedModule, scope)
 
     do
         import OpenScope.Global symbolScope.GlobalNamespace
 
         for moduleDecl in fsFile.ModuleDeclarationsEnumerable do
-            let topLevelModuleDecl = moduleDecl.As<ITopLevelModuleLikeDeclaration>()
-            if isNotNull topLevelModuleDecl then
+            let topLevelDecl = moduleDecl.As<ITopLevelModuleLikeDeclaration>()
+            if isNotNull topLevelDecl then
                 // todo: use inner range only
-                let scope = OpenScope.Range(topLevelModuleDecl.GetTreeTextRange())
-                match topLevelModuleDecl.DeclaredElement with
+                let scope = OpenScope.Range(topLevelDecl.GetTreeTextRange())
+                match topLevelDecl.DeclaredElement with
                 | :? INamespace as ns -> import scope ns
-                | :? ITypeElement as ty -> import scope (ty.GetContainingNamespace())
+                | :? IFSharpModule as fsModule -> import scope (fsModule.GetContainingNamespace())
                 | _ -> ()
 
         match fsFile.GetParseAndCheckResults(true, "OpenedModulesProvider") with
         | None -> ()
         | Some results ->
 
-        for fcsOpenDecl in results.CheckResults.OpenDeclarations do
+        let openDeclarations = results.CheckResults.OpenDeclarations
+        for fcsOpenDecl in openDeclarations do
             let scope = OpenScope.Range(getTreeTextRange document fcsOpenDecl.AppliedScope)
             for fcsEntity in fcsOpenDecl.Modules do
                 let declaredElement = fcsEntity.GetDeclaredElement(psiModule).As<IClrDeclaredElement>()

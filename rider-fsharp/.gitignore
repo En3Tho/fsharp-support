@@ -1,3 +1,5 @@
+/.intellijPlatform/
+
 build
 classes
 .idea/*
@@ -5,3 +7,4 @@ classes
 testData/**/.idea
 .gradle
 *.iml
+src/generated/

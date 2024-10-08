@@ -19,6 +19,7 @@ open JetBrains.TextControl
 open JetBrains.UI.RichText
 open JetBrains.ProjectModel
 open JetBrains.Util.Media
+open JetBrains.Util.NetFX.Media.Colors
 
 type OverrideBehavior(info) =
     inherit TextualBehavior<TextualInfo>(info)
@@ -70,7 +71,7 @@ type OverrideMemberRule() =
 
             | :? IFSharpTypeDeclaration as typeDecl ->
                 let repr = typeDecl.TypeRepresentation
-                isNotNull repr && caretLine > repr.EndLine ||
+                (isNull repr || isNotNull repr && caretLine > repr.EndLine) &&
 
                 let equalsToken = typeDecl.EqualsToken
                 isNotNull equalsToken && caretLine > equalsToken.StartLine

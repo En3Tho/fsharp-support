@@ -2,14 +2,15 @@ package com.jetbrains.rider.plugins.fsharp.test.cases.projectModel
 
 import com.jetbrains.rd.ide.model.RdDndOrderType
 import com.jetbrains.rider.plugins.fsharp.test.fcsHost
+import com.jetbrains.rider.test.annotations.Issue
+import com.jetbrains.rider.test.annotations.Issues
+import com.jetbrains.rider.test.annotations.Mute
 import com.jetbrains.rider.test.annotations.TestEnvironment
 import com.jetbrains.rider.test.base.ProjectModelBaseTest
 import com.jetbrains.rider.test.env.enums.SdkVersion
 import com.jetbrains.rider.test.framework.TestProjectModelContext
 import com.jetbrains.rider.test.framework.waitBackend
 import com.jetbrains.rider.test.scriptingApi.*
-import io.qameta.allure.Issue
-import io.qameta.allure.Issues
 import org.testng.annotations.Test
 import java.io.File
 
@@ -49,6 +50,7 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
   }
 
   @Test
+  @Mute("RIDER-110482")
   @TestEnvironment(
     solution = "FSharpProjectTree",
     sdkVersion = SdkVersion.DOT_NET_5
@@ -152,7 +154,8 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
   }
 
   @Test
-  @Issues(Issue("RIDER-69084"), Issue("RIDER-69562"))
+  @Mute("RIDER-110482")
+  @Issues([Issue("RIDER-69084"), Issue("RIDER-69562")])
   @TestEnvironment(sdkVersion = SdkVersion.LATEST_STABLE)
   fun testFSharpDirectoryManipulation() {
     doTestDumpProjectsView {
@@ -196,6 +199,17 @@ class FSharpProjectModelTest : ProjectModelBaseTest() {
             .replace("<Compile Include=\"File2.fs.tmp\" />", "<Compile Include=\"File1.fs\" />")
         }
       }
+    }
+  }
+
+  @Test(description = "RIDER-107198")
+  @TestEnvironment(
+    solution = "SolutionWithDuplicateTargets",
+    sdkVersion = SdkVersion.DOT_NET_5
+  )
+  fun doNoneItemDuplicatesTest() {
+    doTestDumpProjectsView {
+      dump2("Init", checkSlnFile = false, compareProjFile = false) { }
     }
   }
 }

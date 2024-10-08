@@ -1,5 +1,6 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.PostfixTemplates
 
+open JetBrains.Application.Parts
 open JetBrains.Application.Settings
 open JetBrains.Diagnostics
 open JetBrains.DocumentModel
@@ -219,7 +220,7 @@ module FSharpPostfixTemplates =
 
     let showHotspots textControl (hotspotsRegistry: HotspotsRegistry) endOffset =
         let hotspotInfos = hotspotsRegistry.CreateHotspots()
-        if hotspotInfos.Length > 0 then () else
+        if hotspotInfos.Length = 0 then () else
 
         let liveTemplatesManager = hotspotsRegistry.PsiServices.GetComponent<LiveTemplatesManager>()
 
@@ -263,10 +264,10 @@ type FSharpPostfixTemplateContextFactory() =
             null
 
 
-[<Language(typeof<FSharpLanguage>)>]
-type FSharpPostfixTemplatesProvider(templatesManager, sessionExecutor, usageStatistics) =
+[<Language(typeof<FSharpLanguage>, Instantiation.DemandAnyThreadUnsafe)>]
+type FSharpPostfixTemplatesProvider(templatesManager, usageStatistics) =
     inherit PostfixTemplatesItemProviderBase<FSharpCodeCompletionContext, FSharpPostfixTemplateContext>(
-        templatesManager, sessionExecutor, usageStatistics)
+        templatesManager, usageStatistics)
 
     override this.TryCreatePostfixContext(fsCompletionContext) =
         if fsCompletionContext.NodeInFile.IsFSharpSigFile() then null else

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using JetBrains.Application.Parts;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree;
 using JetBrains.ReSharper.Plugins.FSharp.Psi.Parsing;
 using JetBrains.ReSharper.Plugins.FSharp.Services.Formatter;

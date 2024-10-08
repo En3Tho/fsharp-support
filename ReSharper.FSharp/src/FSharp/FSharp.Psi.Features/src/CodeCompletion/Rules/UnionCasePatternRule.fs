@@ -15,6 +15,7 @@ open JetBrains.ReSharper.Feature.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
@@ -31,12 +32,17 @@ open JetBrains.TextControl
 module UnionCasePatternInfo =
     let [<Literal>] Id = "Union case pattern"
 
+type IEnumCaseLikePatternInfo =
+    inherit ILookupItemInfo
+
 type EnumCaseLikePatternInfo<'T when 'T :> FSharpSymbol>(text, symbol: 'T, fcsEntityInstance: FcsEntityInstance,
         context: FSharpCodeCompletionContext) =
     inherit TextualInfo(text, UnionCasePatternInfo.Id)
 
     member val Case = symbol
     member val EntityInstance = fcsEntityInstance
+
+    interface IEnumCaseLikePatternInfo
 
     interface IDescriptionProvidingLookupItem with
         member this.GetDescription() =
@@ -77,7 +83,7 @@ type EnumCaseLikePatternBehavior<'T when 'T :> FSharpSymbol>(info: EnumCaseLikeP
             use transactionCookie =
                 PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, UnionCasePatternInfo.Id)
 
-            FSharpPatternUtil.bindFcsSymbol pat info.Case UnionCasePatternInfo.Id
+            FSharpBindUtil.bindFcsSymbol pat info.Case UnionCasePatternInfo.Id
 
         textControl.Caret.MoveTo(pat.GetDocumentRange().EndOffset, CaretVisualPlacement.DontScrollIfVisible)
 

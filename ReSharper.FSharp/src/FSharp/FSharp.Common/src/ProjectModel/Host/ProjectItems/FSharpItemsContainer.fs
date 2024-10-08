@@ -9,6 +9,7 @@ open JetBrains.Application
 open JetBrains.Application.BuildScript.Application.Zones
 open JetBrains.Application.Components
 open JetBrains.Application.DataContext
+open JetBrains.Application.Parts
 open JetBrains.Application.PersistentMap
 open JetBrains.Application.Threading
 open JetBrains.DataFlow
@@ -31,9 +32,11 @@ open JetBrains.RdBackend.Common.Env
 open JetBrains.RdBackend.Common.Features.ProjectModel.View
 open JetBrains.RdBackend.Common.Features.ProjectModel.View.Appenders
 open JetBrains.RdBackend.Common.Features.ProjectModel.View.Ordering
+open JetBrains.RdBackend.Common.Features.Util.Tree
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Resources.Shell
 open JetBrains.Serialization
 open JetBrains.Threading
 open JetBrains.UI.RichText
@@ -45,7 +48,7 @@ open JetBrains.Util.Logging
 open JetBrains.Util.PersistentMap
 
 /// Keeps project mappings in solution caches so mappings available on warm start before MsBuild loads projects.
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 [<ZoneMarker(typeof<IHostSolutionZone>)>]
 type FSharpItemsContainerLoader(lifetime: Lifetime, solution: ISolution, solutionCaches: ISolutionCaches) =
 
@@ -83,7 +86,7 @@ type IItemTypeFilterProvider =
     abstract CreateItemFilter: MsBuildProjectPart * IProjectDescriptor -> MsBuildItemTypeFilter
 
 
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 type ItemTypeFilterProvider(buildActions: MsBuildDefaultBuildActions) =
     interface IItemTypeFilterProvider with
         member x.CreateItemFilter(projectPart, projectDescriptor) =
@@ -91,16 +94,17 @@ type ItemTypeFilterProvider(buildActions: MsBuildDefaultBuildActions) =
 
 
 /// Keeps project items in proper order and is used in creating FCS project options and F# project tree.
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 [<ZoneMarker(typeof<IHostSolutionZone>)>]
-type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainerLoader,
-        projectRefresher: IFSharpItemsContainerRefresher, filterProvider: IItemTypeFilterProvider) =
+type FSharpItemsContainer(lifetime: Lifetime, logger: ILogger, containerLoader: FSharpItemsContainerLoader,
+        projectRefresher: IFSharpItemsContainerRefresher, filterProvider: IItemTypeFilterProvider, locks: IShellLocks) =
 
     let locker = JetFastSemiReenterableRWLock()
     let projectMappings = lazy containerLoader.GetMap()
     let targetFrameworkIdsIntern = DataIntern(setComparer)
 
     let projectUpdated = new Signal<IProjectMark>("fsItemsUpdated")
+    let projectLoaded = new Signal<IProjectMark>("fsProjectLoaded")
  
     let tryGetProjectMark (projectItem: IProjectItem) =
         match projectItem.GetProject() with
@@ -119,8 +123,9 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
         |> Option.bind tryGetProjectMapping
         |> Option.bind (fun mapping -> mapping.TryGetProjectItem(viewItem))
 
-    let getItems (msBuildProject: MsBuildProject) projectDescriptor itemTypeFilter (itemsByName: CompactOneToListMap<_,_>) allowNonDefaultItemType =
+    let getItems (msBuildProject: MsBuildProject) projectDescriptor itemTypeFilter (itemsByName: HashSet<_>) allowNonDefaultItemType =
         let items = List<RdProjectItemWithTargetFrameworks>()
+
         for projectPart in msBuildProject.Parts do
             let targetFrameworkId = projectPart.TargetFramework
             let filter = filterProvider.CreateItemFilter(projectPart, projectDescriptor)
@@ -131,10 +136,8 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
 
                 // todo: allow passing additional default item types to the filter ctor
                 (allowNonDefaultItemType || not (filter.FilterByItemType(item.ItemType, item.IsImported()))) &&
-
-                (let (BuildAction buildAction) = item.ItemType
-                 not (buildAction.IsNone() && itemsByName[item.EvaluatedInclude].Count > 1)))
-
+                (itemsByName.Add(item.EvaluatedInclude) || item.ItemType |> (|BuildAction|) |> _.IsNone() |> not)
+            )
             |> Seq.fold (fun index item ->
                 if index < items.Count && items[index].Item.EvaluatedInclude = item.EvaluatedInclude then
                     items[index].TargetFrameworkIds.Add(targetFrameworkId) |> ignore
@@ -208,7 +211,15 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
         use lock = locker.UsingReadLock()
         tryGetProjectItem viewItem |> Option.isSome
 
+    abstract NotifyProjectLoaded: IProjectMark -> unit
+    default x.NotifyProjectLoaded(projectMark) =
+        locks.QueueReadLock(lifetime, "F# project loaded", fun _ ->
+            use _ = WriteLockCookie.Create()
+            projectLoaded.Fire(projectMark)
+        )
+
     interface IFSharpItemsContainer with
+        member x.ProjectLoaded = projectLoaded
         member x.ProjectUpdated = projectUpdated
 
         member x.OnProjectLoaded(projectMark, projectDescriptor, msBuildProject) =
@@ -220,19 +231,7 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
 
             match projectMark with
             | FSharpProjectMark ->
-                let itemsByName = CompactOneToListMap()
-                for rdProject in msBuildProject.Parts do
-                    let itemFilter = filterProvider.CreateItemFilter(rdProject, projectDescriptor)
-
-                    let isAllowedItem (item: MsBuildProjectItem) =
-                        match item.ItemType with
-                        | CompileBefore | CompileAfter -> true
-                        | itemType -> not (itemFilter.FilterByItemType(itemType, item.IsImported()))
-
-                    for rdItem in rdProject.GetAvailableItems() do
-                        if isAllowedItem rdItem then
-                            itemsByName.AddValue(rdItem.EvaluatedInclude, rdItem.ItemType)
-
+                let itemsByName = HashSet()
                 let compileBeforeItems = getItems msBuildProject projectDescriptor isCompileBefore itemsByName true
                 let compileAfterItems = getItems msBuildProject projectDescriptor isCompileAfter itemsByName true
                 let restItems = getItems msBuildProject projectDescriptor (changesOrder >> not) itemsByName false
@@ -245,6 +244,7 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
 
                 addProjectMapping targetFrameworkIds items projectMark
                 projectRefresher.RefreshProject(projectMark, true)
+                x.NotifyProjectLoaded(projectMark)
             | _ -> ()
 
         member x.OnAddFile(projectMark, itemType, path, linkedPath, relativeTo, relativeToType) =
@@ -353,10 +353,15 @@ type FSharpItemsContainer(logger: ILogger, containerLoader: FSharpItemsContainer
             let projectMark = project.GetProjectMark()
             this.ProjectMappings.Remove(projectMark) |> ignore
 
+        member this.IsValid(item) =
+            this.IsValid(item)
+
 type IFSharpItemsContainer =
     inherit IMsBuildProjectListener
     inherit IMsBuildProjectModificationListener
 
+    abstract member IsValid: FSharpViewItem -> bool
+    abstract member ProjectLoaded: ISignal<IProjectMark>
     abstract member ProjectUpdated: ISignal<IProjectMark>
     abstract member RemoveProject: IProject -> unit
     abstract member TryGetSortKey: FSharpViewItem -> int option
@@ -1103,8 +1108,8 @@ type IFSharpItemsContainerRefresher =
     abstract member SelectItem: IProjectMark * VirtualFileSystemPath -> unit
 
 
-[<SolutionInstanceComponent>]
-[<ZoneMarker(typeof<IResharperHostCoreFeatureZone>)>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
+[<ZoneMarker(typeof<IReSharperHostNetFeatureZone>)>]
 type FSharpItemsContainerRefresher(lifetime: Lifetime, solution: ISolution, viewHost: ProjectModelViewHost) =
 
     let tryGetProject projectMark =
@@ -1128,8 +1133,16 @@ type FSharpItemsContainerRefresher(lifetime: Lifetime, solution: ISolution, view
                     | None -> ()
                     | Some viewItem ->
 
-                    if solution.GetComponent<FSharpItemsContainer>().IsValid(viewItem) then
-                        viewHost.UpdateItemIfExists(viewItem)))
+                    let container = solution.GetComponent<IFSharpItemsContainer>()
+                    if container.IsValid(viewItem) then
+                        let parentFolder = viewItem.ProjectItem.ParentFolder
+                        let parentItem: obj =
+                            match container.TryGetParentFolderIdentity(viewItem) with
+                            | Some identity -> FSharpViewFolder(parentFolder, identity)
+                            | None -> viewItem.ProjectItem.ParentFolder
+                        viewHost.AddOrUpdateItem(viewItem, parentItem)
+            )
+        )
 
     interface IFSharpItemsContainerRefresher with
         member x.RefreshProject(projectMark, _) =
@@ -1217,7 +1230,7 @@ type FSharpViewFolderIdentity =
 
 
 [<SolutionFeaturePart>]
-[<ZoneMarker(typeof<IResharperHostCoreFeatureZone>)>]
+[<ZoneMarker(typeof<IReSharperHostNetFeatureZone>)>]
 type FSharpItemModificationContextProvider(container: IFSharpItemsContainer) =
     inherit OrderingContextProvider()
 
@@ -1261,7 +1274,7 @@ type FSharpModificationSettingsProvider() =
         member x.SmartModificationsFilter = ["fsproj"] :> _
 
 
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 type FSharpBuildActionsProvider() =
     inherit MsBuildDefaultBuildActionsProvider()
 

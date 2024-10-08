@@ -110,11 +110,13 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
     let getDocumentRange (error: FSharpDiagnostic) =
         if error.StartLine = 0 || error.ErrorNumber = ModuleOrNamespaceRequired then
-            DocumentRange(document, TextRange(0, document.GetLineEndOffsetWithLineBreak(Line.O)))
+            let startOffset = document.GetDocumentStartOffset()
+            let endOffset = document.GetLineEndDocumentOffsetWithLineBreak(Line.O)
+            DocumentRange(&startOffset, &endOffset)
         else
             let startOffset = getDocumentOffset document (docCoords error.StartLine error.StartColumn)
             let endOffset = getDocumentOffset document (docCoords error.EndLine error.EndColumn)
-            DocumentRange(document, TextRange(startOffset, endOffset))
+            DocumentRange(&startOffset, &endOffset)
 
     let createGenericHighlighting (error: FSharpDiagnostic) range: IHighlighting =
         let errorString = $"{error.Message} ({error.ErrorNumberText})"
@@ -576,4 +578,4 @@ type FcsErrorsStageProcessBase(fsFile, daemonProcess) =
 
             Interruption.Current.CheckAndThrow()
 
-        committer.Invoke(DaemonStageResult(consumer.Highlightings))
+        committer.Invoke(DaemonStageResult(consumer.CollectHighlightings()))

@@ -1,16 +1,18 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Fsi
 
+open JetBrains.Application.Parts
 open JetBrains.Application.Settings
 open JetBrains.Lifetimes
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.DataContext
 open JetBrains.ReSharper.Plugins.FSharp.ProjectModel
 open JetBrains.ReSharper.Plugins.FSharp.Settings
+open JetBrains.Application.Help
 open JetBrains.Util
 
 [<AutoOpen>]
 module FsiOptions =
-    let [<Literal>] fsiHelpKeyword            = "Settings_Languages_FSHARP_Interactive"
+    let [<Literal>] fsiHelpKeyword            = HelpId.Settings_Languages_FSHARP_Interactive
 
     let [<Literal>] launchOptionsSectionTitle = "Launch options"
     let [<Literal>] debugSectionTitle         = "Debug"
@@ -63,7 +65,7 @@ type FsiOptions =
       [<SettingsEntry("--optimize+", fsiArgsText); DefaultValue>]
       mutable FsiArgs: string
 
-      [<SettingsEntry("--fsi-server:0 --readline-", fsiInternalArgsText); DefaultValue>]
+      [<SettingsEntry("--readline-", fsiInternalArgsText); DefaultValue>]
       mutable FsiInternalArgs: string
 
       [<SettingsEntry(true, moveCaretOnSendLineText); DefaultValue>]
@@ -91,7 +93,7 @@ type FsiOptions =
       mutable UseLanguageVersionFromScriptOptions: bool }
 
 
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 type FsiOptionsProvider(lifetime, settings, settingsSchema) =
     inherit FSharpSettingsProviderBase<FsiOptions>(lifetime, settings, settingsSchema)
 

@@ -1,26 +1,19 @@
-import com.jetbrains.rd.generator.gradle.RdGenExtension
+import com.jetbrains.plugin.structure.base.utils.isFile
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.jetbrains.grammarkit.tasks.GenerateLexerTask
-import org.jetbrains.intellij.IntelliJPluginConstants
-import org.jetbrains.intellij.tasks.InstrumentCodeTask
-import org.jetbrains.intellij.tasks.PrepareSandboxTask
-import org.jetbrains.intellij.tasks.RunIdeTask
+import org.jetbrains.intellij.platform.gradle.Constants
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.kotlin.daemon.common.toHexString
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import kotlin.io.path.absolutePathString
 
 plugins {
   // Version is configured in gradle.properties
-  id("com.jetbrains.rdgen")
-  id("org.jetbrains.intellij") version "1.13.3" // https://github.com/JetBrains/gradle-intellij-plugin/releases
-  id("org.jetbrains.grammarkit") version "2021.2.2"
-  id("me.filippov.gradle.jvm.wrapper") version "0.14.0"
-  kotlin("jvm") version "1.8.0"
-}
-
-dependencies {
-  testImplementation("junit:junit:4.13.2")
-  testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.2")
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2")
+  id("me.filippov.gradle.jvm.wrapper")
+  id("org.jetbrains.grammarkit")
+  id("org.jetbrains.intellij.platform")
+  kotlin("jvm")
 }
 
 apply {
@@ -28,76 +21,67 @@ apply {
 }
 
 repositories {
-  mavenCentral()
-  maven("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2")
   maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
+  maven("https://cache-redirector.jetbrains.com/intellij-repository/releases")
+  maven("https://cache-redirector.jetbrains.com/intellij-repository/snapshots")
+  maven("https://cache-redirector.jetbrains.com/maven-central")
+  intellijPlatform {
+    defaultRepositories()
+    jetbrainsRuntime()
+  }
 }
 
-val baseVersion = "2024.2"
+val riderBaseVersion: String by project
 val buildCounter = ext.properties["build.number"] ?: "9999"
-version = "$baseVersion.$buildCounter"
+version = "$riderBaseVersion.$buildCounter"
 
-intellij {
-  type.set("RD")
-
-  // Download a version of Rider to compile and run with. Either set `version` to
-  // 'LATEST-TRUNK-SNAPSHOT' or 'LATEST-EAP-SNAPSHOT' or a known version.
-  // This will download from www.jetbrains.com/intellij-repository/snapshots or
-  // www.jetbrains.com/intellij-repository/releases, respectively.
-  // Note that there's no guarantee that these are kept up-to-date
-  // version = 'LATEST-TRUNK-SNAPSHOT'
-  // If the build isn't available in intellij-repository, use an installed version via `localPath`
-  // localPath = '/Users/matt/Library/Application Support/JetBrains/Toolbox/apps/Rider/ch-1/171.4089.265/Rider EAP.app/Contents'
-  // localPath = "C:\\Users\\Ivan.Shakhov\\AppData\\Local\\JetBrains\\Toolbox\\apps\\Rider\\ch-0\\171.4456.459"
-  // localPath = "C:\\Users\\ivan.pashchenko\\AppData\\Local\\JetBrains\\Toolbox\\apps\\Rider\\ch-0\\dev"
-  // localPath 'build/riderRD-173-SNAPSHOT'
-
-  val dir = file("build/rider")
-  if (dir.exists()) {
-    logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
-    localPath.set(dir.absolutePath)
-  } else {
-    logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
-    version.set("$baseVersion-SNAPSHOT")
+dependencies {
+  testImplementation("junit:junit:4.13.2")
+  testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.2")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2")
+  intellijPlatform {
+    val dir = file("build/rider")
+    if (dir.exists()) {
+      logger.lifecycle("*** Using Rider SDK from local path " + dir.absolutePath)
+      local(dir)
+    } else {
+      logger.lifecycle("*** Using Rider SDK from intellij-snapshots repository")
+      rider("2024.2")
+    }
+    jetbrainsRuntime()
+    bundledPlugin("JavaScript")
+    bundledPlugin("com.intellij.css")
+    bundledPlugin("com.intellij.database")
+    bundledPlugin("com.intellij.ml.llm")
+    bundledPlugin("org.intellij.intelliLang")
+    bundledPlugin("org.jetbrains.plugins.textmate")
+    bundledPlugin("rider.intellij.plugin.appender")
+    instrumentationTools()
+    testFramework(TestFrameworkType.Bundled)
   }
 
-  version.set("2024.1")
-  instrumentCode.set(false)
-  downloadSources.set(false)
-
-  // Uncomment when need to install plugin into a different IDE build.
-  // updateSinceUntilBuild = false
-
-  // rider-plugins-appender: workaround for https://youtrack.jetbrains.com/issue/IDEA-179607
-  // org.intellij.intelliLang needed for tests with language injection marks
-  plugins.set(
-    listOf(
-      "rider-plugins-appender",
-      "org.intellij.intelliLang",
-      "DatabaseTools",
-      "css-impl",
-      "javascript-impl",
-      "com.intellij.ml.llm"
-    )
-  )
+  testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
 
-val repoRoot = projectDir.parentFile!!
-val resharperPluginPath = File(repoRoot, "ReSharper.FSharp")
-
-val rdLibDirectory: () -> File = { file("${tasks.setupDependencies.get().idea.get().classes}/lib/rd") }
-extra["rdLibDirectory"] = rdLibDirectory
+val isMonorepo = rootProject.projectDir != projectDir
+val repoRoot: File = projectDir.parentFile
+val resharperPluginPath = repoRoot.resolve("ReSharper.FSharp")
 
 val buildConfiguration = ext.properties["BuildConfiguration"] ?: "Debug"
 val primaryTargetFramework = "net472"
 val outputRelativePath = "bin/$buildConfiguration/$primaryTargetFramework"
 val ktOutputRelativePath = "src/main/java/com/jetbrains/rider/plugins/fsharp/protocol"
 
-val productMonorepoDir = getProductMonorepoRoot()
-val monorepoPreGeneratedRootDir by lazy { productMonorepoDir?.resolve("dotnet/Plugins/_ReSharperFSharp.Pregenerated") ?: error("Building not in monorepo") }
-val monorepoPreGeneratedFrontendDir by lazy {  monorepoPreGeneratedRootDir.resolve("Frontend") }
-val monorepoPreGeneratedBackendDir by lazy {  monorepoPreGeneratedRootDir.resolve("BackendModel") }
-val ktOutputMonorepoRoot by lazy { monorepoPreGeneratedFrontendDir.resolve(ktOutputRelativePath) }
+if (!isMonorepo) {
+  sourceSets.getByName("main") {
+    java {
+      srcDir(repoRoot.resolve("rider-fsharp/src/generated/java"))
+    }
+    kotlin {
+      srcDir(repoRoot.resolve("rider-fsharp/src/generated/kotlin"))
+    }
+  }
+}
 
 val libFiles = listOf(
   "FSharp/FSharp.Common/$outputRelativePath/FSharp.Core.dll",
@@ -145,7 +129,6 @@ val externalAnnotationsDirectory = "$resharperPluginPath/src/FSharp/annotations"
 
 val nugetConfigPath = File(repoRoot, "NuGet.Config")
 val dotNetSdkPathPropsPath = File("build", "DotNetSdkPath.generated.props")
-val backendLexerSources = "$repoRoot/rider-fsharp/build/backend-lexer-sources/"
 
 val riderFSharpTargetsGroup = "rider-fsharp"
 
@@ -158,144 +141,77 @@ fun File.writeTextIfChanged(content: String) {
   }
 }
 
+val riderModel: Configuration by configurations.creating {
+  isCanBeConsumed = true
+  isCanBeResolved = false
+}
+
+val platformLibConfiguration: Configuration by configurations.creating {
+  isCanBeConsumed = true
+  isCanBeResolved = false
+}
+
+val platformLibFile = project.layout.buildDirectory.file("platform.lib.txt")
+val resolvePlatformLibPath = tasks.create("resolvePlatformLibPath") {
+  dependsOn(Constants.Tasks.INITIALIZE_INTELLIJ_PLATFORM_PLUGIN)
+  outputs.file(platformLibFile)
+  doLast {
+    platformLibFile.get().asFile.writeTextIfChanged(intellijPlatform.platformPath.resolve("lib").absolutePathString())
+  }
+}
+
+artifacts {
+  add(riderModel.name, provider {
+    val sdkRoot = intellijPlatform.platformPath
+    sdkRoot.resolve("lib/rd/rider-model.jar").also {
+      check(it.isFile) {
+        "rider-model.jar is not found at $riderModel"
+      }
+    }
+  }) {
+    builtBy(Constants.Tasks.INITIALIZE_INTELLIJ_PLATFORM_PLUGIN)
+  }
+
+  add(platformLibConfiguration.name, provider { resolvePlatformLibPath.outputs.files.singleFile }) {
+    builtBy(resolvePlatformLibPath)
+  }
+}
+
 tasks {
-  val dotNetSdkPath by lazy {
-    val sdkPath = setupDependencies.get().idea.get().classes.resolve("lib").resolve("DotNetSdkForRdPlugins")
-    if (sdkPath.isDirectory.not()) error("$sdkPath does not exist or not a directory")
-
-    println("SDK path: $sdkPath")
-    return@lazy sdkPath
-  }
-
-  configure<RdGenExtension> {
-    val inMonorepo = productMonorepoDir != null
-    logger.info("Configuring rdgen with inMonorepo=$inMonorepo")
-
-    val csOutput =
-      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.ProjectModelBase/src/Protocol")
-      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.ProjectModelBase/src/Protocol")
-    val ktOutput =
-      if (inMonorepo) File(monorepoPreGeneratedFrontendDir, ktOutputRelativePath)
-      else File(repoRoot, "rider-fsharp/$ktOutputRelativePath")
-
-    val typeProviderClientOutput =
-      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.TypeProviders.Protocol/src/Client")
-      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.TypeProviders.Protocol/src/Client")
-    val typeProviderServerOutput =
-      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.TypeProviders.Protocol/src/Server")
-      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.TypeProviders.Protocol/src/Server")
-
-    val fantomasServerOutput =
-      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.Fantomas.Protocol/src/Server")
-      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.Fantomas.Protocol/src/Server")
-    val fantomasClientOutput =
-      if (inMonorepo) File(monorepoPreGeneratedBackendDir, "FSharp.Fantomas.Protocol/src/Client")
-      else File(repoRoot, "ReSharper.FSharp/src/FSharp/FSharp.Fantomas.Protocol/src/Client")
-
-    verbose = true
-    hashFolder = "build/rdgen"
-    logger.info("Configuring rdgen params")
-    // *** Classpath and sources ***
-    if (inMonorepo) {
-      sources(
-        listOf(
-          File("$productMonorepoDir/rider/model/sources"),
-          File("$productMonorepoDir/remote-dev/rd-ide-model-sources"),
-          File(repoRoot, "rider-fsharp/protocol/src/kotlin/model")
-        )
+  val generateDisabledPluginsTxt by registering {
+    val out = layout.buildDirectory.file("disabled_plugins.txt")
+    outputs.file(out)
+    doLast {
+      file(out).writeText(
+        """
+          com.intellij.ml.llm
+          com.intellij.swagger
+        """.trimIndent()
       )
-    }
-    else {
-      classpath({
-        logger.info("Calculating classpath for rdgen, intellij.ideaDependency is ${rdLibDirectory().canonicalPath}")
-        rdLibDirectory().resolve("rider-model.jar").canonicalPath
-      })
-      sources(File(repoRoot, "rider-fsharp/protocol/src/kotlin/model"))
-    }
-    packages = "model"
-
-    generator {
-      language = "kotlin"
-      transform = "asis"
-      root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
-      namespace = "com.jetbrains.rider.model"
-      directory = "$ktOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-
-    generator {
-      language = "csharp"
-      transform = "reversed"
-      root = "com.jetbrains.rider.model.nova.ide.IdeRoot"
-      namespace = "JetBrains.Rider.Model"
-      directory = "$csOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-
-    generator {
-      language = "csharp"
-      transform = "asis"
-      root = "model.RdFSharpTypeProvidersModel"
-      namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Client"
-      directory = "$typeProviderClientOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-    generator {
-      language = "csharp"
-      transform = "reversed"
-      root = "model.RdFSharpTypeProvidersModel"
-      namespace = "JetBrains.Rider.FSharp.TypeProviders.Protocol.Server"
-      directory = "$typeProviderServerOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-
-    generator {
-      language = "csharp"
-      transform = "asis"
-      root = "model.RdFantomasModel"
-      namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Client"
-      directory = "$fantomasClientOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-    generator {
-      language = "csharp"
-      transform = "reversed"
-      root = "model.RdFantomasModel"
-      namespace = "JetBrains.ReSharper.Plugins.FSharp.Fantomas.Server"
-      directory = "$fantomasServerOutput"
-      if (inMonorepo) generatedFileSuffix = ".Pregenerated"
-    }
-  }
-
-  withType<InstrumentCodeTask> {
-    val bundledMavenArtifacts = file("build/maven-artifacts")
-    if (bundledMavenArtifacts.exists()) {
-      logger.lifecycle("Use ant compiler artifacts from local folder: $bundledMavenArtifacts")
-      compilerClassPathFromMaven.set(
-        bundledMavenArtifacts.walkTopDown()
-          .filter { it.extension == "jar" && !it.name.endsWith("-sources.jar") }
-          .toList() + File("${ideaDependency.get().classes}/lib/util.jar")
-      )
-    } else {
-      logger.lifecycle("Use ant compiler artifacts from maven")
     }
   }
 
   withType<PrepareSandboxTask> {
+    dependsOn(Constants.Tasks.INITIALIZE_INTELLIJ_PLATFORM_PLUGIN)
     var files = libFiles + pluginFiles.map { "$it.dll" } + pluginFiles.map { "$it.pdb" }
     files = files.map { "$resharperPluginPath/src/$it" }
     val fantomasHostFiles = fantomasHostFiles.map { "$resharperPluginPath/src/$it" }
     val typeProvidersFiles = typeProvidersFiles.map { "$resharperPluginPath/src/$it" }
 
-    if (name == IntelliJPluginConstants.PREPARE_TESTING_SANDBOX_TASK_NAME) {
+    if (name == Constants.Tasks.PREPARE_TEST_SANDBOX) {
       val testHostPath = "$resharperPluginPath/src/FSharp/FSharp.Tests.Host/$outputRelativePath"
       val testHostName = "$testHostPath/JetBrains.ReSharper.Plugins.FSharp.Tests.Host"
       files = files + listOf("$testHostName.dll", "$testHostName.pdb")
+
+      dependsOn(generateDisabledPluginsTxt)
+      from(generateDisabledPluginsTxt.get().outputs.files.singleFile) {
+        into("../config-test")
+      }
     }
 
     fun moveToPlugin(files: List<String>, destinationFolder: String) {
       files.forEach {
-        from(it) { into("${intellij.pluginName.get()}/$destinationFolder") }
+        from(it) { into("${intellijPlatform.projectName.get()}/$destinationFolder") }
       }
     }
 
@@ -310,7 +226,7 @@ tasks {
         files.forEach {
           val file = file(it)
           if (!file.exists()) throw RuntimeException("File $file does not exist")
-          logger.warn("$name: ${file.name} -> $destinationDir/${intellij.pluginName.get()}/$destinationFolder")
+          logger.warn("$name: ${file.name} -> $destinationDir/${intellijPlatform.projectName.get()}/$destinationFolder")
         }
       }
       validateFiles(files, "dotnet")
@@ -325,72 +241,15 @@ tasks {
   withType<RunIdeTask> {
     // Match Rider's default heap size of 1.5Gb (default for runIde is 512Mb)
     maxHeapSize = "1500m"
-    systemProperties = mapOf(
-      "jna.nounpack" to "false",
-      "jna.boot.library.path" to "G:\\source\\repos\\En3Tho\\fsharp-support\\rider-fsharp\\build\\riderRD-2022.3-SNAPSHOT\\lib\\jna\\amd64"
-    )
+    // systemProperties = mapOf(
+    //   "jna.nounpack" to "false",
+    //   "jna.boot.library.path" to "G:\\source\\repos\\En3Tho\\fsharp-support\\rider-fsharp\\build\\riderRD-2022.3-SNAPSHOT\\lib\\jna\\amd64"
+    // )
   }
-
-  val resetLexerDirectory = create("resetLexerDirectory") {
-    doFirst {
-      File(backendLexerSources).deleteRecursively()
-      File(backendLexerSources).mkdirs()
-    }
-  }
-
-  // Cannot use ordinary copy here, because it requires eager evaluation of locations
-  val copyUnicodeLex = create("copyUnicodeLex") {
-    dependsOn(resetLexerDirectory)
-    doFirst {
-      val libPath = File("$dotNetSdkPath").parent
-      File(libPath, "ReSharperHost/PsiTasks").listFiles { it -> it.extension == "lex" }!!.forEach {
-        println(it)
-        it.copyTo(File(backendLexerSources, it.name))
-      }
-    }
-  }
-
-  val copyBackendLexerSources = create<Copy>("copyBackendLexerSources") {
-    dependsOn(resetLexerDirectory)
-    from("$resharperPluginPath/src/FSharp/FSharp.Psi/src/Parsing/Lexing") {
-      include("*.lex")
-    }
-    into(backendLexerSources)
-  }
-
-  fun generateLexer(inMonorepo: Boolean, taskName: String) = register<GenerateLexerTask>(taskName) {
-    dependsOn(copyBackendLexerSources, copyUnicodeLex)
-    source.set("src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer/_FSharpLexer.flex")
-
-    val relTargetDir = "src/main/java/com/jetbrains/rider/ideaInterop/fileTypes/fsharp/lexer"
-    val targetName = "_FSharpLexer"
-    val targetDirAbs =
-      if (inMonorepo) monorepoPreGeneratedFrontendDir.resolve(relTargetDir)
-      else File(repoRoot, "rider-fsharp/$relTargetDir")
-    targetDir.set(targetDirAbs.toString())
-    targetClass.set(targetName)
-    purgeOldFiles.set(true)
-    outputs.upToDateWhen { false }
-
-    if (inMonorepo) {
-      // The generated file contains not constant comment with a source file abs path
-      // remove it to prevent changes on each generation
-      // Also, line endings may depend on the platform, so unify it to LF
-      doLast {
-        val targetFile = targetDirAbs.resolve("$targetName.java")
-        if (!targetFile.exists()) error("Lexer file $targetFile was not generated")
-
-        removeFirstMatchLineByRegexAndNormalizeEndings(targetFile, Regex("^( \\* from the specification file .*)\$"))
-      }
-    }
-  }
-
-  val generateFSharpLexer = generateLexer(false, "generateFSharpLexer")
-  val generateFSharpLexerMonorepo = generateLexer(true, "generateFSharpLexerMonorepo")
 
   withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "17"
-    dependsOn(generateFSharpLexer, rdgen)
+    dependsOn(":protocol:rdgen", ":lexer:generateLexer")
   }
 
   val parserTest by register<Test>("parserTest") {
@@ -415,12 +274,15 @@ tasks {
   }
 
   val writeDotNetSdkPathProps = create("writeDotNetSdkPathProps") {
+    dependsOn(Constants.Tasks.INITIALIZE_INTELLIJ_PLATFORM_PLUGIN)
     group = riderFSharpTargetsGroup
+    inputs.property("platformPath") { intellijPlatform.platformPath.toString() }
+    outputs.file(dotNetSdkPathPropsPath)
     doLast {
       dotNetSdkPathPropsPath.writeTextIfChanged(
         """<Project>
   <PropertyGroup>
-    <DotNetSdkPath>$dotNetSdkPath</DotNetSdkPath>
+    <DotNetSdkPath>${intellijPlatform.platformPath.resolve("lib").resolve("DotNetSdkForRdPlugins").absolutePathString()}</DotNetSdkPath>
   </PropertyGroup>
 </Project>
 """
@@ -433,13 +295,16 @@ tasks {
   }
 
   val writeNuGetConfig = create("writeNuGetConfig") {
+    dependsOn(Constants.Tasks.INITIALIZE_INTELLIJ_PLATFORM_PLUGIN)
     group = riderFSharpTargetsGroup
+    inputs.property("platformPath") { intellijPlatform.platformPath.toString() }
+    outputs.file(nugetConfigPath)
     doLast {
       nugetConfigPath.writeTextIfChanged(
         """<?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
-    <add key="resharper-sdk" value="$dotNetSdkPath" />
+    <add key="resharper-sdk" value="${intellijPlatform.platformPath.resolve("lib").resolve("DotNetSdkForRdPlugins").absolutePathString()}" />
   </packageSources>
 </configuration>
 """
@@ -456,56 +321,21 @@ tasks {
 
   val prepare = create("prepare") {
     group = riderFSharpTargetsGroup
-    dependsOn(rdgen, writeNuGetConfig, writeDotNetSdkPathProps, generateFSharpLexer)
+    dependsOn(":protocol:rdgen", writeNuGetConfig, writeDotNetSdkPathProps, ":lexer:generateLexer")
   }
 
-  create("buildReSharperPlugin") {
+  val buildReSharperPlugin by registering(Exec::class) {
     group = riderFSharpTargetsGroup
     dependsOn(prepare)
-    doLast {
-      exec {
-        executable = "msbuild"
-        args = listOf("$resharperPluginPath/ReSharper.FSharp.sln")
-      }
-    }
+
+    executable = "dotnet"
+    args("build", "$resharperPluginPath/ReSharper.FSharp.sln")
   }
 
-  create("prepareMonorepo") {
-    dependsOn(generateFSharpLexerMonorepo, "rdgen")
+  wrapper {
+    gradleVersion = "8.7"
+    distributionUrl = "https://cache-redirector.jetbrains.com/services.gradle.org/distributions/gradle-${gradleVersion}-bin.zip"
   }
 
   defaultTasks(prepare)
-}
-
-fun getProductMonorepoRoot(): File? {
-  var currentDir = repoRoot
-
-  while (currentDir.parent != null) {
-    if (currentDir.resolve(".ultimate.root.marker").exists()) {
-      return currentDir
-    }
-    currentDir = currentDir.parentFile
-  }
-
-  return null
-}
-
-fun removeFirstMatchLineByRegexAndNormalizeEndings(file: File, removeRegex: Regex) {
-  val tempFile = File.createTempFile("${file.name}.temp", null)
-  var found = false
-  file.useLines { lines ->
-    tempFile.bufferedWriter().use { writer ->
-      lines.forEach { line ->
-        if (!found && removeRegex.matches(line)) {
-          // do not write the line if it is matched with the regex
-          found = true
-        } else {
-          // rewrite the line with LF
-          writer.write(line + "\n")
-        }
-      }
-    }
-  }
-  file.delete()
-  tempFile.renameTo(file)
 }

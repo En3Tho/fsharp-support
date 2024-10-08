@@ -5,25 +5,15 @@
   <description>F# language support plugin for JetBrains Rider.</description>
   <category>Languages</category>
 
-  <version>0.9999</version>
-
   <depends>com.intellij.modules.rider</depends>
-  <depends>org.intellij.intelliLang</depends>
   <depends>rider.intellij.plugin.appender</depends>
 
   <content>
     <module name="intellij.rider.plugins.fsharp/llm" />
+    <module name="intellij.rider.plugins.fsharp/injections" />
   </content>
 
-  <extensions defaultExtensionNs="org.intellij.intelliLang">
-    <languageSupport implementation="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.injections.FSharpInjectionSupport"/>
-    <injectionConfig config="fsharpInjections.xml" />
-  </extensions>
-
   <extensions defaultExtensionNs="com.intellij">
-    <sql.resolveExtension implementation="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.injections.FSharpSqlDapperParameterResolveExtension"/>
-    <multiHostInjector implementation="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.injections.FSharpConcatenationToInjectorAdapter" order="first" />
-    <concatenationAwareInjector implementation="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.injections.FSharpConcatenationAwareInjector" />
     <fileType name="F#" language="F#" extensions="fs;fsi;ml;mli" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.FSharpFileType" fieldName="INSTANCE"/>
     <fileType name="F# Script" language="F#" extensions="fsx;fsscript" implementationClass="com.jetbrains.rider.ideaInterop.fileTypes.fsharp.FSharpScriptFileType" fieldName="INSTANCE"/>
 
@@ -38,6 +28,7 @@
     <backend.actions.support language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.actions.FSharpActionSupportPolicy" />
     <backend.markup.adapterFactory language="F#" implementationClass="com.jetbrains.rdclient.daemon.FrontendMarkupAdapterFactory" />
     <completion.contributor language="F#" implementationClass="com.jetbrains.rider.completion.ProtocolCompletionContributor" />
+    <completion.contributor language="F#" implementationClass="com.jetbrains.rider.completion.patchEngine.RiderPatchEngineCompletionContributor" />
     <completion.contributor language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.completion.NuGetProtocolCompletionContributor" />
     <frontend.completion.helper language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.completion.FSharpCompletionHelper" />
     <completion.completionSessionStrategy language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.services.completion.FSharpCompletionStrategy" />
@@ -52,7 +43,13 @@
     <code.cleanup.support language="F#" implementationClass="com.jetbrains.rider.actions.impl.cleanup.BackendCodeCleanupSupportPolicy" />
     <lang.psiStructureViewFactory language="F#" implementationClass="com.jetbrains.rider.fileStructure.RiderProtocolPsiStructureViewFactory" />
     <rider.extendedCodeStructure filetype="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.fileStructure.FSharpExtendedFileStructureSupport"/>
+    <navbar.members.support language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.navbar.FSharpNavBarMembersSupport"/>
     <rdclient.codeStructureTextAttributeProvider filetype="F#" implementationClass="com.jetbrains.rider.fileStructure.RiderTextAttributeProvider"/>
+    <runConfigurationProducer implementation="com.jetbrains.rider.plugins.fsharp.services.fsi.runScript.FSharpRunScriptConfigurationProducer"/>
+    <configurationType implementation="com.jetbrains.rider.plugins.fsharp.services.fsi.runScript.FSharpScriptConfigurationType" />
+    <runLineMarkerContributor language="F#" implementationClass="com.jetbrains.rider.plugins.fsharp.services.fsi.runScript.FSharpRunScriptMarkerContributor"/>
+    <programRunner order="first" implementation="com.jetbrains.rider.plugins.fsharp.services.fsi.runScript.FSharpScriptFsiRunner" />
+    <rider.run.dotNetProfileConsoleViewProvider implementation="com.jetbrains.rider.plugins.fsharp.services.fsi.runScript.FSharpScriptConsoleViewProvider"/>
 
     <rider.ProjectTypesProvider implementation="com.jetbrains.rider.projectView.projectTypes.FSharpProjectTypeProvider" />
     <moveProviderExtension implementation="com.jetbrains.rider.plugins.fsharp.projectView.FSharpMoveProviderExtension"/>
@@ -79,18 +76,6 @@
       <descriptionDirectoryName>SendToFsi</descriptionDirectoryName>
     </intentionAction>
 
-    <intentionAction>
-      <className>com.jetbrains.rider.plugins.fsharp.services.fsi.DebugLineInFsiIntentionAction</className>
-      <category>F#</category>
-      <descriptionDirectoryName>SendToFsi</descriptionDirectoryName>
-    </intentionAction>
-
-    <intentionAction>
-      <className>com.jetbrains.rider.plugins.fsharp.services.fsi.DebugSelectionInFsiIntentionAction</className>
-      <category>F#</category>
-      <descriptionDirectoryName>SendToFsi</descriptionDirectoryName>
-    </intentionAction>
-
     <registryKey key="rider.fsharp.fcsBusyDelay.ms" description="Number of milliseconds that the FCS reactor must be busy for before showing a background task" defaultValue="5000" restartRequired="false"/>
     <rd.platform.traceScenarioHolder implementation="com.jetbrains.rider.plugins.fsharp.logs.FSharpLogTraceScenarios"/>
     <iconMapper mappingFile="FSharpIconMappings.json"/>
@@ -106,10 +91,6 @@
         <keyboard-shortcut first-keystroke="control BACK_SLASH" keymap="$default" />
         <keyboard-shortcut first-keystroke="meta BACK_SLASH" keymap="Mac OS X 10.5+" />
       </action>
-      <action class="com.jetbrains.rider.plugins.fsharp.services.fsi.DebugInFsiAction" id="Rider.Plugins.FSharp.DebugInFsi">
-        <keyboard-shortcut first-keystroke="control alt BACK_SLASH" keymap="$default" />
-        <keyboard-shortcut first-keystroke="meta alt BACK_SLASH" keymap="Mac OS X 10.5+" />
-      </action>
       <add-to-group group-id="ToolsMenu" anchor="last" />
     </group>
     <action id="SendFsiRefs" class="com.jetbrains.rider.plugins.fsharp.services.fsi.SendProjectReferencesToFsiAction" icon="/icons/fsharpConsole.png">
@@ -118,9 +99,6 @@
   </actions>
 
   <project-components>
-    <component>
-      <implementation-class>com.jetbrains.rider.plugins.fsharp.services.fsi.FsiHost</implementation-class>
-    </component>
     <component>
       <implementation-class>com.jetbrains.rider.plugins.fsharp.FSharpHost</implementation-class>
     </component>

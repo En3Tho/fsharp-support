@@ -13,12 +13,16 @@ open JetBrains.ReSharper.Feature.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Metadata
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util.FSharpCompletionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Resolve
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
 open JetBrains.ReSharper.Plugins.FSharp.Shim.AssemblyReader
+open JetBrains.ReSharper.Plugins.FSharp.Util
 open JetBrains.ReSharper.Psi
+open JetBrains.ReSharper.Psi.Pointers
 open JetBrains.ReSharper.Psi.Transactions
 open JetBrains.ReSharper.Resources.Shell
 open JetBrains.UI.RichText
@@ -27,16 +31,20 @@ module ImportInfo =
     let [<Literal>] Id = "Import rule"
 
 
-type ImportInfo(typeElement: ITypeElement, text) =
+type ImportInfo(declaredElementPointer: IDeclaredElementPointer<IClrDeclaredElement>, text) =
     inherit TextualInfo(text, text)
 
-    member this.TypeElement = typeElement
+    new (declaredElement: IClrDeclaredElement, text) =
+        let elementPointer = declaredElement.CreateElementPointer()
+        ImportInfo(elementPointer, text)
+
+    member this.DeclaredElement = declaredElementPointer.FindDeclaredElement()
 
     override this.MakeSafe(text) =
         FSharpNamingService.mangleNameIfNecessary text
 
 
-type ImportBehavior(info) =
+type ImportBehavior(info: ImportInfo) =
     inherit TextualBehavior<ImportInfo>(info)
 
     override this.Accept(textControl, nameRange, insertType, suffix, solution, keepCaretStill) =
@@ -49,7 +57,10 @@ type ImportBehavior(info) =
         use writeCookie = WriteLockCookie.Create(referenceOwner.IsPhysical())
         use transactionCookie = PsiTransactionCookie.CreateAutoCommitCookieWithCachesUpdate(psiServices, ImportInfo.Id)
 
-        addOpens referenceOwner.Reference info.TypeElement |> ignore
+        let declaredElement = info.DeclaredElement
+        if isNotNull declaredElement then
+            let reference = referenceOwner.Reference
+            FSharpBindUtil.bindDeclaredElementToReference referenceOwner reference declaredElement ImportInfo.Id
 
 
 [<Language(typeof<FSharpLanguage>)>]
@@ -70,13 +81,14 @@ type ImportRule() =
         let solution = psiServices.Solution
         let assemblyReaderShim = solution.GetComponent<IFcsAssemblyReaderShim>()
         let iconManager = solution.GetComponent<PsiIconManager>()
+        let autoOpenCache = solution.GetComponent<FSharpAutoOpenCache>()
 
-        let symbolScope = psiServices.Symbols.GetSymbolScope(element.GetPsiModule(), true, false)
+        let symbolScope = getSymbolScope context.PsiModule false
         let typeElements = 
             symbolScope.GetAllTypeElementsGroupedByName()
             |> Seq.filter (fun typeElement -> assemblyReaderShim.IsKnownModule(typeElement.Module)) 
 
-        let openedModulesProvider = OpenedModulesProvider(element.FSharpFile)
+        let openedModulesProvider = OpenedModulesProvider(element.FSharpFile, autoOpenCache)
         let scopes = openedModulesProvider.OpenedModuleScopes
 
         for typeElement in typeElements do

@@ -4,6 +4,7 @@ open System.Collections.Generic
 open FSharp.Compiler.EditorServices
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
+open JetBrains.Application.Parts
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Feature.Services.CodeCompletion
 open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure
@@ -323,6 +324,9 @@ type FSharpKeywordsRule() =
         let tokenBeforeCaret = context.TokenBeforeCaret
         let fcsCompletionContext = reparsedContext.GetFcsContext()
 
+        let prevMeaningfulToken = skipMatchingTokensBefore isInlineSpaceOrComment tokenBeforeCaret
+        if getTokenType prevMeaningfulToken == FSharpTokenType.AS then false else
+
         match fcsCompletionContext.CompletionContext, getTokenType tokenBeforeCaret with
         | Some(CompletionContext.Invalid), tokenBeforeType when tokenBeforeType != FSharpTokenType.HASH -> false
         | _, tokenBeforeType ->
@@ -378,7 +382,7 @@ type FSharpKeywordsRule() =
         true
 
 
-[<SolutionComponent>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
 type FSharpHashDirectiveAutocompletionStrategy() =
     interface IAutomaticCodeCompletionStrategy with
         member x.Language = FSharpLanguage.Instance :> _

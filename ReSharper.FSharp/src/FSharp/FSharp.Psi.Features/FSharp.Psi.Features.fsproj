@@ -1,16 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <InternalBuild Condition="Exists('ManagedProject.Generated.Targets')">True</InternalBuild>
+    <InternalBuild Condition="'$(SolutionFileName)' != 'ReSharper.FSharp.sln'">True</InternalBuild>
     <InternalBuild Condition="$(InternalBuild) == ''">False</InternalBuild>
   </PropertyGroup>
   <Import Project="Sdk.props" Sdk="JetBrains.NET.Sdk" Version="0.0.4" Condition="$(InternalBuild)" />
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition="!$(InternalBuild)" />
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
     <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     <RootNamespace>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</RootNamespace>
-    <AssemblyName>JetBrains.ReSharper.Plugins.FSharp.Psi.Features</AssemblyName>
+    <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Update="Resources\Strings.resx">
@@ -37,13 +37,15 @@
     <Compile Include="src\CodeCompletion\Rules\UnionCasePatternRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\UnionCaseFieldsRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\RecordFieldRule.fs" />
-    <Compile Include="src\CodeCompletion\Rules\RemoveReparsePatternRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\FilterFcsItemsRules.fs" />
     <Compile Include="src\CodeCompletion\Rules\ImportRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\GenerateMatchExprPatternsRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\NamedUnionCaseFieldsPatRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\LocalValuesRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\FSharpKeywordsRule.fs" />
     <Compile Include="src\CodeCompletion\Rules\OverrideMemberRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\ImportExtensionMemberRule.fs" />
+    <Compile Include="src\CodeCompletion\Rules\NameSuggestionRule.fs" />
     <Compile Include="src\CodeCompletion\FSharpScriptReferenceCompletionProvider.fs" />
     <Compile Include="src\CodeCompletion\FSharpCompletionProviders.fs" />
     <Compile Include="src\CodeStructure\FSharpCodeStructure.fs" />
@@ -121,27 +123,19 @@
     <Compile Include="src\FSharpTypingAssist.fs" />
     <Compile Include="src\ZoneMarker.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="8.0.300-dev" />
+  <ItemGroup Label="PackageReference">
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="JetBrains.Lifetimes" />
     <PackageReference Include="JetBrains.NuGet.Packaging" />
     <PackageReference Include="JetBrains.NuGet.Versioning" />
     <PackageReference Include="JetBrains.RdFramework" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Label="ProjectReference">
     <ProjectReference Include="..\FSharp.Common\FSharp.Common.fsproj" />
     <ProjectReference Include="..\FSharp.Fantomas.Protocol\FSharp.Fantomas.Protocol.csproj" />
     <ProjectReference Include="..\FSharp.ProjectModelBase\FSharp.ProjectModelBase.csproj" />
     <ProjectReference Include="..\FSharp.Psi.Services\FSharp.Psi.Services.fsproj" />
     <ProjectReference Include="..\FSharp.Psi\FSharp.Psi.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="PresentationFramework" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Web" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <Target Name="AddFantomasBundledVersion" BeforeTargets="BeforeCompile">
     <PropertyGroup>
@@ -158,6 +152,9 @@
         <_Parameter1>$(FantomasBundledVersion)</_Parameter1>
       </AssemblyAttributes>
     </ItemGroup>
+  </Target>
+  <Target Name="DropObjFromIndependentBuild" Condition="$(InternalBuild)" BeforeTargets="Build">
+    <RemoveDir Directories="obj" />
   </Target>
   <Import Project="$(SolutionDir)/CustomFSharp.targets" />
   <Import Project="$(RiderBackendSubplatform)" Condition="Exists('$(RiderBackendSubplatform)')" />

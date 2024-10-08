@@ -1,6 +1,8 @@
 namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Injected
 
 open System.Text.RegularExpressions
+open JetBrains.Annotations
+open JetBrains.Application.Parts
 open JetBrains.ProjectModel
 open JetBrains.ReSharper.Features.RegExp
 open JetBrains.ReSharper.Plugins.FSharp.Psi
@@ -15,7 +17,7 @@ open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpMethodInvocation
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpExpressionUtil
 open JetBrains.ReSharper.Plugins.FSharp.Util
 
-[<SolutionComponent>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
 type FSharpRegexNodeProvider() =
     let rec evalOptionsArg (expr: IFSharpExpression) =
         match expr.IgnoreInnerParens() with
@@ -81,7 +83,9 @@ type FSharpRegexNodeProvider() =
 
             let result =
                 match node.Parent with
-                | :? IInterpolatedStringExpr as expr -> checkForAttributes expr
+                //TODO: Support raw strings
+                | :? IInterpolatedStringExpr as expr when expr.IsTrivial() ->
+                    checkForAttributes expr
 
                 | :? ILiteralExpr as expr ->
                     let checkAttributesResult = checkForAttributes expr
@@ -109,5 +113,5 @@ type FSharpRegexNodeProvider() =
         override _.Description = "Injects .NET Regular Expression in F# strings"
         override _.Guid = "7e4d8d57-335f-4692-9ff8-6b2fa003fb51"
         override _.Words = null
-        override _.Attributes = [| RegexPatternAnnotationProvider.RegexPatternAttributeShortName
+        override _.Attributes = [| nameof RegexPatternAttribute
                                    StringSyntaxAnnotationProvider.StringSyntaxAttributeShortName |]

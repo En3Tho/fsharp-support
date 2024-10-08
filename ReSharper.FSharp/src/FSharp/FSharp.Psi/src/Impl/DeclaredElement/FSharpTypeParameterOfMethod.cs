@@ -39,6 +39,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
     public override ITypeMember GetContainingTypeMember() => Method;
 
     public IList<ITypeParameter> TypeParameters => EmptyList<ITypeParameter>.Instance;
+    public int TypeParametersCount => 0;
     public override ISubstitution IdSubstitution => EmptySubstitution.INSTANCE;
 
     public IClrTypeName GetClrName() => EmptyClrTypeName.Instance;
@@ -66,7 +67,6 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
     public IEnumerable<IEvent> Events => EmptyList<IEvent>.Instance;
     public IEnumerable<string> MemberNames => EmptyList<string>.InstanceList;
 
-    public bool IsNotNullableValueOrReferenceType => false;
     public TypeParameterNullability Nullability => TypeParameterNullability.Unknown;
 
     public TypeParameterNullability GetNullability(ISubstitution explicitInheritorSubstitution) =>
@@ -102,6 +102,10 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.DeclaredElement
 
     public bool HasDefaultConstructor =>
       FcsConstraints.Any(constraint => constraint.IsRequiresDefaultConstructorConstraint);
+
+    public bool IsNotNullableValueOrReferenceType => false;
+
+    public bool AllowsByRefLikeType => false;
 
     public bool HasTypeConstraints =>
       FcsConstraints.Any(constraint => constraint.IsCoercesToConstraint);

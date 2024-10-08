@@ -7,6 +7,7 @@ open FSharp.Compiler.AbstractIL.ILBinaryReader
 open FSharp.Compiler.CodeAnalysis
 open JetBrains.Annotations
 open JetBrains.Application.BuildScript.Application.Zones
+open JetBrains.Application.Parts
 open JetBrains.Application.Settings
 open JetBrains.Application.Threading
 open JetBrains.Application.changes
@@ -62,7 +63,7 @@ module FcsProjectProvider =
         ProjectModelChangeType.MOVED_IN ||| ProjectModelChangeType.MOVED_OUT |||
         ProjectModelChangeType.REFERENCE_TARGET
 
-[<SolutionComponent>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
 [<ZoneMarker(typeof<ISinceClr4HostZone>)>]
 type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: ChangeManager,
         checkerService: FcsCheckerService, fcsProjectBuilder: FcsProjectBuilder,
@@ -93,7 +94,8 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     do
         // todo: schedule listening after project model is ready; create fcs projects for all projects
         changeManager.Changed2.Advise(lifetime, this.ProcessChange)
-        fsItemsContainer.ProjectUpdated.Advise(lifetime, this.ProcessItemsChange)
+        fsItemsContainer.ProjectLoaded.Advise(lifetime, this.ProcessItemsContainerUpdate)
+        fsItemsContainer.ProjectUpdated.Advise(lifetime, this.ProcessItemsContainerUpdate)
         checkerService.FcsProjectProvider <- this
         lifetime.OnTermination(fun _ -> checkerService.FcsProjectProvider <- Unchecked.defaultof<_>) |> ignore
 
@@ -138,12 +140,16 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             ||> Array.forall2 (fun r1 r2 ->
                 match r1, r2 with
                 | FSharpReferencedProject.FSharpReference (_, r1),
-                  FSharpReferencedProject.FSharpReference (_, r2) -> loop r1 r2
+                  FSharpReferencedProject.FSharpReference (_, r2) ->
+                    r1.Stamp = r2.Stamp
+
                 | FSharpReferencedProject.ILModuleReference(_, _, getReader1),
-                  FSharpReferencedProject.ILModuleReference(_, _, getReader2) -> getReader1 () = getReader2 ()
+                  FSharpReferencedProject.ILModuleReference(_, _, getReader2) ->
+                    getReader1 () = getReader2 ()
+
                 | _ -> false
             )
-            
+
         loop newProject.ProjectOptions oldProject.ProjectOptions
 
     let tryGetFcsProject (psiModule: IPsiModule): FcsProject option =
@@ -338,13 +344,6 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
     let invalidateDirtyProjects () =
         locks.AssertWriteAccessAllowed()
 
-        // Create a new collection, so transitive changes could add new dirty projects,
-        // Adding dirty projects would break the enumeration below if the original collection is changed.
-        let dirtyProjects =
-            let result = HashSet(dirtyProjects)
-            dirtyProjects.Clear()
-            result
-
         let visited = HashSet<FcsProjectKey>()
         let projectsToInvalidate = Stack()
 
@@ -385,8 +384,15 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
                 if not (newTargetFrameworks.Contains(existingProjectKey.TargetFrameworkId)) then
                     removeProject existingProjectKey
 
-        for dirtyProject in dirtyProjects do
-            loop dirtyProject
+        // Create a new collection, so transitive changes could add new dirty projects,
+        // Adding dirty projects would break the enumeration below if the original collection is changed.
+        let mutable currentDirtyProjects = null
+        while (let result = HashSet(dirtyProjects)
+               dirtyProjects.Clear()
+               currentDirtyProjects <- result
+               result.Count <> 0) do
+            for dirtyProject in currentDirtyProjects do
+                loop dirtyProject
 
     let processInvalidatedFcsProjects () =
         if invalidatedFcsProjects.IsEmpty then () else
@@ -421,8 +427,6 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             currentProject <- project
             visitor
 
-    member x.FcsProjectInvalidated = fcsProjectInvalidated
-
     member x.ProcessChange(obj: ChangeEventArgs) =
         Assertion.Assert(dirtyProjects.Count = 0)
 
@@ -434,10 +438,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
         use cookie = WriteLockCookie.Create()
 
-        while dirtyProjects.Count > 0 do
-            invalidateDirtyProjects ()
-
-        dirtyProjects.Clear()
+        invalidateDirtyProjects ()
 
     override x.VisitDelta(change: ProjectModelChange) =
         base.VisitDelta(change)
@@ -469,12 +470,11 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
         if isNotNull project then
             dirtyProjects.Add(project) |> ignore
 
-    member this.ProcessItemsChange(projectMark: IProjectMark) =
+    member this.ProcessItemsContainerUpdate(projectMark: IProjectMark) =
         let project = solution.GetProjectByMark(projectMark)
         if isNotNull project then
             dirtyProjects.Add(project) |> ignore
             invalidateDirtyProjects ()
-            dirtyProjects.Clear()
 
     interface IFcsProjectProvider with
         member x.GetProjectOptions(sourceFile: IPsiSourceFile) =
@@ -543,7 +543,7 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             |> Option.map (fun project -> project.GetIndex(sourceFile))
             |> Option.defaultValue -1
 
-        member x.ProjectRemoved = x.FcsProjectInvalidated :> _
+        member x.ProjectRemoved = fcsProjectInvalidated :> _
 
         member x.InvalidateReferencesToProject(project: IProject) =
             project.TargetFrameworkIds
@@ -588,14 +588,17 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
             if psiModule :? FSharpScriptPsiModule then () else
             if not fcsAssemblyReaderShim.IsEnabled then () else
 
+            logger.Trace("Start processing FCS requests")
             FSharpAsyncUtil.ProcessEnqueuedReadRequests()
+            logger.Trace("Finish processing FCS requests")
 
             lock this (fun _ ->
+                logger.Trace("Start invalidating assembly reader")
                 // todo: check that dirty modules are visible to the current one
-                if not fcsAssemblyReaderShim.HasDirtyModules then () else
+                if not fcsAssemblyReaderShim.HasDirtyModules then logger.Trace("No dirty modules; exiting") else
 
                 match tryGetFcsProject psiModule with
-                | None -> ()
+                | None -> logger.Trace("Could not get fcs project; exiting")
                 | Some fcsProject ->
 
                 fcsAssemblyReaderShim.InvalidateDirty()
@@ -606,12 +609,15 @@ type FcsProjectProvider(lifetime: Lifetime, solution: ISolution, changeManager: 
 
                     if not (isFSharpProject referencedProject) then
                         let referencedModule = psiModules.GetPrimaryPsiModule(referencedProject, targetFrameworkId)
-                        barrier.EnqueueJob(fun _ -> fcsAssemblyReaderShim.InvalidateDirty(referencedModule)))
+                        barrier.EnqueueJob(fun _ -> fcsAssemblyReaderShim.InvalidateDirty(referencedModule))
+
+                logger.Trace("Finish invalidating assembly reader")
+            )
 
 
 /// Invalidates psi caches when either a non-F# project or F# project containing generative type providers is built
 /// which makes FCS cached resolve results stale
-[<SolutionComponent>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
 type OutputAssemblyChangeInvalidator(lifetime: Lifetime, outputAssemblies: OutputAssemblies, daemon: IDaemon,
         psiFiles: IPsiFiles, fcsProjectProvider: IFcsProjectProvider, scheduler: ISolutionLoadTasksScheduler,
         typeProvidersShim: IProxyExtensionTypingProvider, fcsAssemblyReaderShim: IFcsAssemblyReaderShim) =

@@ -3,6 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.ProjectModel.Host
 open System
 open JetBrains.Application
 open JetBrains.Application.BuildScript.Application.Zones
+open JetBrains.Application.Parts
 open JetBrains.Platform.MsBuildHost.ProjectModel
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.MSBuild
@@ -41,8 +42,8 @@ type FSharpProjectPropertiesBuilder(projectPropertiesRequests) =
         configuration.LanguageVersion <- languageVersion
 
 
-[<SolutionComponent>]
-[<ZoneMarker(typeof<IResharperHostCoreFeatureZone>)>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
+[<ZoneMarker(typeof<IReSharperHostNetFeatureZone>)>]
 type FSharpLanguageSpecificItemsProvider() =
     interface IMsBuildConfigurationTabProvider with
         member x.Order = Int32.MaxValue

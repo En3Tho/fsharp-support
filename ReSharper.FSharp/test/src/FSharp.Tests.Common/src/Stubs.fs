@@ -2,6 +2,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Tests
 
 open JetBrains.Application
 open JetBrains.Application.BuildScript.Application.Zones
+open JetBrains.Application.Parts
 open JetBrains.DataFlow
 open JetBrains.ProjectModel
 open JetBrains.ProjectModel.ProjectsHost
@@ -17,7 +18,7 @@ type FSharpFileServiceStub() =
         member x.IsScratchFile _ = false
         member x.IsScriptLike _ = false
 
-[<SolutionInstanceComponent>]
+[<SolutionInstanceComponent(InstantiationEx.LegacyDefault)>]
 [<ZoneMarker(typeof<ITestFSharpPluginZone>)>]
 type StubFSharpItemsContainer() =
     interface IFSharpItemsContainer with
@@ -36,4 +37,6 @@ type StubFSharpItemsContainer() =
         member this.OnUpdateFile(_, _, _, _, _) = ()
         member this.OnUpdateFolder(_, _, _) = ()
 
+        member val ProjectLoaded = new Signal<IProjectMark>("todo")
         member val ProjectUpdated = new Signal<IProjectMark>("todo")
+        member this.IsValid _ = true

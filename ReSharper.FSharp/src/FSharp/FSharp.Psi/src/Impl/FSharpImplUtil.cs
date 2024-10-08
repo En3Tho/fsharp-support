@@ -362,21 +362,35 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static bool HasModuleSuffix([NotNull] this string shortName) =>
       shortName.EndsWith(ModuleSuffix, StringComparison.Ordinal);
 
+    /// Not fully correct, since type parameter count doesn't fully follow logic used for source elements.
+    /// Current implementation allows good enough results in FSharpResolveUtil.resolvesToAssociatedModule.
     public static ITypeElement TryGetAssociatedType([NotNull] this CompiledTypeElement moduleTypeElement, string sourceName)
     {
       Assertion.Assert(moduleTypeElement is FSharpCompiledModule, "moduleTypeElement.IsCompiledModule()");
 
       bool IsAssociatedType(ITypeElement t) =>
-        !t.Equals(moduleTypeElement) && t.TypeParameters.Count == 0 &&
-        t is not FSharpCompiledModule && t.GetSourceName() == sourceName;
+        !t.Equals(moduleTypeElement) && t is not FSharpCompiledModule && t.GetSourceName() == sourceName;
+
+      ITypeElement ChooseType(ICollection<ITypeElement> typeElements)
+      {
+        var possiblyAssociatedTypes = typeElements.Where(IsAssociatedType).AsIList();
+        if (possiblyAssociatedTypes.Count == 1)
+          return possiblyAssociatedTypes[0];
+
+        var typeWithoutTypeParams = possiblyAssociatedTypes.SingleItem(element => element.TypeParametersCount == 0);
+        if (typeWithoutTypeParams != null)
+          return typeWithoutTypeParams;
+
+        return possiblyAssociatedTypes.FirstOrDefault();
+      }
 
       var containingType = moduleTypeElement.GetContainingType();
       if (containingType != null)
-        return containingType.NestedTypes.FirstOrDefault(IsAssociatedType);
+        return ChooseType(containingType.NestedTypes);
 
       var ns = moduleTypeElement.GetContainingNamespace();
       var symbolScope = moduleTypeElement.Module.GetModuleOnlySymbolScope(false);
-      return ns.GetNestedTypeElements(symbolScope).FirstOrDefault(IsAssociatedType);
+      return ChooseType(ns.GetNestedTypeElements(symbolScope));
     }
 
     public static string GetSourceName([NotNull] this CompiledTypeElement typeElement)
@@ -637,11 +651,12 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       return false;
     }
 
+    // todo: uses different logic: names in parts for modules and resolve for other type elements
     public static bool HasAutoOpenAttribute([NotNull] this ITypeElement typeElement) =>
       typeElement switch
       {
         FSharpModule fsModule => HasAttribute(fsModule, AutoOpen),
-        IFSharpTypeElement _ => false,
+        IFSharpTypeElement and not IFSharpModule => false,
         _ => typeElement.HasAttributeInstance(FSharpPredefinedType.AutoOpenAttrTypeName, false)
       };
 
@@ -670,8 +685,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
       }
     }
 
-    public static bool IsModule(this ITypeElement typeElement) =>
-      typeElement is IFSharpModule || typeElement is FSharpCompiledModule;
+    public static bool IsModule(this ITypeElement typeElement) => typeElement is IFSharpModule;
 
     public static ModuleMembersAccessKind GetAccessType([NotNull] this ITypeElement typeElement)
     {
@@ -695,7 +709,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
     public static bool IsAutoImported([NotNull] this IClrDeclaredElement declaredElement)
     {
       var psiModule = declaredElement.Module;
-      var autoOpenCache = psiModule.GetSolution().GetComponent<FSharpAssemblyAutoOpenCache>();
+      var autoOpenCache = psiModule.GetSolution().GetComponent<FSharpAutoOpenCache>();
       var autoOpenedModules = autoOpenCache.GetAutoOpenedModules(psiModule);
 
       // todo: assembly level auto open modules

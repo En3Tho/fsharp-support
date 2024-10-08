@@ -18,7 +18,7 @@ open JetBrains.ReSharper.Resources.Shell
 open JetBrains.TextControl
 open JetBrains.Util.Text
 
-[<CodeCleanupModule(Instantiation.DemandAnyThread)>]
+[<CodeCleanupModule(Instantiation.DemandAnyThreadSafe)>]
 type FSharpReformatCode(textControlManager: ITextControlManager) =
     let REFORMAT_CODE_DESCRIPTOR = CodeCleanupOptionDescriptor<bool>(
         "FSharpReformatCode",
@@ -59,9 +59,9 @@ type FSharpReformatCode(textControlManager: ITextControlManager) =
             let text = document.GetText()
 
             let solution = fsFile.GetSolution()
-            let settings = sourceFile.GetSettingsStoreWithEditorConfig()
+            let settingsStore = sourceFile.GetSettingsStoreWithEditorConfig()
             let formatter = fsFile.Language.LanguageServiceNotNull().CodeFormatter
-            let settings = formatter.GetFormatterSettings(solution, sourceFile, settings, false) :?> _
+            let settings = formatter.GetFormatterSettings(solution, sourceFile, settingsStore, false) :?> _
             let fantomasHost = solution.GetComponent<FantomasHost>()
 
             let stamp = document.LastModificationStamp
@@ -69,34 +69,34 @@ type FSharpReformatCode(textControlManager: ITextControlManager) =
             let newLineText = sourceFile.DetectLineEnding().GetPresentation()
             let parsingOptions = fsFile.CheckerService.FcsProjectProvider.GetParsingOptions(sourceFile)
 
-            if isNotNull rangeMarker then
-                try
+            try
+                if isNotNull rangeMarker then
                     let range = ofDocumentRange rangeMarker.DocumentRange
-                    let formatted = fantomasHost.FormatSelection(filePath, range, text, settings, parsingOptions, newLineText)
+                    let formatted = fantomasHost.FormatSelection(filePath, range, text, settings, parsingOptions, newLineText, settingsStore)
                     let offset = rangeMarker.DocumentRange.StartOffset.Offset
                     let oldLength = rangeMarker.DocumentRange.Length
                     let documentChange = DocumentChange(document, offset, oldLength, formatted, stamp, modificationSide)
                     use _ = WriteLockCookie.Create()
                     document.ChangeDocument(documentChange, TimeStamp.NextValue)
                     sourceFile.GetPsiServices().Files.CommitAllDocuments()
-                with _ -> ()
-            else
-                let textControl = textControlManager.VisibleTextControls
-                                  |> Seq.tryFind (fun c -> c.Document == document && c.Window.IsFocused.Value)
-                let cursorPosition = textControl |> Option.map (fun c -> c.Caret.Position.Value.ToDocLineColumn())
-                let formatResult = fantomasHost.FormatDocument(filePath, text, settings, parsingOptions, newLineText, cursorPosition)
-                let newCursorPosition = formatResult.CursorPosition
+                else
+                    let textControl = textControlManager.VisibleTextControls
+                                      |> Seq.tryFind (fun c -> c.Document == document && c.Window.IsFocused.Value)
+                    let cursorPosition = textControl |> Option.map (fun c -> c.Caret.Position.Value.ToDocLineColumn())
+                    let formatResult = fantomasHost.FormatDocument(filePath, text, settings, parsingOptions, newLineText, cursorPosition, settingsStore)
+                    let newCursorPosition = formatResult.CursorPosition
 
-                document.ReplaceText(document.DocumentRange, formatResult.Code)
-                sourceFile.GetPsiServices().Files.CommitAllDocuments()
+                    document.ReplaceText(document.DocumentRange, formatResult.Code)
+                    sourceFile.GetPsiServices().Files.CommitAllDocuments()
 
-                if isNull textControl || isNull newCursorPosition then () else
+                    if isNull textControl || isNull newCursorPosition then () else
 
-                // move cursor after current document transaction
-                let moveCursorLifetime = new LifetimeDefinition()
-                let codeCleanupService = solution.GetComponent<CodeCleanupService>()
-                codeCleanupService.WholeFileCleanupCompletedAfterSave.Advise(moveCursorLifetime.Lifetime, fun _ ->
-                    moveCursorLifetime.Terminate()
-                    textControl.Value.Caret.MoveTo(docLine newCursorPosition.Row,
-                                                   docColumn newCursorPosition.Column,
-                                                   CaretVisualPlacement.Generic))
+                    // move cursor after current document transaction
+                    let moveCursorLifetime = new LifetimeDefinition()
+                    let codeCleanupService = solution.GetComponent<CodeCleanupService>()
+                    codeCleanupService.WholeFileCleanupCompletedAfterSave.Advise(moveCursorLifetime.Lifetime, fun _ ->
+                        moveCursorLifetime.Terminate()
+                        textControl.Value.Caret.MoveTo(docLine newCursorPosition.Row,
+                                                       docColumn newCursorPosition.Column,
+                                                       CaretVisualPlacement.Generic))
+            with _ -> ()

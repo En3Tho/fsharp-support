@@ -1,19 +1,12 @@
 module JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpPatternUtil
 
-open FSharp.Compiler.Symbols
-open FSharp.Compiler.Syntax
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Tree
-open JetBrains.ReSharper.Plugins.FSharp.Psi.Util
-open JetBrains.ReSharper.Plugins.FSharp.Util
-open JetBrains.ReSharper.Psi
 open JetBrains.ReSharper.Psi.ExtensionsAPI
 open JetBrains.ReSharper.Psi.ExtensionsAPI.Tree
 open JetBrains.ReSharper.Psi.Transactions
-open JetBrains.ReSharper.Psi.Tree
-open JetBrains.ReSharper.Psi.Util
 open JetBrains.ReSharper.Resources.Shell
 
 let getReferenceName (pattern: IFSharpPattern) =
@@ -40,46 +33,6 @@ let toParameterOwnerPat (pat: IFSharpPattern) opName =
         newPat
     | _ -> failwith $"Unexpected pattern: {pat}"
 
-let bindFcsSymbolToReference (context: ITreeNode) (referenceName: IReferenceName) (fcsSymbol: FSharpSymbol) opName =
-    let declaredElement = fcsSymbol.GetDeclaredElement(context.GetPsiModule()).As<IClrDeclaredElement>()
-    if isNull referenceName || referenceName.IsQualified || isNull declaredElement then () else
-
-    let reference = referenceName.Reference
-    FSharpReferenceBindingUtil.SetRequiredQualifiers(reference, declaredElement, context)
-
-    if not (FSharpResolveUtil.resolvesToQualified declaredElement reference true opName) then
-        // todo: use declared element directly
-        let typeElement = declaredElement.GetContainingType()
-        addOpens reference typeElement |> ignore
-
-// todo: replace Fcs symbols with R# elements when possible
-let bindFcsSymbol (pattern: IFSharpPattern) (fcsSymbol: FSharpSymbol) opName =
-    // todo: move to reference binding
-    let bind name =
-        let factory = pattern.CreateElementFactory()
-
-        let name = PrettyNaming.NormalizeIdentifierBackticks name
-        let newPattern = factory.CreatePattern(name, false)
-        let pat = ModificationUtil.ReplaceChild(pattern, newPattern)
-
-        let referenceName = getReferenceName pat
-
-        let oldQualifierWithDot =
-            let referenceName = getReferenceName pattern
-            if isNotNull referenceName then TreeRange(referenceName.Qualifier, referenceName.Delimiter) else null
-
-        if isNotNull oldQualifierWithDot then
-            ModificationUtil.AddChildRangeAfter(referenceName, null, oldQualifierWithDot) |> ignore
-
-        bindFcsSymbolToReference pat referenceName fcsSymbol opName
-
-        pat
-    
-    match fcsSymbol with
-    | :? FSharpUnionCase as unionCase -> bind unionCase.Name
-    | :? FSharpField as field when FSharpSymbolUtil.isEnumMember field -> bind field.Name
-    | _ -> failwith $"Unexpected symbol: {fcsSymbol}"
-
 let rec ignoreParentAsPatsFromRight (pat: IFSharpPattern) =
     match AsPatNavigator.GetByRightPattern(pat.IgnoreParentParens()) with
     | null -> pat
@@ -90,39 +43,67 @@ let rec ignoreInnerAsPatsToRight (pat: IFSharpPattern) =
     | :? IAsPat as asPat -> ignoreInnerAsPatsToRight asPat.RightPattern
     | _ -> pat
 
+// todo: try to unify with match test patterns?
+
 module ParentTraversal =
     [<RequireQualifiedAccess>]
     type PatternParentTraverseStep =
-        | Tuple of item: int * tuplePat: ITuplePat
-        | Or of item: int * orPat: IOrPat
-        | And of andPat: IAndsPat
-        | As of asPat: IAsPat
+        | Tuple of index: int * tuplePat: ITuplePat
+        | Or of index: int * orPat: IOrPat
+        | And of index: int * andPat: IAndsPat
+        | As of index: int * asPat: IAsPat
+        | IsInst of isInstPat: IIsInstPat
+        | ParameterOwner of paramOwnerPat: IParametersOwnerPat
+        | List of index: int * pat: IArrayOrListPat
+        | ListCons of index: int * pat: IListConsPat
+        | Field of fieldName: string * pat: IFieldPat
+        | Record of pat: IRecordPat
+        | Error
 
     let makePatPath pat =
-        let rec tryMakePatPath path (IgnoreParenPat fsPattern: IFSharpPattern) =
-            let asPat = AsPatNavigator.GetByLeftPattern(fsPattern)
-            if isNotNull asPat then
-                tryMakePatPath (PatternParentTraverseStep.As(asPat) :: path) asPat else
+        let rec tryMakePatPath path (IgnoreParenPat pat: IFSharpPattern) =
+            let parent = pat.Parent.As<IFSharpPattern>()
 
-            let tuplePat = TuplePatNavigator.GetByPattern(fsPattern)
-            if isNotNull tuplePat then
-                let item = tuplePat.Patterns.IndexOf(fsPattern)
-                Assertion.Assert(item <> -1, "item <> -1")
-                tryMakePatPath (PatternParentTraverseStep.Tuple(item, tuplePat) :: path) tuplePat else
+            let step =
+                match parent with
+                | :? IAsPat as asPat ->
+                    let index = if asPat.LeftPattern == pat then 0 else 1 
+                    PatternParentTraverseStep.As(index, asPat)
 
-            let orPat = OrPatNavigator.GetByPattern1(fsPattern)
-            if isNotNull orPat then
-                tryMakePatPath (PatternParentTraverseStep.Or(0, orPat) :: path) orPat else
+                | :? ITuplePat as tuplePat ->
+                    let index = tuplePat.Patterns.IndexOf(pat)
+                    PatternParentTraverseStep.Tuple(index, tuplePat)
 
-            let orPat = OrPatNavigator.GetByPattern2(fsPattern)
-            if isNotNull orPat then
-                tryMakePatPath (PatternParentTraverseStep.Or(1, orPat) :: path) orPat else
+                | :? IOrPat as orPat ->
+                    let index = if orPat.Pattern1 == pat then 0 else 1
+                    PatternParentTraverseStep.Or(index, orPat)
 
-            let andsPat = AndsPatNavigator.GetByPattern(fsPattern)
-            if isNotNull andsPat then
-                tryMakePatPath (PatternParentTraverseStep.And(andsPat) :: path) andsPat else
+                | :? IAndsPat as andsPat ->
+                    let index = andsPat.Patterns.IndexOf(pat)
+                    PatternParentTraverseStep.And(index, andsPat)
 
-            fsPattern, path
+                | :? IParametersOwnerPat as parametersOwnerPat ->
+                    PatternParentTraverseStep.ParameterOwner(parametersOwnerPat)
+
+                | :? IArrayOrListPat as listPat ->
+                    let index = listPat.Patterns.IndexOf(pat)
+                    PatternParentTraverseStep.List(index, listPat)
+
+                | :? IListConsPat as listConsPat ->
+                    let index = if listConsPat.HeadPattern == pat then 0 else 1
+                    PatternParentTraverseStep.ListCons(index, listConsPat)
+
+                | :? IFieldPat as fieldPat ->
+                    PatternParentTraverseStep.Field(fieldPat.ShortName, fieldPat)
+
+                | :? IRecordPat as recordPat ->
+                    PatternParentTraverseStep.Record(recordPat)
+
+                | _ -> PatternParentTraverseStep.Error
+
+            match step with
+            | PatternParentTraverseStep.Error -> pat, path
+            | _ -> tryMakePatPath (step :: path) parent
 
         tryMakePatPath [] pat
 

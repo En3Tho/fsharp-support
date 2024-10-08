@@ -3,6 +3,7 @@ namespace JetBrains.ReSharper.Plugins.FSharp.Tests.Features
 open System
 open System.Linq.Expressions
 open JetBrains.ReSharper.Feature.Services.CSharp.CodeCompletion.Settings
+open JetBrains.ReSharper.Feature.Services.CodeCompletion.Infrastructure.AspectLookupItems.BaseInfrastructure
 open JetBrains.ReSharper.FeaturesTestFramework.Completion
 open JetBrains.ReSharper.Plugins.FSharp
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.CodeCompletion
@@ -26,6 +27,9 @@ type FSharpCompletionTest() =
         let paths = names |> Array.map (fun name -> testDir.Combine(name).FullPath)
         x.DoTestSolution(paths)
 
+    member x.DoNamedTestFsCs() =
+        x.DoTestSolution(FSharpTestUtil.referenceCSharpProject x)
+
     [<Test>] member x.``Attribute 01``() = x.DoNamedTest()
     [<Test>] member x.``Attribute 02``() = x.DoNamedTest()
     [<Test>] member x.``Attribute - Top level module 01``() = x.DoNamedTest()
@@ -47,6 +51,15 @@ type FSharpCompletionTest() =
     [<Test; Explicit>] member x.``Bind - Qualifier - Enum case 02 - Escape``() = x.DoNamedTest()
     [<Test; Explicit>] member x.``Bind - Qualifier - Enum case 03``() = x.DoNamedTest() // todo: fix in 233
 
+    [<Test; Explicit>] member x.``Import - Extension - FSharp - Source - Method - Generic 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Import - Extension - FSharp - Source - Method - Generic 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Import - Extension - FSharp - Source - Method 01``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Import - Extension - FSharp - Source - Prop 01``() = x.DoNamedTest()
+    [<Test>] member x.``Import - Extension 01``() = x.DoNamedTestFsCs()
+    [<Test>] member x.``Import - Extension 02``() = x.DoNamedTestFsCs()
+    [<Test>] member x.``Import - Extension 03``() = x.DoNamedTestFsCs()
+    [<Test>] member x.``Import - Extension 04 - Internal type``() = x.DoNamedTestFsCs()
+
     [<Test>] member x.``Local val - Binary op 01``() = x.DoNamedTest()
     [<Test>] member x.``Local val - Binary op 02``() = x.DoNamedTest()
     [<Test>] member x.``Local val - New line 01``() = x.DoNamedTest()
@@ -66,6 +79,9 @@ type FSharpCompletionTest() =
     [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 15``() = x.DoNamedTest()
     [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 16``() = x.DoNamedTest()
     [<Test; Explicit "Extra item from FCS">] member x.``Local val - New line 17``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 18``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 19``() = x.DoNamedTest()
+    [<Test>] member x.``Local val - New line 20``() = x.DoNamedTest()
 
     [<Test; Explicit>] member x.``Lambda - Arg - Curried - Expr 01``() = x.DoNamedTest()
     [<Test>] member x.``Lambda - Arg - Curried - Tuple 01 - First``() = x.DoNamedTest()
@@ -149,6 +165,9 @@ type FSharpCompletionTest() =
     [<Test>] member x.``Record Field 01``() = x.DoNamedTest()
     [<Test>] member x.``Record Field 02``() = x.DoNamedTest()
     [<Test>] member x.``Record Field 03``() = x.DoNamedTest()
+    [<Test>] member x.``Record Field 04``() = x.DoNamedTest()
+    [<Test>] member x.``Record Field 05``() = x.DoNamedTest()
+    [<Test>] member x.``Record Field 06``() = x.DoNamedTest()
 
     [<Test>] member x.``To recursive - Escape 01``() = x.DoNamedTest()
     [<Test>] member x.``To recursive - Local 01``() = x.DoNamedTest()
@@ -527,6 +546,7 @@ type FSharpFilteredCompletionTest() =
     [<Test>] member x.``Expr - Record - Field - Unfinished 03``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Unfinished 04``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field - Unfinished 05 - Another ns``() = x.DoNamedTest()
+    [<Test>] member x.``Expr - Record - Field - Unfinished 06``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field 01``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field 02 - Other type``() = x.DoNamedTest()
     [<Test>] member x.``Expr - Record - Field 03``() = x.DoNamedTest()
@@ -563,14 +583,15 @@ type FSharpRegexCompletionTest() =
     override x.TestType = CodeCompletionTestType.Action
 
     [<Test>] member x.``Non-verbatim string completion 01``() = x.DoNamedTest()
-    [<Test>] member x.``Non-verbatim string completion 02``() = x.DoNamedTest()
-    [<Test>] member x.``Non-verbatim string completion 03``() = x.DoNamedTest()
-    [<Test>] member x.``Non-verbatim string completion 04``() = x.DoNamedTest()
 
     [<Test>] member x.``Verbatim string completion 01``() = x.DoNamedTest()
     [<Test>] member x.``Verbatim string completion 02``() = x.DoNamedTest()
-    [<Test>] member x.``Verbatim string completion 03``() = x.DoNamedTest()
-    [<Test>] member x.``Verbatim string completion 04``() = x.DoNamedTest()
+
+    [<Test>] member x.``Interpolated string completion 01 - Regular``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string completion 02 - Verbatim``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string completion 03 - Triple quoted``() = x.DoNamedTest()
+    [<Test>] member x.``Interpolated string completion 04 - Raw``() = x.DoNamedTest() //TODO: should be available
+    [<Test>] member x.``Interpolated string completion 05 - Not available``() = x.DoNamedTest()
 
     [<Test>] member x.``Brackets 01``() = x.DoNamedTest()
     [<Test>] member x.``Brackets 02 - Interpolation``() = x.DoNamedTest()
@@ -591,6 +612,9 @@ type FSharpCodeCompletionTypingTest() =
     override this.GetDoNotCompleteOnSetting() = this.Quote(fun key -> key.NonCompletingCharacters)
     override this.GetAutopopupTypeSetting() = this.Quote(fun key -> key.OnIdent)
 
+    [<Test>] member x.``Space - Pattern - As 01``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Pattern - As 02``() = x.DoNamedTest()
+    [<Test>] member x.``Space - Pattern - As 03``() = x.DoNamedTest()
     [<Test>] member x.``Space - Pattern 01``() = x.DoNamedTest()
     [<Test>] member x.``Space - Pattern 02``() = x.DoNamedTest()
     [<Test; Explicit("dotnet/fsharp#16055")>] member x.``Space - Pattern 03``() = x.DoNamedTest()
@@ -629,3 +653,35 @@ type FSharpSelectionCompletionTest() =
     [<Test>] member x.``CE - custom operation - not available - 02 if for`` () = x.DoNamedTest()
     [<Test>] member x.``CE - custom operation - not available - 03 use`` () = x.DoNamedTest()
     [<Test>] member x.``CE - custom operation - not available - 04 let nested`` () = x.DoNamedTest()
+
+
+[<FSharpTest>]
+type FSharpCompletionListTest() =
+    inherit CodeCompletionTestBase()
+
+    override x.RelativeTestDataPath = "features/completion/list"
+
+    override x.TestType = CodeCompletionTestType.List
+
+    override this.ItemSelector =
+            Func<_, _>(fun lookupItem -> lookupItem :? IAspectLookupItem<FSharpNameSuggestionInfo>)
+
+    [<Test>] member x.``Naming - Pat - As - IsInst 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - As - IsInst 02``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - List - Cons 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - List - Cons 02``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - List - Cons 03``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Naming - Pat - List - Cons 04``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Naming - Pat - List - Cons 05``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - List 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - List 02``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - Or 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - Or 02``() = x.DoNamedTest()
+    [<Test; Explicit>] member x.``Naming - Pat - Record 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - Tuple 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - Tuple 02``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat - Tuple 03``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Pat 02``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Type parameter 01``() = x.DoNamedTest()
+    [<Test>] member x.``Naming - Type parameter 02``() = x.DoNamedTest()

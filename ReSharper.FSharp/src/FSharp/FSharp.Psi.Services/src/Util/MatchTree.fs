@@ -5,6 +5,7 @@ open FSharp.Compiler.Symbols
 open JetBrains.Diagnostics
 open JetBrains.ReSharper.Plugins.FSharp.Psi
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util
+open JetBrains.ReSharper.Plugins.FSharp.Psi.Features.Util.FSharpPatternUtil.ParentTraversal
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Impl.Tree
 open JetBrains.ReSharper.Plugins.FSharp.Psi.Services.Util
@@ -100,7 +101,7 @@ and MatchNode =
                 |> String.concat ", "
             $"{case.DisplayName}({items})"
 
-        | (MatchTest.As _, [node1; node2]), _ ->
+        | (MatchTest.As, [node1; node2]), _ ->
             $"{string node1} as {string node2}"
 
         | (MatchTest.ActivePatternCase(index, group), nodes), _ ->
@@ -118,12 +119,15 @@ and MatchNode =
 
             $"{(group.Names[index])} {nodes}"
 
-        | (MatchTest.Error _, _), _ -> "error"
+        | (MatchTest.Error, _), _ -> "error"
 
         | (MatchTest.EmptyList, _), _ -> "[]"
 
         | (MatchTest.ListCons, [node1; node2]), _ ->
             $"({string node1} :: {string node2})"
+
+        | (MatchTest.Or, [node1; node2]), _ ->
+            $"({string node1}) | ({string node2})"
 
         | _ -> "other case"
 
@@ -197,6 +201,14 @@ module MatchType =
              ConstantValue.Bool(true, psiModule)
              ConstantValue.Bool(false, psiModule)]
         | _ -> failwith "todo1"
+
+    let getListNodeType context isHead value =
+        match isHead, value.Type with
+        | true, MatchType.List itemFcsType ->
+            let abbreviatedType = getAbbreviatedType itemFcsType
+            ofFcsType context abbreviatedType.GenericArguments[0]
+
+        | _ -> value.Type
 
 
 module MatchTest =
@@ -351,11 +363,7 @@ module MatchTest =
                     let listItemTest = MatchTest.ListConsItem isHead
                     let listItemPath = listItemTest :: listPath
 
-                    let nodeType =
-                        match isHead, value.Type with
-                        | true, MatchType.List itemFcsType -> MatchType.ofFcsType context itemFcsType.GenericArguments[0]
-                        | _ -> value.Type
-
+                    let nodeType = MatchType.getListNodeType context isHead value
                     let nodeValue = { Type = nodeType; Path = listItemPath }
                     let nodePattern = initialPattern deconstructions context isGenerating nodeValue
                     MatchNode.Create(nodeValue, nodePattern)
@@ -497,7 +505,7 @@ module MatchNode =
 
                 let patText = if not unionCase.HasFields then unionCase.Name else $"{unionCase.Name} _"
                 let pat = createPattern patText |> replaceWithPattern oldPat :?> IReferenceNameOwnerPat
-                FSharpPatternUtil.bindFcsSymbolToReference context pat.ReferenceName unionCase "get pattern"
+                FSharpBindUtil.bindFcsSymbolToReference context pat.ReferenceName.Reference unionCase "get pattern"
 
                 if not unionCase.HasFields then () else
 
@@ -523,7 +531,7 @@ module MatchNode =
                     let field, _ = fields |> Array.find (snd >> ((=) constantValue))
                     let patText = field.DisplayNameCore
                     let pat = createPattern patText |> replaceWithPattern oldPat :?> IReferenceNameOwnerPat
-                    FSharpPatternUtil.bindFcsSymbolToReference pat pat.ReferenceName field "get pattern"
+                    FSharpBindUtil.bindFcsSymbolToReference pat pat.ReferenceName.Reference field "get pattern"
                     match node.Value.Type with
                     | MatchType.Enum(enumEntity, _) ->
                         markSeenType enumEntity
@@ -898,11 +906,7 @@ let rec getMatchPattern (deconstructions: Deconstructions) (value: MatchValue) s
         let nodeTest = MatchTest.ListConsItem isHead
         let nodePath = nodeTest :: path
 
-        let nodeType =
-            match isHead, value.Type with
-            | true, MatchType.List itemFcsType -> MatchType.ofFcsType pat itemFcsType.GenericArguments[0]
-            | _ -> value.Type
-
+        let nodeType = MatchType.getListNodeType pat isHead value
         let nodeValue = { Type = nodeType; Path = nodePath }
         let nodePattern = getMatchPattern deconstructions nodeValue skipOnNull pat
         MatchNode.Create(nodeValue, nodePattern)
@@ -1179,9 +1183,12 @@ let ofMatchClause (value: MatchValue) (matchClause: IMatchClause) =
     let deconstructions = OneToListMap()
     getMatchPattern deconstructions value false matchClause.Pattern
 
-let ofMatchExpr (matchExpr: IMatchExpr) =
+let getMatchValue (matchExpr: IMatchExpr) =
     let matchType = getMatchExprMatchType matchExpr
-    let matchValue = { Type = matchType; Path = [] }
+    { Type = matchType; Path = [] }
+
+let ofMatchExpr (matchExpr: IMatchExpr) =
+    let matchValue = getMatchValue matchExpr
 
     let matchNodes = List()
     let deconstructions = OneToListMap()
@@ -1273,7 +1280,6 @@ let generateClauses (matchExpr: IMatchExpr) value nodes deconstructions =
     while MatchNode.increment deconstructions matchExpr true node do
         tryAddClause node
 
-
     let tempMatchClause = ModificationUtil.AddChild(matchExpr, bindContext.Factory.CreateMatchClause())
 
     for fcsEntity in bindContext.SeenTypes do
@@ -1291,17 +1297,16 @@ let generateClauses (matchExpr: IMatchExpr) value nodes deconstructions =
 
         case
         |> Option.iter (fun fcsSymbol ->
-            FSharpPatternUtil.bindFcsSymbol tempMatchClause.Pattern fcsSymbol "get pattern" |> ignore
+            FSharpBindUtil.bindFcsSymbol tempMatchClause.Pattern fcsSymbol "get pattern" |> ignore
         )
 
     let newClauses = TreeRange(sandBoxMatchExpr.WithKeyword.NextSibling, sandBoxMatchExpr.LastChild) |> Seq.toArray
     LowLevelModificationUtil.ReplaceChildRange(tempMatchClause, tempMatchClause, newClauses)
 
-
     lastClause |> Option.iter (moveSubsequentCommentToMatchClause matchExpr)
 
 
-let markToLevelDeconstructions (deconstructions: Deconstructions) (value: MatchValue) =
+let markTopLevelDeconstructions (deconstructions: Deconstructions) (value: MatchValue) =
     deconstructions.Add(value.Path, Deconstruction.InnerPatterns)
 
     match value.Type with
@@ -1314,3 +1319,42 @@ let markToLevelDeconstructions (deconstructions: Deconstructions) (value: MatchV
 
     | _ ->
         ()
+
+let rec tryNavigatePatternPath (path: PatternParentTraverseStep list) (node: MatchNode) =
+    let rec tryGetListItem node index =
+        if index < 0 then None else
+        if index = 0 then Some node else
+
+        match node.Pattern with
+        | MatchTest.ListCons, [_; tail] -> tryGetListItem tail (index - 1)
+        | _ -> None
+
+    match node.Pattern, path with
+    | _, [] -> Some node
+
+    | (MatchTest.Union _, [{ Pattern = (MatchTest.UnionCase, fieldNodes) }]), PatternParentTraverseStep.ParameterOwner _ :: path ->
+        match fieldNodes, path with
+        | fieldNode :: _, [] -> Some fieldNode
+        | [node], _ -> tryNavigatePatternPath path node 
+        | _ -> None
+
+    | (MatchTest.Tuple false, nodes), PatternParentTraverseStep.Tuple(index, _) :: path
+    | (MatchTest.Or, nodes), PatternParentTraverseStep.Or(index, _) :: path
+    | (MatchTest.And, nodes), PatternParentTraverseStep.And(index, _) :: path
+    | (MatchTest.ListCons, nodes), PatternParentTraverseStep.ListCons(index, _) :: path ->
+        List.tryItem index nodes |> Option.bind (tryNavigatePatternPath path)
+
+    | (MatchTest.ListCons, _), PatternParentTraverseStep.List(index, _) :: path ->
+        tryGetListItem node index |> Option.bind (tryNavigatePatternPath path)
+
+    // | (MatchTest.Record, fieldNodes), PatternParentTraverseStep.Record _ :: PatternParentTraverseStep.Field(name, _) :: _ ->
+    //     let matchNodeOption =
+    //         fieldNodes |> List.tryFind (fun node ->
+    //             match node.Pattern with
+    //             | MatchTest.Named(Some testName), _ -> testName = name
+    //             | _ -> false
+    //         )
+    //     None
+
+    | _ -> None
+    

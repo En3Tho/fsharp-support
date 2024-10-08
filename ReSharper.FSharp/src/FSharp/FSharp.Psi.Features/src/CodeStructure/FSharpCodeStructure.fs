@@ -5,6 +5,7 @@ open System.Collections.Generic
 open System.IO
 open JetBrains.Application
 open JetBrains.Application.BuildScript.Application.Zones
+open JetBrains.Application.Parts
 open JetBrains.Application.UI.Controls.JetPopupMenu
 open JetBrains.Application.UI.Controls.TreeView
 open JetBrains.ProjectModel
@@ -24,8 +25,8 @@ open JetBrains.UI.Icons
 open JetBrains.UI.RichText
 open JetBrains.Util
 
-[<SolutionComponent>]
-[<ZoneMarker(typeof<IResharperHostCoreFeatureZone>, typeof<IRiderProductEnvironmentZone>, typeof<IRiderFeatureZone>)>]
+[<SolutionComponent(InstantiationEx.LegacyDefault)>]
+[<ZoneMarker(typeof<IReSharperHostNetFeatureZone>, typeof<IRiderProductEnvironmentZone>, typeof<IRiderFeatureZone>)>]
 type FSharpExtendedFileStructureLanguage() =
     let filters : IStructureTreeElementFilter array = [| StructureTreeElementFilter() |]
     interface IExtendedFileStructureLanguage with
